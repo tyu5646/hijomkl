@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.container {
+  max-width: 1200px;
+}
+
+body {
+  font-family: 'Segoe UI', 'Prompt', 'Arial', sans-serif;
+  background-color: #f3f6fb;
+}

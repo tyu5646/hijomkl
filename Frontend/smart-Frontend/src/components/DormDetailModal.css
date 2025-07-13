@@ -1,0 +1,31 @@
+.animate-fadeInModal {
+  animation: fadeInModal 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes fadeInModal {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.animate-fadeOutModal {
+  animation: fadeOutModal 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes fadeOutModal {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.animate-zoomInModal {
+  animation: zoomInModal 0.28s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes zoomInModal {
+  0% { opacity: 0; transform: scale(0.7); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-zoomOutModal {
+  animation: zoomOutModal 0.28s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes zoomOutModal {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.7); }
+}
