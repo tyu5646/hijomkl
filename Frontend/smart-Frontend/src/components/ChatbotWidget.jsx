@@ -127,11 +127,8 @@ function ChatbotWidget({ onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          message: text, 
-          context: messages.map(m => ({ 
-            role: m.sender === 'user' ? 'user' : 'assistant', 
-            content: m.text 
-          }))
+          message: text,
+          conversationId: Date.now().toString()
         })
       });
       
@@ -147,7 +144,7 @@ function ChatbotWidget({ onClose }) {
       
       setMessages(msgs => [...msgs, { 
         sender: 'bot', 
-        text: data.reply || 'ขออภัยค่ะ ไม่สามารถประมวลผลคำตอบได้ในขณะนี้',
+        text: data.message || 'ขออภัยค่ะ ไม่สามารถประมวลผลคำตอบได้ในขณะนี้',
         timestamp: new Date()
       }]);
       

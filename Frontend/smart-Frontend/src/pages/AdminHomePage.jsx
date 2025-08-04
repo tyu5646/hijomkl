@@ -1,7 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import AdminSidebar from '../components/AdminSidebar';
 import { useNavigate } from 'react-router-dom';
-import { FaBuilding, FaUsers, FaChartLine, FaBell, FaCog, FaSearch, FaCalendarAlt, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { 
+  FaUniversity, 
+  FaUsers, 
+  FaChartLine, 
+  FaBell, 
+  FaCog, 
+  FaSearch, 
+  FaCalendarAlt, 
+  FaCheckCircle, 
+  FaTimesCircle,
+  FaHome,
+  FaShieldAlt,
+  FaClipboardList,
+  FaUsersCog,
+  FaEye
+} from 'react-icons/fa';
 
 function AdminHomePage() {
   const navigate = useNavigate();
@@ -14,24 +29,65 @@ function AdminHomePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // ตรวจสอบสิทธิ์ก่อนโหลดข้อมูล
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    const role = sessionStorage.getItem('role') || localStorage.getItem('role');
+    
+    if (!token || role !== 'admin') {
+      console.error('Access denied - not admin:', { token: !!token, role });
+      window.location.href = '/login';
+      return;
+    }
+    
     fetchStats();
   }, []);
 
   const fetchStats = async () => {
     try {
+      // ตรวจสอบ token
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const role = sessionStorage.getItem('role') || localStorage.getItem('role');
+      
+      console.log('Admin token check:', { token: !!token, role });
+      
+      if (!token || role !== 'admin') {
+        console.error('No admin token or wrong role:', { token: !!token, role });
+        // รีไดเรกต์ไปหน้าล็อกอิน
+        window.location.href = '/login';
+        return;
+      }
+
       // Fetch users data
       const usersResponse = await fetch('http://localhost:3001/admin/users', {
         headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('token')}`
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
       
       // Fetch dorms data
       const dormsResponse = await fetch('http://localhost:3001/admin/dorms?status=all', {
         headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('token')}`
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
+
+      console.log('API Response status:', { 
+        users: usersResponse.status, 
+        dorms: dormsResponse.status 
+      });
+
+      if (usersResponse.status === 401 || dormsResponse.status === 401) {
+        console.error('Unauthorized access - redirecting to login');
+        // ลบ token ที่หมดอายุ
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('role');
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        window.location.href = '/login';
+        return;
+      }
 
       if (usersResponse.ok && dormsResponse.ok) {
         const usersData = await usersResponse.json();
@@ -43,6 +99,11 @@ function AdminHomePage() {
           pendingDorms: Array.isArray(dormsData) ? dormsData.filter(d => d.status === 'pending').length : 0,
           approvedDorms: Array.isArray(dormsData) ? dormsData.filter(d => d.status === 'approved').length : 0
         });
+      } else {
+        console.error('API Error:', { 
+          usersStatus: usersResponse.status,
+          dormsStatus: dormsResponse.status
+        });
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -52,7 +113,7 @@ function AdminHomePage() {
   };
 
   const quickActions = [
-    { title: 'อนุมัติหอพัก', desc: 'ตรวจสอบและอนุมัติหอพักใหม่', icon: <FaBuilding className="text-2xl" />, route: '/admin/dorms', color: 'text-orange-600', bg: 'bg-orange-100 hover:bg-orange-200', badge: stats.pendingDorms },
+    { title: 'อนุมัติหอพัก', desc: 'ตรวจสอบและอนุมัติหอพักใหม่', icon: <FaUniversity className="text-2xl" />, route: '/admin/dorms', color: 'text-orange-600', bg: 'bg-orange-100 hover:bg-orange-200', badge: stats.pendingDorms },
     { title: 'จัดการผู้ใช้', desc: 'เพิ่ม แก้ไข ลบข้อมูลผู้ใช้', icon: <FaUsers className="text-2xl" />, route: '/admin/users', color: 'text-blue-600', bg: 'bg-blue-100 hover:bg-blue-200', badge: stats.totalUsers },
     { title: 'รายงานและสถิติ', desc: 'ดูข้อมูลรายงานและสถิติ', icon: <FaChartLine className="text-2xl" />, route: '/admin/statistics', color: 'text-green-600', bg: 'bg-green-100 hover:bg-green-200' }
   ];
@@ -132,7 +193,7 @@ function AdminHomePage() {
             <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center text-2xl">
-                  <FaBuilding className="text-green-500" />
+                  <FaUniversity className="text-green-500" />
                 </div>
                 <span className="text-green-500 text-sm font-medium">อนุมัติแล้ว</span>
               </div>
@@ -154,7 +215,7 @@ function AdminHomePage() {
             <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center text-2xl">
-                  <FaBuilding className="text-purple-500" />
+                  <FaUniversity className="text-purple-500" />
                 </div>
                 <span className="text-purple-500 text-sm font-medium">รวม</span>
               </div>

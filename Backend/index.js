@@ -1,5 +1,17 @@
+/*
+===============================================================================
+                            SMART DORM BACKEND SERVER
+===============================================================================
+Description: Backend API server for Smart Dorm management system
+Author: Smart Dorm Development Team
+Version: 1.0.0
+Created: 2025
+===============================================================================
+*/
+
+// ==================== DEPENDENCIES & IMPORTS ====================
 const express = require('express');
-const AWS = require('aws-sdk');//
+const AWS = require('aws-sdk');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -12,18 +24,24 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 require('dotenv').config();
 
-
+// ==================== SERVER INITIALIZATION ====================
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server, { cors: { origin: '*' } });
 
+// ==================== MIDDLEWARE CONFIGURATION ====================
 app.use(cors());
 app.use(express.json());
 
-// เสิร์ฟไฟล์รูปภาพจากโฟลเดอร์ uploads
+// Static file serving for uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Health check endpoint
+// ==================== HEALTH CHECK ENDPOINT ====================
+/**
+ * Health check endpoint to verify server status
+ * @route GET /health
+ * @returns {Object} Server status and timestamp
+ */
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
@@ -32,26 +50,51 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ตั้งค่า AWS S3
-AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION
+// ================================================================================================
+// 4. DATABASE CONFIGURATION
+// ================================================================================================
+
+/**
+ * MySQL Connection Pool Configuration
+ * จัดการการเชื่อมต่อฐานข้อมูล MySQL แบบ Connection Pool เพื่อประสิทธิภาพที่ดี
+ */
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_DATABASE || 'efllll',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
-const s3 = new AWS.S3();
 
-const upload = multer({ dest: 'uploads/' });
+/**
+ * Test Database Connection
+ * ทดสอบการเชื่อมต่อฐานข้อมูลเมื่อเริ่มต้นระบบ
+ */
+pool.getConnection((err, connection) => {
+  if (err) {
+    console.error('❌ Error connecting to database:', err);
+    return;
+  }
+  console.log('✅ Connected to MySQL database');
+  connection.release();
+});
 
-// สำหรับอัปโหลดรูปโปรไฟล์ลูกค้า
+// ==================== FILE UPLOAD CONFIGURATION ====================
+/**
+ * Multer storage configuration for customer profile pictures
+ * Handles file uploads to the uploads directory
+ */
 const profileStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // เก็บในโฟลเดอร์ uploads
+    cb(null, 'uploads/'); // Store in uploads folder
   },
   filename: function (req, file, cb) {
-    // ดึงข้อมูลลูกค้าจากฐานข้อมูลเพื่อใช้ชื่อจริง
+    // Generate filename using customer info from database
     pool.query('SELECT firstName, lastName FROM customers WHERE id = ?', [req.user.id], (err, results) => {
       if (err || results.length === 0) {
-        // หากเกิดข้อผิดพลาด ใช้ id และ timestamp
+        // If error occurs, use id and timestamp
         const timestamp = Date.now();
         const ext = path.extname(file.originalname);
         cb(null, `customer_${req.user.id}_${timestamp}${ext}`);
@@ -59,7 +102,7 @@ const profileStorage = multer.diskStorage({
         const customer = results[0];
         const timestamp = Date.now();
         const ext = path.extname(file.originalname);
-        // ใช้ชื่อจริงของลูกค้า
+        // Use customer's real name
         const filename = `${customer.firstName}_${customer.lastName}_${timestamp}${ext}`;
         cb(null, filename);
       }
@@ -67,13 +110,17 @@ const profileStorage = multer.diskStorage({
   }
 });
 
+/**
+ * Multer upload middleware for customer profile pictures
+ * Includes file size and type validation
+ */
 const uploadProfile = multer({ 
   storage: profileStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // จำกัดขนาดไฟล์ 5MB
+    fileSize: 5 * 1024 * 1024 // 5MB file size limit
   },
   fileFilter: function (req, file, cb) {
-    // ตรวจสอบประเภทไฟล์
+    // Only allow image files
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -82,20 +129,45 @@ const uploadProfile = multer({
   }
 });
 
-// เชื่อมต่อฐาน efllll
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+/**
+ * Multer storage configuration for dorm images
+ * Uses timestamp-based filename generation
+ */
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
 });
 
-// ตรวจสอบและเพิ่มคอลัมน์ที่จำเป็นถ้ายังไม่มี
+/**
+ * Multer upload middleware for dorm images
+ * Includes file size and type validation
+ */
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB file size limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Only allow image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('อนุญาตเฉพาะไฟล์รูปภาพเท่านั้น'), false);
+    }
+  }
+});
+
+// ==================== DATABASE INITIALIZATION ====================
+/**
+ * Initialize database with required columns and tables
+ * Checks and adds missing columns to existing tables
+ */
 function initializeDatabase() {
-  // ตรวจสอบ avatar_url ใน customers
+  // Check for avatar_url column in customers table
   const checkAvatarColumnSql = `
     SELECT COLUMN_NAME 
     FROM INFORMATION_SCHEMA.COLUMNS 
@@ -198,12 +270,99 @@ function initializeDatabase() {
       console.log('✅ updated_at column already exists');
     }
   });
+
+  // ตรวจสอบและเพิ่ม zip_code column ใน owners table
+  const checkOwnerZipCodeSql = `
+    SELECT COLUMN_NAME 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_NAME = 'owners' 
+    AND COLUMN_NAME = 'zip_code'
+    AND TABLE_SCHEMA = ?
+  `;
+  
+  pool.query(checkOwnerZipCodeSql, [process.env.DB_DATABASE], (err, results) => {
+    if (err) {
+      console.error('Error checking zip_code column in owners:', err);
+      return;
+    }
+    
+    if (results.length === 0) {
+      const addZipCodeSql = `ALTER TABLE owners ADD COLUMN zip_code VARCHAR(10) DEFAULT NULL`;
+      
+      pool.query(addZipCodeSql, (err) => {
+        if (err) {
+          console.error('Error adding zip_code column to owners:', err);
+        } else {
+          console.log('✅ Added zip_code column to owners table');
+        }
+      });
+    } else {
+      console.log('✅ zip_code column already exists in owners table');
+    }
+  });
+
+  // ตรวจสอบและสร้างตาราง reviews
+  const checkReviewsTableSql = `
+    SELECT TABLE_NAME 
+    FROM INFORMATION_SCHEMA.TABLES 
+    WHERE TABLE_NAME = 'reviews' 
+    AND TABLE_SCHEMA = ?
+  `;
+  
+  pool.query(checkReviewsTableSql, [process.env.DB_DATABASE], (err, results) => {
+    if (err) {
+      console.error('Error checking reviews table:', err);
+      return;
+    }
+    
+    if (results.length === 0) {
+      // สร้างตาราง reviews
+      const createReviewsTableSql = `
+        CREATE TABLE reviews (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          customer_id INT NOT NULL,
+          dorm_id INT NOT NULL,
+          rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+          comment TEXT,
+          cleanliness_rating INT CHECK (cleanliness_rating >= 1 AND cleanliness_rating <= 5),
+          location_rating INT CHECK (location_rating >= 1 AND location_rating <= 5),
+          value_rating INT CHECK (value_rating >= 1 AND value_rating <= 5),
+          service_rating INT CHECK (service_rating >= 1 AND service_rating <= 5),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+          FOREIGN KEY (dorm_id) REFERENCES dorms(id) ON DELETE CASCADE,
+          UNIQUE KEY unique_customer_dorm (customer_id, dorm_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `;
+      
+      pool.query(createReviewsTableSql, (err) => {
+        if (err) {
+          console.error('Error creating reviews table:', err);
+        } else {
+          console.log('✅ Created reviews table successfully');
+        }
+      });
+    } else {
+      console.log('✅ reviews table already exists');
+    }
+  });
 }
 
-// เริ่มต้นฐานข้อมูล
+// Initialize database schema on server startup
 initializeDatabase();
 
-// Authentication Middleware
+// ================================================================================================
+// 5. AUTHENTICATION MIDDLEWARE
+// ================================================================================================
+
+/**
+ * JWT Token Verification Middleware
+ * ตรวจสอบความถูกต้องของ JWT token ที่ส่งมากับ request header
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
 function verifyToken(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   
@@ -212,240 +371,220 @@ function verifyToken(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'defaultsecret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
     req.user = decoded;
     next();
   } catch (err) {
-    console.error('Token verification error:', err);
+    console.error('❌ Token verification error:', err);
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
 
-// Admin Token Verification Middleware
+/**
+ * Admin Token Verification Middleware
+ * ตรวจสอบความถูกต้องของ JWT token และสิทธิ์ admin
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
 function verifyAdminToken(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   
   if (!token) {
+    console.log('❌ No token provided');
     return res.status(401).json({ error: 'Unauthorized - No token provided' });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'defaultsecret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
+    console.log('✅ Token decoded:', decoded);
     
     if (decoded.role !== 'admin') {
+      console.log('❌ Not admin role:', decoded.role);
       return res.status(403).json({ error: 'Forbidden - Admin access required' });
     }
     
     req.user = decoded;
     next();
   } catch (err) {
-    console.error('Token verification error:', err);
-    return res.status(401).json({ error: 'Invalid token' });
+    console.error('❌ Token verification error:', err.message);
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
-// สมัครสมาชิก
+// ================================================================================================
+// 6. API ENDPOINTS - AUTHENTICATION & REGISTRATION
+// ================================================================================================
+
+/**
+ * User Registration Endpoint
+ * รองรับการสมัครสมาชิกสำหรับ customer, owner, และ admin
+ * @route POST /register
+ * @param {string} role - บทบาทของผู้ใช้ (customer/owner/admin)
+ * @param {string} password - รหัสผ่าน
+ * @param {Object} data - ข้อมูลส่วนบุคคล
+ */
 app.post('/register', async (req, res) => {
   const { role, password, ...data } = req.body;
-  if (!password) return res.status(400).json({ error: 'กรุณากรอกรหัสผ่าน' });
-
-  const hash = await bcrypt.hash(password, 10);
-
-  let sql = '';
-  let values = [];
-
-  if (role === 'customer') {
-    sql = `INSERT INTO customers 
-      (firstName, lastName, age, dob, houseNo, moo, soi, road, subdistrict, district, province, email, password, phone)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    values = [
-      data.firstName, data.lastName, data.age, data.dob, data.houseNo, data.moo, data.soi, data.road,
-      data.subdistrict, data.district, data.province, data.email, hash, data.phone
-    ];
-  } else if (role === 'owner') {
-    sql = `INSERT INTO owners 
-      (dormName, firstName, lastName, age, dob, houseNo, moo, soi, road, subdistrict, district, province, email, password, phone)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    values = [
-      data.dormName, data.firstName, data.lastName, data.age, data.dob, data.houseNo, data.moo, data.soi, data.road,
-      data.subdistrict, data.district, data.province, data.email, hash, data.phone
-    ];
-  } else if (role === 'admin') {
-    sql = `INSERT INTO admins 
-      (firstName, lastName, age, dob, houseNo, moo, soi, road, subdistrict, district, province, email, password, phone)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    values = [
-      data.firstName, data.lastName, data.age, data.dob, data.houseNo, data.moo, data.soi, data.road,
-      data.subdistrict, data.district, data.province, data.email, hash, data.phone
-    ];
-  } else {
-    return res.status(400).json({ error: 'Invalid role' });
+  
+  if (!password) {
+    return res.status(400).json({ error: 'กรุณากรอกรหัสผ่าน' });
   }
 
-  pool.query(sql, values, (err, result) => {
-    if (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        return res.status(400).json({ error: 'อีเมลนี้ถูกใช้แล้ว' });
+  try {
+    const hash = await bcrypt.hash(password, 10);
+
+    let sql = '';
+    let values = [];
+
+    // Customer registration
+    if (role === 'customer') {
+      sql = `INSERT INTO customers 
+        (firstName, lastName, age, dob, houseNo, moo, soi, road, subdistrict, district, province, email, password, phone)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      values = [
+        data.firstName, data.lastName, data.age, data.dob, data.houseNo, data.moo, data.soi, data.road,
+        data.subdistrict, data.district, data.province, data.email, hash, data.phone
+      ];
+    } 
+    // Owner registration
+    else if (role === 'owner') {
+      sql = `INSERT INTO owners 
+        (dormName, firstName, lastName, age, dob, houseNo, moo, soi, road, subdistrict, district, province, email, password, phone)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      values = [
+        data.dormName, data.firstName, data.lastName, data.age, data.dob, data.houseNo, data.moo, data.soi, data.road,
+        data.subdistrict, data.district, data.province, data.email, hash, data.phone
+      ];
+    } 
+    // Admin registration
+    else if (role === 'admin') {
+      sql = `INSERT INTO admins 
+        (firstName, lastName, age, dob, houseNo, moo, soi, road, subdistrict, district, province, email, password, phone)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      values = [
+        data.firstName, data.lastName, data.age, data.dob, data.houseNo, data.moo, data.soi, data.road,
+        data.subdistrict, data.district, data.province, data.email, hash, data.phone
+      ];
+    } else {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    pool.query(sql, values, (err, result) => {
+      if (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ error: 'อีเมลนี้ถูกใช้แล้ว' });
+        }
+        return res.status(500).json({ error: err.message });
       }
+      res.json({ success: true, message: 'สมัครสมาชิกสำเร็จ' });
+    });
+  } catch (err) {
+    console.error('❌ Registration error:', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
+  }
+});
+
+// ================================================================================================
+// 7. API ENDPOINTS - DORM MANAGEMENT
+// ================================================================================================
+
+/**
+ * Get All Approved Dorms with Images
+ * ดึงข้อมูลหอพักทั้งหมดที่ผ่านการอนุมัติพร้อมรูปภาพ
+ * @route GET /dorms
+ * @returns {Array} รายการหอพักที่ได้รับการอนุมัติพร้อมรูปภาพ
+ */
+app.get('/dorms', (req, res) => {
+  const sql = `
+    SELECT dorms.*, dorm_images.image_path
+    FROM dorms
+    LEFT JOIN dorm_images ON dorms.id = dorm_images.dorm_id
+    WHERE dorms.status = 'approved'
+  `;
+  
+  pool.query(sql, (err, results) => {
+    if (err) {
+      console.error('❌ Error fetching dorms:', err);
       return res.status(500).json({ error: err.message });
     }
-    res.json({ success: true });
+    
+    // Group images by dorm ID
+    const dormMap = {};
+    results.forEach(row => {
+      if (!dormMap[row.id]) {
+        dormMap[row.id] = { ...row, images: [] };
+      }
+      if (row.image_path) {
+        dormMap[row.id].images.push(row.image_path);
+      }
+    });
+    
+    // Convert to array and remove image_path field
+    const dorms = Object.values(dormMap).map(dorm => {
+      delete dorm.image_path;
+      return dorm;
+    });
+    
+    res.json(dorms);
   });
 });
 
-// ดึงข้อมูลหอพักพร้อม group รูปเป็น array
-app.get('/dorms', (req, res) => {
-  pool.query(
-    `SELECT dorms.*, dorm_images.image_path
-     FROM dorms
-     LEFT JOIN dorm_images ON dorms.id = dorm_images.dorm_id
-     WHERE dorms.status = 'approved'`,
-    (err, results) => {
-      if (err) return res.status(500).json({ error: err.message });
-      const dormMap = {};
-      results.forEach(row => {
-        if (!dormMap[row.id]) {
-          dormMap[row.id] = { ...row, images: [] };
-        }
-        if (row.image_path) dormMap[row.id].images.push(row.image_path);
-      });
-      const dorms = Object.values(dormMap).map(d => {
-        delete d.image_path;
-        return d;
-      });
-      res.json(dorms);
-    }
-  );
-});
-
-// สำหรับผู้ประกอบการ
+/**
+ * Get Owner's Dorms
+ * ดึงข้อมูลหอพักของเจ้าของหอพักคนนั้นๆ
+ * @route GET /owner/dorms
+ * @access Private (Owner only)
+ * @returns {Array} รายการหอพักของเจ้าของ
+ */
 app.get('/owner/dorms', authOwner, (req, res) => {
   const owner_id = req.user.id;
-  pool.query(
-    `SELECT dorms.*, dorm_images.image_path
-     FROM dorms
-     LEFT JOIN dorm_images ON dorms.id = dorm_images.dorm_id
-     WHERE dorms.owner_id = ?`,
-    [owner_id],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: err.message });
-      const dormMap = {};
-      results.forEach(row => {
-        if (!dormMap[row.id]) {
-          dormMap[row.id] = { ...row, images: [] };
-        }
-        if (row.image_path) dormMap[row.id].images.push(row.image_path);
-      });
-      const dorms = Object.values(dormMap).map(d => {
-        delete d.image_path;
-        return d;
-      });
-      res.json(dorms);
-    }
-  );
-});
-
-// สำหรับผู้ดูแลระบบ - ดูรายการหอพักสำหรับอนุมัติ
-app.get('/admin/dorms', (req, res) => {
-  const { status } = req.query;
-  
-  let statusCondition = '';
-  const params = [];
-  
-  if (status && status !== 'all') {
-    statusCondition = ` WHERE dorms.status = ?`;
-    params.push(status);
-  }
-
-  const query = `
-    SELECT 
-      dorms.*,
-      COALESCE(owners.firstName, 'ไม่ระบุเจ้าของ') as owner_name,
-      COALESCE(owners.email, 'ไม่ระบุอีเมล') as owner_email,
-      COALESCE(owners.phone, 'ไม่ระบุเบอร์โทร') as owner_phone,
-      GROUP_CONCAT(dorm_images.image_path) as images
+  const sql = `
+    SELECT dorms.*, dorm_images.image_path
     FROM dorms
-    LEFT JOIN owners ON dorms.owner_id = owners.id
     LEFT JOIN dorm_images ON dorms.id = dorm_images.dorm_id
-    ${statusCondition}
-    GROUP BY dorms.id
-    ORDER BY dorms.created_at DESC
+    WHERE dorms.owner_id = ?
   `;
-
-  pool.query(query, params, (err, results) => {
+  
+  pool.query(sql, [owner_id], (err, results) => {
     if (err) {
-      console.error('Error fetching dorms for admin:', err);
-      return res.status(500).json({ 
-        error: 'Database error', 
-        message: err.message,
-        success: false 
-      });
+      console.error('❌ Error fetching owner dorms:', err);
+      return res.status(500).json({ error: err.message });
     }
     
-    // ตรวจสอบว่า results เป็น array
-    const dormsArray = Array.isArray(results) ? results : [];
-    res.json(dormsArray);
+    // Group images by dorm ID
+    const dormMap = {};
+    results.forEach(row => {
+      if (!dormMap[row.id]) {
+        dormMap[row.id] = { ...row, images: [] };
+      }
+      if (row.image_path) {
+        dormMap[row.id].images.push(row.image_path);
+      }
+    });
+    
+    // Convert to array and remove image_path field
+    const dorms = Object.values(dormMap).map(dorm => {
+      delete dorm.image_path;
+      return dorm;
+    });
+    
+    res.json(dorms);
   });
 });
 
-// อนุมัติหอพัก
-app.put('/admin/dorms/:id/approve', (req, res) => {
-  const dormId = req.params.id;
-  
-  pool.query(
-    'UPDATE dorms SET status = ?, updated_at = NOW() WHERE id = ?',
-    ['approved', dormId],
-    (err, result) => {
-      if (err) {
-        console.error('Error approving dorm:', err);
-        return res.status(500).json({ error: err.message });
-      }
-      
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: 'ไม่พบหอพัก' });
-      }
-      
-      res.json({ 
-        success: true, 
-        message: 'อนุมัติหอพักเรียบร้อยแล้ว',
-        dormId: dormId 
-      });
-    }
-  );
-});
+// ================================================================================================
+// 8. API ENDPOINTS - USER AUTHENTICATION
+// ================================================================================================
 
-// ไม่อนุมัติหอพัก
-app.put('/admin/dorms/:id/reject', (req, res) => {
-  const dormId = req.params.id;
-  const { reason } = req.body;
-  
-  pool.query(
-    'UPDATE dorms SET status = ?, reject_reason = ?, updated_at = NOW() WHERE id = ?',
-    ['rejected', reason || 'ไม่ระบุเหตุผล', dormId],
-    (err, result) => {
-      if (err) {
-        console.error('Error rejecting dorm:', err);
-        return res.status(500).json({ error: err.message });
-      }
-      
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: 'ไม่พบหอพัก' });
-      }
-      
-      res.json({ 
-        success: true, 
-        message: 'ไม่อนุมัติหอพักเรียบร้อยแล้ว',
-        dormId: dormId,
-        reason: reason 
-      });
-    }
-  );
-});
-
-// ตัวอย่าง secret สำหรับ JWT
-// const JWT_SECRET = 'your_secret_key';
-
-// /login: ตรวจสอบ email+password และส่ง token + role กลับ
+/**
+ * User Login Endpoint
+ * ตรวจสอบข้อมูลเข้าสู่ระบบและส่ง JWT token กลับ
+ * @route POST /login
+ * @param {string} email - อีเมลผู้ใช้
+ * @param {string} password - รหัสผ่าน
+ * @returns {Object} JWT token และข้อมูลผู้ใช้
+ */
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -472,19 +611,22 @@ app.post('/login', async (req, res) => {
     // Check tables sequentially
     let user = await findUser('customers', 'customer');
     if (user) {
-      const token = jwt.sign({ id: user.id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: '1d' });
+      const token = jwt.sign({ id: user.id, role: 'customer' }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '1d' });
+      console.log('Customer login successful:', { id: user.id, role: 'customer' });
       return res.json({ token, role: 'customer' });
     }
 
     user = await findUser('owners', 'owner');
     if (user) {
-      const token = jwt.sign({ id: user.id, role: 'owner' }, process.env.JWT_SECRET, { expiresIn: '1d' });
+      const token = jwt.sign({ id: user.id, role: 'owner' }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '1d' });
+      console.log('Owner login successful:', { id: user.id, role: 'owner' });
       return res.json({ token, role: 'owner' });
     }
 
     user = await findUser('admins', 'admin');
     if (user) {
-      const token = jwt.sign({ id: user.id, role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '1d' });
+      const token = jwt.sign({ id: user.id, role: 'admin' }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '1d' });
+      console.log('Admin login successful:', { id: user.id, role: 'admin', email: user.email });
       return res.json({ token, role: 'admin' });
     }
 
@@ -495,19 +637,6 @@ app.post('/login', async (req, res) => {
     console.error('Login error:', err);
     return res.status(500).json({ error: 'เกิดข้อผิดพลาดในระบบ' });
   }
-});
-
-app.post('/upload', upload.single('image'), (req, res) => {
-  const { dorm_id } = req.body;
-  const imagePath = '/uploads/' + req.file.filename;
-  pool.query(
-    'INSERT INTO dorm_images (dorm_id, image_path) VALUES (?, ?)',
-    [dorm_id, imagePath],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, imagePath });
-    }
-  );
 });
 
 // Broadcast event เมื่อมีการเปลี่ยนแปลงข้อมูลหอพัก
@@ -537,214 +666,6 @@ app.post('/dorms', upload.array('images', 10), (req, res) => {
   });
 });
 
-// API สำหรับแก้ไขข้อมูลหอพัก (รองรับแก้ไข/เพิ่มรูปใหม่หลายรูป)
-app.put('/dorms/:id', upload.array('images', 10), (req, res) => {
-  const dormId = req.params.id;
-  const { name, price_daily, price_monthly, price_term, floor_count, room_count, address_detail, water_cost, electricity_cost, deposit, contact_phone, facilities, near_places, existingImages } = req.body;
-  const parsedExistingImages = existingImages ? JSON.parse(existingImages) : [];
-
-  pool.query(
-    'UPDATE dorms SET name=?, price_daily=?, price_monthly=?, price_term=?, floor_count=?, room_count=?, address_detail=?, water_cost=?, electricity_cost=?, deposit=?, contact_phone=?, facilities=?, near_places=? WHERE id=?',
-    [name, price_daily, price_monthly, price_term, floor_count, room_count, address_detail, water_cost, electricity_cost, deposit, contact_phone, facilities, near_places, dormId],
-    (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-
-      // Logic to delete removed images
-      pool.query('SELECT image_path FROM dorm_images WHERE dorm_id = ?', [dormId], (selectErr, currentImages) => {
-        if (selectErr) return res.status(500).json({ error: selectErr.message });
-
-        const imagesToDelete = currentImages
-          .map(img => img.image_path)
-          .filter(path => !parsedExistingImages.includes(path));
-
-        if (imagesToDelete.length > 0) {
-          pool.query('DELETE FROM dorm_images WHERE dorm_id = ? AND image_path IN (?)', [dormId, imagesToDelete], (deleteErr) => {
-            if (deleteErr) console.error("Error deleting images:", deleteErr); // Log error but continue
-          });
-        }
-      });
-
-      // Logic to add new images
-      if (req.files && req.files.length > 0) {
-        const imageValues = req.files.map(f => [dormId, '/uploads/' + f.filename]);
-        pool.query('INSERT INTO dorm_images (dorm_id, image_path) VALUES ?', [imageValues], (imgErr) => {
-          if (imgErr) return res.status(500).json({ error: imgErr.message });
-          broadcastDormsUpdate();
-          res.json({ success: true });
-        });
-      } else {
-        broadcastDormsUpdate();
-        res.json({ success: true });
-      }
-    }
-  );
-});
-
-// แก้ไขรูปหอพัก (เปลี่ยนรูปใหม่)
-app.put('/dorms/:id/image', upload.single('image'), (req, res) => {
-  const dormId = req.params.id;
-  if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
-  const imagePath = '/uploads/' + req.file.filename;
-
-  // ลบรูปเก่า (optional: ถ้าต้องการ)
-  // db.query('SELECT image_path FROM dorm_images WHERE dorm_id=?', [dormId], (err, results) => { ... });
-
-  // อัปเดตรูปใหม่
-  pool.query(
-    'REPLACE INTO dorm_images (dorm_id, image_path) VALUES (?, ?)',
-
-    [dormId, imagePath],
-    (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      broadcastDormsUpdate(); // <--- เพิ่ม emit หลังแก้ไขรูป
-      res.json({ success: true });
-    }
-  );
-});
-
-// ลบหอพัก (ลบทั้ง dorm_images และ dorms)
-app.delete('/dorms/:id', (req, res) => {
-  const dormId = req.params.id;
-  // ลบรูปก่อน
-  pool.query('DELETE FROM dorm_images WHERE dorm_id = ?', [dormId], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    // ลบข้อมูลหอพัก
-    pool.query('DELETE FROM dorms WHERE id = ?', [dormId], (err2) => {
-      if (err2) return res.status(500).json({ error: err2.message });
-      // หลัง delete สำเร็จ
-      broadcastDormsUpdate();
-      res.json({ success: true });
-    });
-  });
-});
-
-app.get('/users', (req, res) => {
-  const sql = `
-    SELECT id, firstName, lastName, email, phone, 'customer' as role FROM customers
-    UNION ALL
-    SELECT id, firstName, lastName, email, phone, 'owner' as role FROM owners
-  `;
-  pool.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
-  });
-});
-
-// เพิ่มสมาชิก (ลูกค้า/ผู้ประกอบการ)
-app.post('/users', async (req, res) => {
-  const { role, ...data } = req.body;
-  if (!role) return res.status(400).json({ error: 'Role is required' });
-
-  // เตรียมฟิลด์และค่า
-  let fields = Object.keys(data);
-  let values = Object.values(data);
-
-  // ถ้ามี password ให้ hash ก่อน
-  if (data.password) {
-    data.password = await bcrypt.hash(data.password, 10);
-    fields = Object.keys(data);
-    values = Object.values(data);
-  }
-
-  const table = role === 'customer' ? 'customers' : role === 'owner' ? 'owners' : null;
-  if (!table) return res.status(400).json({ error: 'Invalid role' });
-
-  const sql = `INSERT INTO ${table} (${fields.join(',')}) VALUES (${fields.map(() => '?').join(',')})`;
-  pool.query(sql, values, (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
-  });
-});
-
-// แก้ไขสมาชิก (ลูกค้า/ผู้ประกอบการ)
-app.put('/users/:id', async (req, res) => {
-  const { role, ...data } = req.body;
-  const userId = req.params.id;
-  if (!role) return res.status(400).json({ error: 'Role is required' });
-
-  // ถ้ามี password ให้ hash ก่อน
-  if (data.password && data.password !== '') {
-    data.password = await bcrypt.hash(data.password, 10);
-  } else {
-    delete data.password;
-  }
-
-  const table = role === 'customer' ? 'customers' : role === 'owner' ? 'owners' : null;
-  if (!table) return res.status(400).json({ error: 'Invalid role' });
-
-  const fields = Object.keys(data);
-  const values = Object.values(data);
-
-  if (fields.length === 0) return res.status(400).json({ error: 'No data to update' });
-
-  const setClause = fields.map(f => `${f}=?`).join(', ');
-  const sql = `UPDATE ${table} SET ${setClause} WHERE id=?`;
-  pool.query(sql, [...values, userId], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
-  });
-});
-
-// ลบสมาชิก
-app.delete('/users/:id', (req, res) => {
-  const { role } = req.query; // รับ role จาก query string
-  const userId = req.params.id;
-
-  let sql = '';
-  if (role === 'customer') {
-    sql = 'DELETE FROM customers WHERE id=?';
-  } else if (role === 'owner') {
-    sql = 'DELETE FROM owners WHERE id=?';
-  } else {
-    return res.status(400).json({ error: 'Invalid role' });
-  }
-
-  pool.query(sql, [userId], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
-  });
-});
-
-// สมมติใช้ middleware ตรวจสอบ token แล้ว set req.user.id = owner_id
-function authOwner(req, res, next) {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET); // <-- แก้ไขที่นี่
-    if (decoded.role !== 'owner') return res.status(403).json({ error: 'Forbidden' });
-    req.user = { id: decoded.id };
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-}
-
-app.get('/owner/dorms', authOwner, (req, res) => {
-  const owner_id = req.user.id;
-  pool.query(
-    `SELECT dorms.*, dorm_images.image_path
-     FROM dorms
-     LEFT JOIN dorm_images ON dorms.id = dorm_images.dorm_id
-     WHERE dorms.owner_id = ?`,
-    [owner_id],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: err.message });
-      const dormMap = {};
-      results.forEach(row => {
-        if (!dormMap[row.id]) {
-          dormMap[row.id] = { ...row, images: [] };
-        }
-        if (row.image_path) dormMap[row.id].images.push(row.image_path);
-      });
-      const dorms = Object.values(dormMap).map(d => {
-        delete d.image_path;
-        return d;
-      });
-      res.json(dorms);
-    }
-  );
-});
-
 app.post('/owner/dorms', authOwner, upload.array('images', 10), (req, res) => {
   const { name, price_daily, price_monthly, price_term, floor_count, room_count, address_detail, water_cost, electricity_cost, deposit, contact_phone, facilities, near_places } = req.body;
   const owner_id = req.user.id;
@@ -765,476 +686,767 @@ app.post('/owner/dorms', authOwner, upload.array('images', 10), (req, res) => {
   });
 });
 
-// สำหรับผู้ประกอบการ แก้ไขหอพัก (multiple images)
-app.put('/owner/dorms/:id', authOwner, upload.array('images', 10), (req, res) => {
-  const dormId = req.params.id;
-  const { name, price_daily, price_monthly, price_term, floor_count, room_count, address_detail, water_cost, electricity_cost, deposit, contact_phone, facilities, near_places, existingImages } = req.body;
-  const parsedExistingImages = existingImages ? JSON.parse(existingImages) : [];
+// Owner middleware
+function authOwner(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token' });
 
-  pool.query(
-    'UPDATE dorms SET name=?, price_daily=?, price_monthly=?, price_term=?, floor_count=?, room_count=?, address_detail=?, water_cost=?, electricity_cost=?, deposit=?, contact_phone=?, facilities=?, near_places=? WHERE id=?',
-    [name, price_daily, price_monthly, price_term, floor_count, room_count, address_detail, water_cost, electricity_cost, deposit, contact_phone, facilities, near_places, dormId],
-    (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-
-      // Logic to delete removed images
-      pool.query('SELECT image_path FROM dorm_images WHERE dorm_id = ?', [dormId], (selectErr, currentImages) => {
-        if (selectErr) return res.status(500).json({ error: selectErr.message });
-
-        const imagesToDelete = currentImages
-          .map(img => img.image_path)
-          .filter(path => !parsedExistingImages.includes(path));
-
-        if (imagesToDelete.length > 0) {
-          pool.query('DELETE FROM dorm_images WHERE dorm_id = ? AND image_path IN (?)', [dormId, imagesToDelete], (deleteErr) => {
-            if (deleteErr) console.error("Error deleting images:", deleteErr); // Log error but continue
-          });
-        }
-      });
-
-      // Logic to add new images
-      if (req.files && req.files.length > 0) {
-        const imageValues = req.files.map(f => [dormId, '/uploads/' + f.filename]);
-        pool.query('INSERT INTO dorm_images (dorm_id, image_path) VALUES ?', [imageValues], (imgErr) => {
-          if (imgErr) return res.status(500).json({ error: imgErr.message });
-          res.json({ success: true });
-        });
-      } else {
-        res.json({ success: true });
-      }
-    }
-  );
-});
-
-// ====== OpenAI Chatbot Integration ======
-// ลบ OpenAI ออก ใช้ Groq API เท่านั้น
-
-// Endpoint สำหรับแชทบอตอัจฉริยะ
-app.post('/chatbot', async (req, res) => {
-  try {
-    const { message, context } = req.body;
-    
-    // Validate input
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      return res.status(400).json({ error: 'ข้อความไม่ถูกต้อง' });
-    }
-    
-    const safeContext = Array.isArray(context)
-      ? context.filter(m => m && typeof m.content === 'string' && m.content.trim() && (m.role === 'user' || m.role === 'assistant'))
-      : [];
-      
-    let dormsData = [];
-    
-    // ดึงข้อมูลหอพักทั้งหมดจากฐานข้อมูล
-    try {
-      const [results] = await new Promise((resolve, reject) => {
-        pool.query('SELECT name, price_daily, price_monthly, price_term, address_detail, facilities FROM dorms', (err, results) => {
-          if (err) reject(err);
-          else resolve([results]);
-        });
-      });
-      dormsData = results;
-    } catch (dbErr) {
-      console.error('Database error:', dbErr);
-      return res.status(500).json({ error: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้' });
-    }
-    
-    let systemPrompt = 'คุณคือผู้ช่วยแนะนำหอพักที่ฉลาดและใจดี ตอบเป็นภาษาไทยที่สุภาพ วิเคราะห์และเปรียบเทียบข้อมูลหอพักจากข้อมูลที่ให้มา ให้คำแนะนำที่เป็นประโยชน์และตรงประเด็น';
-    
-    if (dormsData.length > 0) {
-      systemPrompt += `\n\nข้อมูลหอพักทั้งหมดในระบบ: ` + JSON.stringify(dormsData, null, 2);
-    }
-    
-    // ตรวจสอบ API Key
-    if (!process.env.GROQ_API_KEY) {
-      console.error('GROQ_API_KEY not configured');
-      return res.status(500).json({ error: 'ระบบ AI ยังไม่พร้อมใช้งาน' });
-    }
-    
-    // เรียก Groq API
-    const groqRes = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-      model: 'llama3-70b-8192',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...safeContext,
-        { role: 'user', content: message }
-      ],
-      max_tokens: 500,
-      temperature: 0.7
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000 // 30 seconds timeout
-    });
-    
-    if (!groqRes.data || !groqRes.data.choices || !groqRes.data.choices[0]) {
-      throw new Error('Invalid response from AI service');
-    }
-    
-    const reply = groqRes.data.choices[0].message.content;
-    
-    if (!reply || reply.trim().length === 0) {
-      throw new Error('Empty response from AI service');
-    }
-    
-    res.json({ reply: reply.trim() });
-    
-  } catch (err) {
-    console.error('Chatbot API error:', err);
-    
-    // Send appropriate error message based on error type
-    if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
-      res.status(503).json({ error: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ AI ได้' });
-    } else if (err.code === 'ETIMEDOUT') {
-      res.status(504).json({ error: 'การตอบสนองจากระบบ AI ใช้เวลานานเกินไป' });
-    } else if (err.response && err.response.status === 401) {
-      res.status(500).json({ error: 'ปัญหาการยืนยันตัวตนกับระบบ AI' });
-    } else if (err.response && err.response.status === 429) {
-      res.status(429).json({ error: 'ระบบ AI กำลังมีคนใช้งานมาก กรุณาลองใหม่ในอีกสักครู่' });
-    } else {
-      res.status(500).json({ error: 'เกิดข้อผิดพลาดในระบบ AI' });
-    }
-  }
-});
-
-// Middleware to authenticate JWT token for any role
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (token == null) return res.sendStatus(401); // Unauthorized
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403); // Forbidden
-    req.user = user;
+  jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key', (err, decoded) => {
+    if (err) return res.status(401).json({ error: 'Invalid token' });
+    if (decoded.role !== 'owner') return res.status(403).json({ error: 'Access denied' });
+    req.user = decoded;
     next();
   });
 }
 
-// Get customer profile
-app.get('/customer/profile', authenticateToken, (req, res) => {
-  if (req.user.role !== 'customer') {
-    return res.status(403).json({ error: 'Forbidden: Access is allowed for customers only.' });
-  }
+// Customer middleware
+function authCustomer(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token' });
 
+  jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key', (err, decoded) => {
+    if (err) return res.status(401).json({ error: 'Invalid token' });
+    if (decoded.role !== 'customer') return res.status(403).json({ error: 'Access denied' });
+    req.user = decoded;
+    next();
+  });
+}
+
+// === CUSTOMER PROFILE ENDPOINTS ===
+
+// ดึงข้อมูลโปรไฟล์ลูกค้า
+app.get('/customer/profile', authCustomer, (req, res) => {
   const customerId = req.user.id;
-  pool.query('SELECT * FROM customers WHERE id = ?', [customerId], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (results.length === 0) {
-      return res.status(404).json({ error: 'Customer not found' });
+  
+  const sql = `SELECT * FROM customers WHERE id = ?`;
+  
+  pool.query(sql, [customerId], (err, results) => {
+    if (err) {
+      console.error('Error fetching customer profile:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์' });
     }
-    const userProfile = results[0];
-    delete userProfile.password; // Do not send the password hash
-    res.json(userProfile);
+    
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'ไม่พบข้อมูลผู้ใช้' });
+    }
+    
+    const customer = results[0];
+    // ไม่ส่งรหัสผ่านกลับไป
+    delete customer.password;
+    
+    res.json(customer);
   });
 });
 
-// Update customer profile
-app.put('/customer/profile', authenticateToken, async (req, res) => {
-    if (req.user.role !== 'customer') {
-        return res.status(403).json({ error: 'Forbidden' });
+// อัปเดทข้อมูลโปรไฟล์ลูกค้า
+app.put('/customer/profile', authCustomer, (req, res) => {
+  const customerId = req.user.id;
+  const { 
+    firstName, lastName, age, dob, houseNo, moo, soi, road, 
+    subdistrict, district, province, email, phone, zip_code 
+  } = req.body;
+  
+  const sql = `
+    UPDATE customers 
+    SET firstName = ?, lastName = ?, age = ?, dob = ?, 
+        houseNo = ?, moo = ?, soi = ?, road = ?, subdistrict = ?, 
+        district = ?, province = ?, email = ?, phone = ?, zip_code = ?
+    WHERE id = ?
+  `;
+  
+  pool.query(sql, [
+    firstName, lastName, age, dob, houseNo, moo, soi, road,
+    subdistrict, district, province, email, phone, zip_code, customerId
+  ], (err, result) => {
+    if (err) {
+      console.error('Error updating customer profile:', err);
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ error: 'อีเมลนี้ถูกใช้งานแล้ว' });
+      }
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัปเดทข้อมูล' });
     }
-
-    const customerId = req.user.id;
-    const data = req.body;
-
-    // Prevent changing critical fields
-    delete data.id;
-    delete data.role_id;
-    delete data.email; 
     
-    // Hash password if it's being changed
-    if (data.password && data.password !== '') {
-        data.password = await bcrypt.hash(data.password, 10);
-    } else {
-        delete data.password; // Do not update password if it's empty
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'ไม่พบผู้ใช้ที่ต้องการอัปเดท' });
     }
-
-    if (Object.keys(data).length === 0) {
-        return res.status(400).json({ error: 'No data to update' });
-    }
-
-    const fields = Object.keys(data);
-    const values = Object.values(data);
-
-    const setClause = fields.map(f => `${f}=?`).join(', ');
-    const sql = `UPDATE customers SET ${setClause} WHERE id=?`;
-
-    pool.query(sql, [...values, customerId], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
-    });
+    
+    res.json({ success: true, message: 'อัปเดทข้อมูลสำเร็จ' });
+  });
 });
 
 // อัปโหลดรูปโปรไฟล์ลูกค้า
-app.post('/customer/upload-avatar', authenticateToken, (req, res) => {
-    if (req.user.role !== 'customer') {
-        return res.status(403).json({ error: 'Forbidden: Access is allowed for customers only.' });
-    }
+app.post('/customer/upload-avatar', authCustomer, uploadProfile.single('avatar'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
+  }
 
-    // ใช้ multer middleware แบบ manual เพื่อจัดการข้อผิดพลาดได้ดีขึ้น
-    uploadProfile.single('avatar')(req, res, (err) => {
-        if (err) {
-            console.error('Multer error:', err);
-            if (err.message === 'อนุญาตเฉพาะไฟล์รูปภาพเท่านั้น') {
-                return res.status(400).json({ error: err.message });
-            }
-            return res.status(400).json({ error: 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์' });
-        }
+  const customerId = req.user.id;
+  const avatarUrl = `/uploads/${req.file.filename}`;
 
-        if (!req.file) {
-            return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
-        }
-
-        const customerId = req.user.id;
-        const avatarUrl = `/uploads/${req.file.filename}`;
-
-        // อัปเดต URL รูปโปรไฟล์ในฐานข้อมูล
-        pool.query(
-            'UPDATE customers SET avatar_url = ? WHERE id = ?',
-            [avatarUrl, customerId],
-            (err, result) => {
-                if (err) {
-                    console.error('Database error:', err);
-                    
-                    // ลบไฟล์ที่อัปโหลดแล้วเมื่อเกิดข้อผิดพลาดในฐานข้อมูล
-                    const filePath = path.join(__dirname, 'uploads', req.file.filename);
-                    fs.unlink(filePath, (unlinkErr) => {
-                        if (unlinkErr) console.error('Error deleting file:', unlinkErr);
-                    });
-                    
-                    return res.status(500).json({ 
-                        error: 'เกิดข้อผิดพลาดในการอัปเดตฐานข้อมูล',
-                        details: err.message 
-                    });
-                }
-
-                if (result.affectedRows === 0) {
-                    return res.status(404).json({ error: 'ไม่พบข้อมูลลูกค้า' });
-                }
-
-                res.json({ 
-                    success: true, 
-                    message: 'อัปโหลดรูปโปรไฟล์สำเร็จ',
-                    avatarUrl: avatarUrl,
-                    filename: req.file.filename
-                });
-            }
-        );
-    });
-});
-
-// Get owner profile
-app.get('/owner/profile', authOwner, (req, res) => {
-  const owner_id = req.user.id;
-  pool.query(
-    'SELECT id, firstName, lastName, email, phone, age, dob, houseNo, moo, soi, road, subdistrict, district, province, zip_code FROM owners WHERE id = ?',
-    [owner_id],
-    (err, results) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูล' });
-      }
-      if (results.length === 0) {
-        return res.status(404).json({ error: 'ไม่พบข้อมูลผู้ใช้' });
-      }
-      res.json(results[0]);
-    }
-  );
-});
-
-// Get owner reviews
-app.get('/owner/reviews', authOwner, (req, res) => {
-  const owner_id = req.user.id;
-  pool.query(
-    `SELECT r.id, r.rating, r.comment, r.date, 
-            d.name as dormName, 
-            c.firstName as customerName
-     FROM reviews r
-     LEFT JOIN dorms d ON r.dorm_id = d.id
-     LEFT JOIN customers c ON r.customer_id = c.id
-     WHERE d.owner_id = ?
-     ORDER BY r.date DESC`,
-    [owner_id],
-    (err, results) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลรีวิว' });
-      }
-      res.json(results);
-    }
-  );
-});
-
-// Admin User Management endpoints
-app.get('/admin/users', verifyAdminToken, (req, res) => {
-  const sql = `
-    SELECT id, firstName, lastName, email, phone, age, dob, 
-           houseNo, moo, soi, road, subdistrict, district, province,
-           'customer' as role, NULL as dormName
-    FROM customers
-    UNION ALL
-    SELECT id, firstName, lastName, email, phone, age, dob,
-           houseNo, moo, soi, road, subdistrict, district, province,
-           'owner' as role, dormName
-    FROM owners
-    ORDER BY firstName, lastName
-  `;
-  pool.query(sql, (err, results) => {
+  // อัปเดท URL ของรูปโปรไฟล์ในฐานข้อมูล
+  const sql = `UPDATE customers SET avatar_url = ? WHERE id = ?`;
+  
+  pool.query(sql, [avatarUrl, customerId], (err, result) => {
     if (err) {
-      console.error('Error fetching users:', err);
-      return res.status(500).json({ error: err.message });
+      console.error('Error updating avatar URL:', err);
+      // ลบไฟล์ที่อัปโหลดเมื่อเกิดข้อผิดพลาด
+      fs.unlink(req.file.path, (unlinkErr) => {
+        if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
+      });
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกรูปโปรไฟล์' });
     }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'ไม่พบผู้ใช้' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'อัปโหลดรูปโปรไฟล์สำเร็จ', 
+      avatarUrl: avatarUrl 
+    });
+  });
+});
+
+// === ADMIN ENDPOINTS ===
+
+// ทดสอบ Admin endpoint
+app.get('/admin/test', verifyAdminToken, (req, res) => {
+  res.json({ message: 'Admin API working', user: req.user, timestamp: new Date().toISOString() });
+});
+
+// ทดสอบ token โดยไม่ต้องเป็น admin
+app.get('/admin/auth-test', (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
+    res.json({ 
+      message: 'Token valid', 
+      decoded, 
+      isAdmin: decoded.role === 'admin',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(401).json({ 
+      error: 'Invalid token', 
+      details: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// ดึงข้อมูลผู้ใช้ทั้งหมด (Admin) - แบบง่าย
+app.get('/admin/users', verifyAdminToken, (req, res) => {
+  // ดึงข้อมูล customers ก่อน
+  pool.query('SELECT id, firstName, lastName, email, phone FROM customers', (err1, customers) => {
+    if (err1) {
+      console.error('Error fetching customers:', err1);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลลูกค้า', details: err1.message });
+    }
+
+    // ดึงข้อมูล owners
+    pool.query('SELECT id, firstName, lastName, email, phone FROM owners', (err2, owners) => {
+      if (err2) {
+        console.error('Error fetching owners:', err2);
+        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลเจ้าของ', details: err2.message });
+      }
+
+      // รวมข้อมูลทั้งหมด
+      const allUsers = [
+        ...customers.map(user => ({ ...user, type: 'customer' })),
+        ...owners.map(user => ({ ...user, type: 'owner' }))
+      ];
+
+      res.json(allUsers);
+    });
+  });
+});
+
+// ดึงข้อมูลหอพักทั้งหมดสำหรับ Admin - แบบง่าย
+app.get('/admin/dorms', verifyAdminToken, (req, res) => {
+  const status = req.query.status;
+  
+  let sql = 'SELECT * FROM dorms';
+  let params = [];
+  
+  if (status && status !== 'all') {
+    sql += ' WHERE status = ?';
+    params = [status];
+  }
+  
+  sql += ' ORDER BY created_at DESC';
+  
+  pool.query(sql, params, (err, results) => {
+    if (err) {
+      console.error('Error fetching dorms for admin:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลหอพัก', details: err.message });
+    }
+    
     res.json(results);
   });
 });
 
-app.post('/admin/users', verifyAdminToken, async (req, res) => {
-  const { role, password, ...data } = req.body;
+// อนุมัติหอพัก (Admin)
+app.put('/admin/dorms/:id/approve', verifyAdminToken, (req, res) => {
+  const dormId = req.params.id;
   
-  if (!role || !password) {
-    return res.status(400).json({ error: 'Role and password are required' });
-  }
-
-  try {
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-    data.password = hashedPassword;
-
-    const table = role === 'customer' ? 'customers' : role === 'owner' ? 'owners' : null;
-    if (!table) {
-      return res.status(400).json({ error: 'Invalid role' });
-    }
-
-    // เตรียมฟิลด์และค่า
-    const fields = Object.keys(data);
-    const values = Object.values(data);
-    
-    const sql = `INSERT INTO ${table} (${fields.join(',')}) VALUES (${fields.map(() => '?').join(',')})`;
-    
-    pool.query(sql, values, (err, result) => {
-      if (err) {
-        console.error('Error adding user:', err);
-        return res.status(500).json({ error: err.message });
-      }
-      res.json({ success: true, id: result.insertId });
-    });
-  } catch (error) {
-    console.error('Error hashing password:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/admin/users/:id', verifyAdminToken, async (req, res) => {
-  const { role, password, ...data } = req.body;
-  const userId = req.params.id;
-
-  if (!role) {
-    return res.status(400).json({ error: 'Role is required' });
-  }
-
-  try {
-    // ถ้ามี password ให้ hash ก่อน
-    if (password && password.trim() !== '') {
-      data.password = await bcrypt.hash(password, 10);
-    }
-
-    const table = role === 'customer' ? 'customers' : role === 'owner' ? 'owners' : null;
-    if (!table) {
-      return res.status(400).json({ error: 'Invalid role' });
-    }
-
-    const fields = Object.keys(data);
-    const values = Object.values(data);
-
-    if (fields.length === 0) {
-      return res.status(400).json({ error: 'No data to update' });
-    }
-
-    const setClause = fields.map(f => `${f}=?`).join(', ');
-    const sql = `UPDATE ${table} SET ${setClause} WHERE id=?`;
-    
-    pool.query(sql, [...values, userId], (err) => {
-      if (err) {
-        console.error('Error updating user:', err);
-        return res.status(500).json({ error: err.message });
-      }
-      res.json({ success: true });
-    });
-  } catch (error) {
-    console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/admin/users/:id', verifyAdminToken, (req, res) => {
-  const { role } = req.query;
-  const userId = req.params.id;
-
-  if (!role) {
-    return res.status(400).json({ error: 'Role is required' });
-  }
-
-  const table = role === 'customer' ? 'customers' : role === 'owner' ? 'owners' : null;
-  if (!table) {
-    return res.status(400).json({ error: 'Invalid role' });
-  }
-
-  const sql = `DELETE FROM ${table} WHERE id=?`;
+  const sql = 'UPDATE dorms SET status = ? WHERE id = ?';
   
-  pool.query(sql, [userId], (err) => {
+  pool.query(sql, ['approved', dormId], (err, result) => {
     if (err) {
-      console.error('Error deleting user:', err);
-      return res.status(500).json({ error: err.message });
+      console.error('Error approving dorm:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอนุมัติหอพัก' });
     }
-    res.json({ success: true });
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'ไม่พบหอพักที่ต้องการอนุมัติ' });
+    }
+    
+    res.json({ success: true, message: 'อนุมัติหอพักสำเร็จ' });
   });
 });
 
-// Test endpoint สำหรับตรวจสอบตาราง dorms
-app.get('/test/dorms', (req, res) => {
-  pool.query('SELECT * FROM dorms LIMIT 5', (err, results) => {
+// ปฏิเสธหอพัก (Admin)
+app.put('/admin/dorms/:id/reject', verifyAdminToken, (req, res) => {
+  const dormId = req.params.id;
+  const { reason } = req.body;
+  
+  const sql = 'UPDATE dorms SET status = ?, rejection_reason = ? WHERE id = ?';
+  
+  pool.query(sql, ['rejected', reason || null, dormId], (err, result) => {
     if (err) {
-      console.error('Error testing dorms table:', err);
-      return res.status(500).json({ 
-        error: 'Database error', 
-        message: err.message,
-        table: 'dorms'
-      });
+      console.error('Error rejecting dorm:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการปฏิเสธหอพัก' });
     }
     
-    res.json({
-      success: true,
-      count: results.length,
-      data: results,
-      message: 'Dorms table accessible'
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'ไม่พบหอพักที่ต้องการปฏิเสธ' });
+    }
+    
+    res.json({ success: true, message: 'ปฏิเสธหอพักสำเร็จ' });
+  });
+});
+
+// ลบหอพัก (Admin)
+app.delete('/admin/dorms/:id', verifyAdminToken, (req, res) => {
+  const dormId = req.params.id;
+  
+  // ลบรูปภาพก่อน
+  pool.query('DELETE FROM dorm_images WHERE dorm_id = ?', [dormId], (err) => {
+    if (err) {
+      console.error('Error deleting dorm images:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการลบรูปภาพ' });
+    }
+    
+    // ลบหอพัก
+    pool.query('DELETE FROM dorms WHERE id = ?', [dormId], (err, result) => {
+      if (err) {
+        console.error('Error deleting dorm:', err);
+        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการลบหอพัก' });
+      }
+      
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: 'ไม่พบหอพักที่ต้องการลบ' });
+      }
+      
+      res.json({ success: true, message: 'ลบหอพักสำเร็จ' });
     });
   });
 });
 
-// Test endpoint สำหรับตรวจสอบ schema ตาราง dorms
-app.get('/test/dorms/schema', (req, res) => {
-  pool.query('DESCRIBE dorms', (err, results) => {
+// ลบผู้ใช้ (Admin)
+app.delete('/admin/users/:type/:id', verifyAdminToken, (req, res) => {
+  const { type, id } = req.params;
+  
+  // ตรวจสอบประเภทผู้ใช้
+  const allowedTypes = ['customer', 'owner'];
+  if (!allowedTypes.includes(type)) {
+    return res.status(400).json({ error: 'ประเภทผู้ใช้ไม่ถูกต้อง' });
+  }
+  
+  const tableName = type === 'customer' ? 'customers' : 'owners';
+  const sql = `DELETE FROM ${tableName} WHERE id = ?`;
+  
+  pool.query(sql, [id], (err, result) => {
     if (err) {
-      console.error('Error describing dorms table:', err);
-      return res.status(500).json({ 
-        error: 'Database error', 
-        message: err.message
-      });
+      console.error(`Error deleting ${type}:`, err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการลบผู้ใช้' });
     }
     
-    res.json({
-      success: true,
-      schema: results,
-      message: 'Dorms table schema'
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'ไม่พบผู้ใช้ที่ต้องการลบ' });
+    }
+    
+    res.json({ success: true, message: 'ลบผู้ใช้สำเร็จ' });
+  });
+});
+
+// === OWNER PROFILE ENDPOINTS ===
+
+// ดึงข้อมูลโปรไฟล์เจ้าของหอพัก
+app.get('/owner/profile', authOwner, (req, res) => {
+  const ownerId = req.user.id;
+  
+  const sql = `SELECT * FROM owners WHERE id = ?`;
+  
+  pool.query(sql, [ownerId], (err, results) => {
+    if (err) {
+      console.error('Error fetching owner profile:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์' });
+    }
+    
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'ไม่พบข้อมูลผู้ใช้' });
+    }
+    
+    const owner = results[0];
+    // ไม่ส่งรหัสผ่านกลับไป
+    delete owner.password;
+    
+    res.json(owner);
+  });
+});
+
+// อัพเดทข้อมูลโปรไฟล์เจ้าของหอพัก
+app.put('/owner/profile', authOwner, (req, res) => {
+  const ownerId = req.user.id;
+  const { 
+    dormName, firstName, lastName, age, dob, houseNo, moo, soi, road, 
+    subdistrict, district, province, email, phone, zip_code 
+  } = req.body;
+  
+  const sql = `
+    UPDATE owners 
+    SET dormName = ?, firstName = ?, lastName = ?, age = ?, dob = ?, 
+        houseNo = ?, moo = ?, soi = ?, road = ?, subdistrict = ?, 
+        district = ?, province = ?, email = ?, phone = ?, zip_code = ?
+    WHERE id = ?
+  `;
+  
+  pool.query(sql, [
+    dormName, firstName, lastName, age, dob, houseNo, moo, soi, road,
+    subdistrict, district, province, email, phone, zip_code, ownerId
+  ], (err, result) => {
+    if (err) {
+      console.error('Error updating owner profile:', err);
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ error: 'อีเมลนี้ถูกใช้งานแล้ว' });
+      }
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัพเดทข้อมูล' });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'ไม่พบผู้ใช้ที่ต้องการอัพเดท' });
+    }
+    
+    res.json({ success: true, message: 'อัพเดทข้อมูลสำเร็จ' });
+  });
+});
+
+// === REVIEWS API ENDPOINTS ===
+
+// ดึงรีวิวทั้งหมดของหอพักเฉพาะ
+app.get('/dorms/:id/reviews', (req, res) => {
+  const dormId = req.params.id;
+  
+  const sql = `
+    SELECT r.*, 
+           c.firstName, c.lastName, c.avatar_url,
+           d.name as dormName
+    FROM reviews r
+    LEFT JOIN customers c ON r.customer_id = c.id
+    LEFT JOIN dorms d ON r.dorm_id = d.id
+    WHERE r.dorm_id = ?
+    ORDER BY r.created_at DESC
+  `;
+  
+  pool.query(sql, [dormId], (err, results) => {
+    if (err) {
+      console.error('Error fetching reviews:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงรีวิว' });
+    }
+    
+    const reviews = results.map(review => ({
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment,
+      cleanliness_rating: review.cleanliness_rating,
+      location_rating: review.location_rating,
+      value_rating: review.value_rating,
+      service_rating: review.service_rating,
+      customerName: `${review.firstName || ''} ${review.lastName || ''}`.trim() || 'ลูกค้า',
+      customerAvatar: review.avatar_url,
+      dormName: review.dormName,
+      date: review.created_at,
+      created_at: review.created_at
+    }));
+    
+    res.json(reviews);
+  });
+});
+
+// เพิ่มรีวิวใหม่ (สำหรับลูกค้า)
+app.post('/dorms/:id/reviews', verifyToken, (req, res) => {
+  const dormId = req.params.id;
+  const customerId = req.user.id;
+  const { rating, comment, cleanliness_rating, location_rating, value_rating, service_rating } = req.body;
+  
+  // ตรวจสอบ role
+  if (req.user.role !== 'customer') {
+    return res.status(403).json({ error: 'เฉพาะลูกค้าเท่านั้นที่สามารถเขียนรีวิวได้' });
+  }
+  
+  // ตรวจสอบว่ามีรีวิวอยู่แล้วหรือไม่
+  pool.query('SELECT id FROM reviews WHERE customer_id = ? AND dorm_id = ?', 
+    [customerId, dormId], (err, existing) => {
+    if (err) {
+      console.error('Error checking existing review:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการตรวจสอบรีวิว' });
+    }
+    
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'คุณได้เขียนรีวิวหอพักนี้แล้ว' });
+    }
+    
+    const insertSql = `
+      INSERT INTO reviews (customer_id, dorm_id, rating, comment, cleanliness_rating, location_rating, value_rating, service_rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    pool.query(insertSql, [
+      customerId, dormId, rating, comment || null,
+      cleanliness_rating || null, location_rating || null, 
+      value_rating || null, service_rating || null
+    ], (err, result) => {
+      if (err) {
+        console.error('Error inserting review:', err);
+        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกรีวิว' });
+      }
+      
+      res.json({ success: true, reviewId: result.insertId });
     });
   });
 });
 
+// ดึงรีวิวของเจ้าของหอพัก (สำหรับ Owner)
+app.get('/owner/reviews', authOwner, (req, res) => {
+  const ownerId = req.user.id;
+  
+  const sql = `
+    SELECT r.*, 
+           c.firstName, c.lastName, c.avatar_url,
+           d.name as dormName
+    FROM reviews r
+    LEFT JOIN customers c ON r.customer_id = c.id
+    LEFT JOIN dorms d ON r.dorm_id = d.id
+    WHERE d.owner_id = ?
+    ORDER BY r.created_at DESC
+  `;
+  
+  pool.query(sql, [ownerId], (err, results) => {
+    if (err) {
+      console.error('Error fetching owner reviews:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงรีวิว' });
+    }
+    
+    const reviews = results.map(review => ({
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment,
+      cleanliness_rating: review.cleanliness_rating,
+      location_rating: review.location_rating,
+      value_rating: review.value_rating,
+      service_rating: review.service_rating,
+      customerName: `${review.firstName || ''} ${review.lastName || ''}`.trim() || 'ลูกค้า',
+      customerAvatar: review.avatar_url,
+      dormName: review.dormName,
+      date: review.created_at,
+      created_at: review.created_at
+    }));
+    
+    res.json(reviews);
+  });
+});
+
+// ดึงสถิติรีวิวของหอพักเฉพาะ
+app.get('/dorms/:id/reviews/stats', (req, res) => {
+  const dormId = req.params.id;
+  
+  const sql = `
+    SELECT 
+      COUNT(*) as total_reviews,
+      AVG(rating) as average_rating,
+      AVG(cleanliness_rating) as avg_cleanliness,
+      AVG(location_rating) as avg_location,
+      AVG(value_rating) as avg_value,
+      AVG(service_rating) as avg_service,
+      SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END) as five_stars,
+      SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END) as four_stars,
+      SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END) as three_stars,
+      SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END) as two_stars,
+      SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END) as one_stars
+    FROM reviews 
+    WHERE dorm_id = ?
+  `;
+  
+  pool.query(sql, [dormId], (err, results) => {
+    if (err) {
+      console.error('Error fetching review stats:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงสถิติรีวิว' });
+    }
+    
+    const stats = results[0] || {
+      total_reviews: 0,
+      average_rating: 0,
+      avg_cleanliness: 0,
+      avg_location: 0,
+      avg_value: 0,
+      avg_service: 0,
+      five_stars: 0,
+      four_stars: 0,
+      three_stars: 0,
+      two_stars: 0,
+      one_stars: 0
+    };
+    
+    res.json(stats);
+  });
+});
+
+// ==================== CHATBOT API ====================
+
+// Chatbot API endpoint
+app.post('/chatbot', async (req, res) => {
+  try {
+    const { message, conversationId } = req.body;
+
+    if (!message || message.trim() === '') {
+      return res.status(400).json({ error: 'กรุณาส่งข้อความมา' });
+    }
+
+    // ดึงข้อมูลหอพักทั้งหมดจากฐานข้อมูล
+    const dormQuery = `
+      SELECT id, name, price_daily, price_monthly, price_term, 
+             address_detail, facilities, near_places, 
+             water_cost, electricity_cost, contact_phone
+      FROM dorms WHERE status = 'approved' ORDER BY id
+    `;
+
+    const dorms = await new Promise((resolve, reject) => {
+      pool.query(dormQuery, (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    // สร้าง context ข้อมูลหอพักสำหรับ AI
+    const dormContext = dorms.map(dorm => {
+      return `หอพัก: ${dorm.name}
+      - ราคา: ${dorm.price_monthly ? `รายเดือน ${dorm.price_monthly} บาท` : ''}${dorm.price_daily ? ` รายวัน ${dorm.price_daily} บาท` : ''}${dorm.price_term ? ` รายเทอม ${dorm.price_term} บาท` : ''}
+      - ที่อยู่: ${dorm.address_detail || 'ไม่ระบุ'}
+      - สิ่งอำนวยความสะดวก: ${dorm.facilities || 'ไม่ระบุ'}
+      - สถานที่ใกล้เคียง: ${dorm.near_places || 'ไม่ระบุ'}
+      - ค่าน้ำ: ${dorm.water_cost || '6'} บาท/หน่วย
+      - ค่าไฟ: ${dorm.electricity_cost || '8'} บาท/หน่วย
+      - เบอร์ติดต่อ: ${dorm.contact_phone || 'ไม่ระบุ'}`;
+    }).join('\n\n');
+
+    // สร้างการตอบกลับของ chatbot
+    let response = '';
+
+    // ตรวจสอบคำถามและสร้างคำตอบ
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('สวัสดี') || lowerMessage.includes('หวัดดี') || lowerMessage.includes('hello')) {
+      response = `สวัสดีค่ะ! ยินดีต้อนรับสู่ Smart Dorm Chatbot 🏠✨
+
+ฉันเป็นผู้ช่วยอัจฉริยะที่จะช่วยคุณหาหอพักที่ใช่! 🤖
+
+🔍 **ฉันสามารถช่วยคุณ:**
+• ค้นหาหอพักตามงงบประมาณ
+• แนะนำหอพักใกล้มหาวิทยาลัย
+• เปรียบเทียบราคาและสิ่งอำนวยความสะดวก
+• ให้ข้อมูลติดต่อเจ้าของหอพัก
+
+💬 **คุณสามารถถาม:**
+"หาหอพักราคา 3000 บาท" หรือ "หอพักใกล้มช." หรือ "หอพักมี WiFi"
+
+มีหอพักทั้งหมด ${dorms.length} แห่งให้เลือกค่ะ! ลองถามฉันดูสิ 😊`;
+
+    } else if (lowerMessage.includes('ราคา') || lowerMessage.includes('งบ') || lowerMessage.includes('บาท')) {
+      // ดึงตัวเลขราคาจากข้อความ
+      const priceMatch = message.match(/(\d+)/);
+      const budget = priceMatch ? parseInt(priceMatch[1]) : null;
+
+      if (budget) {
+        const affordableDorms = dorms.filter(dorm => 
+          (dorm.price_monthly && dorm.price_monthly <= budget) ||
+          (dorm.price_daily && dorm.price_daily <= budget) ||
+          (dorm.price_term && dorm.price_term <= budget)
+        );
+
+        if (affordableDorms.length > 0) {
+          response = `🏠 **พบหอพักในงบประมาณ ${budget.toLocaleString()} บาท จำนวน ${affordableDorms.length} แห่ง:**\n\n`;
+          
+          affordableDorms.slice(0, 5).forEach((dorm, index) => {
+            response += `**${index + 1}. ${dorm.name}**\n`;
+            if (dorm.price_monthly <= budget) response += `💰 รายเดือน: ${dorm.price_monthly.toLocaleString()} บาท\n`;
+            if (dorm.price_daily <= budget) response += `💰 รายวัน: ${dorm.price_daily.toLocaleString()} บาท\n`;
+            response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n`;
+            response += `📞 ${dorm.contact_phone || 'ไม่มีเบอร์ติดต่อ'}\n\n`;
+          });
+
+          if (affordableDorms.length > 5) {
+            response += `...และอีก ${affordableDorms.length - 5} แห่ง\n\n`;
+          }
+          
+          response += `✨ **ต้องการข้อมูลเพิ่มเติม?** ลองถาม "แสดงรายละเอียด [ชื่อหอพัก]" ได้เลยค่ะ!`;
+        } else {
+          response = `😅 ขออภัยค่ะ ไม่พบหอพักในงบประมาณ ${budget.toLocaleString()} บาท\n\n💡 **คำแนะนำ:**\n- ลองเพิ่มงบประมาณขึ้นอีกนิดค่ะ\n- หรือดูหอพักรายวันที่อาจถูกกว่า\n\n💰 **ช่วงราคาที่มี:** ${Math.min(...dorms.map(d => d.price_monthly || 999999)).toLocaleString()} - ${Math.max(...dorms.map(d => d.price_monthly || 0)).toLocaleString()} บาท/เดือน`;
+        }
+      } else {
+        response = `💰 **ข้อมูลราคาหอพัก:**\n\n`;
+        const priceRanges = {
+          'งบน้อย (ต่ำกว่า 3,000)': dorms.filter(d => d.price_monthly && d.price_monthly < 3000).length,
+          'งบปานกลาง (3,000-5,000)': dorms.filter(d => d.price_monthly && d.price_monthly >= 3000 && d.price_monthly <= 5000).length,
+          'งบสูง (มากกว่า 5,000)': dorms.filter(d => d.price_monthly && d.price_monthly > 5000).length
+        };
+
+        for (const [range, count] of Object.entries(priceRanges)) {
+          response += `${range}: ${count} แห่ง\n`;
+        }
+
+        response += `\n🔍 **วิธีใช้:** พิมพ์ "หาหอพักราคา 4000 บาท" เพื่อดูหอพักในงบที่ต้องการค่ะ!`;
+      }
+
+    } else if (lowerMessage.includes('ใกล้') || lowerMessage.includes('มช') || lowerMessage.includes('เชียงใหม่') || lowerMessage.includes('มหาวิทยาลัย')) {
+      const universityDorms = dorms.filter(dorm => 
+        (dorm.address_detail && dorm.address_detail.includes('เชียงใหม่')) ||
+        (dorm.near_places && dorm.near_places.toLowerCase().includes('มช')) ||
+        (dorm.near_places && dorm.near_places.includes('มหาวิทยาลัย')) ||
+        (dorm.address_detail && dorm.address_detail.toLowerCase().includes('มช'))
+      );
+
+      response = `🎓 **หอพักใกล้มหาวิทยาลัย จำนวน ${universityDorms.length} แห่ง:**\n\n`;
+      
+      universityDorms.slice(0, 3).forEach((dorm, index) => {
+        response += `**${index + 1}. ${dorm.name}**\n`;
+        response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n`;
+        response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n`;
+        if (dorm.near_places && dorm.near_places.includes('มหาวิทยาลัย')) response += `🏫 ใกล้: ${dorm.near_places}\n`;
+        response += `📞 ${dorm.contact_phone || 'ติดต่อผ่านเว็บไซต์'}\n\n`;
+      });
+
+      response += `✨ ต้องการดูหอพักทั้งหมด? พิมพ์ "แสดงหอพักทั้งหมด" ได้เลยค่ะ!`;
+
+    } else if (lowerMessage.includes('wifi') || lowerMessage.includes('ไวไฟ') || lowerMessage.includes('อินเทอร์เน็ต')) {
+      const wifiDorms = dorms.filter(dorm => 
+        (dorm.facilities && dorm.facilities.toLowerCase().includes('wifi'))
+      );
+
+      response = `📶 **หอพักที่มี WiFi จำนวน ${wifiDorms.length} แห่ง:**\n\n`;
+      
+      wifiDorms.slice(0, 4).forEach((dorm, index) => {
+        response += `**${index + 1}. ${dorm.name}**\n`;
+        response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n`;
+        response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n\n`;
+      });
+
+      response += `💡 **เกือบทุกหอพักมี WiFi ฟรี!** ลองถาม "หาหอพักราคา XXXX บาท" เพื่อดูในงบที่ต้องการค่ะ`;
+
+    } else if (lowerMessage.includes('แนะนำ') || lowerMessage.includes('ดีที่สุด') || lowerMessage.includes('ยอดนิยม')) {
+      const topDorms = dorms.slice(0, 3); // เอา 3 อันแรก
+
+      response = `⭐ **หอพักแนะนำยอดนิยม TOP 3:**\n\n`;
+      
+      topDorms.forEach((dorm, index) => {
+        response += `**🏆 ${index + 1}. ${dorm.name}**\n`;
+        response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n`;
+        response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n`;
+        response += `✨ ${dorm.facilities ? dorm.facilities.split(',').slice(0, 3).join(', ') : 'สิ่งอำนวยความสะดวกครบครัน'}\n`;
+        response += `📞 ${dorm.contact_phone || 'ติดต่อผ่านเว็บไซต์'}\n\n`;
+      });
+
+      response += `🔥 **ทำไมถึงแนะนำ?**\n• ราคาดี คุ้มค่า\n• สิ่งอำนวยความสะดวกครบครัน\n• ใกล้แหล่งสะดวกสบาย`;
+
+    } else if (lowerMessage.includes('จอดรถ') || lowerMessage.includes('รถ') || lowerMessage.includes('parking')) {
+      const parkingDorms = dorms.filter(dorm => 
+        (dorm.facilities && dorm.facilities.toLowerCase().includes('จอด'))
+      );
+
+      response = `🚗 **หอพักที่มีที่จอดรถ จำนวน ${parkingDorms.length} แห่ง:**\n\n`;
+      
+      parkingDorms.slice(0, 4).forEach((dorm, index) => {
+        response += `**${index + 1}. ${dorm.name}**\n`;
+        response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n`;
+        response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n\n`;
+      });
+
+    } else if (lowerMessage.includes('แสดงทั้งหมด') || lowerMessage.includes('ทั้งหมด')) {
+      response = `🏠 **รายการหอพักทั้งหมด ${dorms.length} แห่ง:**\n\n`;
+      
+      dorms.forEach((dorm, index) => {
+        if (index < 10) { // แสดงแค่ 10 อันแรก
+          response += `**${index + 1}. ${dorm.name}**\n`;
+          response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n\n`;
+        }
+      });
+
+      if (dorms.length > 10) {
+        response += `...และอีก ${dorms.length - 10} แห่ง\n\n`;
+      }
+
+      response += `💡 **เคล็ดลับ:** ลองใช้คำค้นหาเฉพาะเจาะจง เช่น "หาหอพักราคา 4000" หรือ "หอพักใกล้มช" จะได้ผลลัพธ์ที่ตรงใจมากกว่าค่ะ!`;
+
+    } else {
+      // ค้นหาทั่วไป
+      const searchTerms = message.toLowerCase();
+      const matchedDorms = dorms.filter(dorm => 
+        (dorm.name && dorm.name.toLowerCase().includes(searchTerms)) ||
+        (dorm.address_detail && dorm.address_detail.toLowerCase().includes(searchTerms)) ||
+        (dorm.facilities && dorm.facilities.toLowerCase().includes(searchTerms)) ||
+        (dorm.near_places && dorm.near_places.toLowerCase().includes(searchTerms))
+      );
+
+      if (matchedDorms.length > 0) {
+        response = `🔍 **พบผลการค้นหา "${message}" จำนวน ${matchedDorms.length} แห่ง:**\n\n`;
+        
+        matchedDorms.slice(0, 3).forEach((dorm, index) => {
+          response += `**${index + 1}. ${dorm.name}**\n`;
+          response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n`;
+          response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n`;
+          response += `📞 ${dorm.contact_phone || 'ติดต่อผ่านเว็บไซต์'}\n\n`;
+        });
+      } else {
+        response = `🤖 ขออภัยค่ะ ฉันไม่เข้าใจคำถาม "${message}" เท่าที่ควร\n\n💡 **คำถามที่ฉันตอบได้ดี:**\n• "หาหอพักราคา 3000 บาท"\n• "หอพักใกล้มหาวิทยาลัย"\n• "หอพักที่มี WiFi"\n• "แนะนำหอพักดีๆ"\n• "หอพักที่มีที่จอดรถ"\n\n🏠 **หรือจะดูหอพักทั้งหมด ${dorms.length} แห่ง?** พิมพ์ "แสดงทั้งหมด" ได้เลยค่ะ!`;
+      }
+    }
+
+    res.json({
+      message: response,
+      conversationId: conversationId || Date.now().toString(),
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Chatbot API error:', error);
+    res.status(500).json({ 
+      error: 'ขออภัย เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง',
+      message: '🤖 ขออภัยค่ะ ระบบมีปัญหาชั่วคราว กรุณาลองถามใหม่อีกครั้งหรือใช้ฟอร์มค้นหาด้านบนแทนค่ะ 😊'
+    });
+  }
+});
+
+// เริ่มเซิร์ฟเวอร์
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🗄️  Database: MySQL`);
+  console.log(`🌐 API: http://localhost:${PORT}`);
+  console.log(`📁 Static files: http://localhost:${PORT}/uploads`);
 });
-

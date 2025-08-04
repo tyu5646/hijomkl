@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaUser, FaLock } from 'react-icons/fa';
+import { FaUserCircle, FaLock, FaSignInAlt } from 'react-icons/fa';
 import Logo from '../assets/logo.jpg';
 
 function LoginPage() {
@@ -69,7 +69,7 @@ function LoginPage() {
           {error && <div className="text-red-500 text-center">{error}</div>}
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400">
-              <FaUser />
+              <FaUserCircle />
             </span>
             <input
               className="pl-10 border border-blue-200 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-300"

@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import AdminSidebar from '../components/AdminSidebar';
 import { 
-  FaBuilding, 
+  FaUniversity, 
   FaMapMarkerAlt, 
-  FaUser, 
-  FaPhone, 
+  FaUserCircle, 
+  FaPhoneAlt, 
   FaEnvelope,
   FaCheckCircle,
   FaTimesCircle,
@@ -12,7 +12,10 @@ import {
   FaStar,
   FaMoneyBillWave,
   FaFilter,
-  FaSearch
+  FaSearch,
+  FaHome,
+  FaShieldAlt,
+  FaClipboardCheck
 } from 'react-icons/fa';
 
 function AdminDormApprovalPage() {
@@ -150,7 +153,7 @@ function AdminDormApprovalPage() {
                   <p className="text-3xl font-bold text-orange-600">{pendingDorms.filter(d => d.status === 'pending').length}</p>
                 </div>
                 <div className="bg-orange-100 p-3 rounded-xl">
-                  <FaBuilding className="text-2xl text-orange-600" />
+                  <FaUniversity className="text-2xl text-orange-600" />
                 </div>
               </div>
             </div>
@@ -186,7 +189,7 @@ function AdminDormApprovalPage() {
                   <p className="text-3xl font-bold text-blue-600">{pendingDorms.length}</p>
                 </div>
                 <div className="bg-blue-100 p-3 rounded-xl">
-                  <FaBuilding className="text-2xl text-blue-600" />
+                  <FaUniversity className="text-2xl text-blue-600" />
                 </div>
               </div>
             </div>
@@ -202,7 +205,7 @@ function AdminDormApprovalPage() {
             </div>
           ) : pendingDorms.length === 0 ? (
             <div className="text-center py-12">
-              <FaBuilding className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+              <FaUniversity className="mx-auto h-16 w-16 text-gray-300 mb-4" />
               <h3 className="text-lg font-medium text-gray-500 mb-2">
                 ไม่มีหอพัก{filterStatus === 'pending' ? 'ที่รออนุมัติ' : 'ในสถานะนี้'}
               </h3>
@@ -236,7 +239,7 @@ function AdminDormApprovalPage() {
                               />
                             ) : (
                               <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                                <FaBuilding className="text-white text-xl" />
+                                <FaUniversity className="text-white text-xl" />
                               </div>
                             )}
                           </div>
@@ -255,7 +258,7 @@ function AdminDormApprovalPage() {
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 font-medium">{dorm.ownerName || 'ไม่ระบุ'}</div>
                         <div className="text-sm text-gray-500 flex items-center gap-1">
-                          <FaPhone className="text-xs" />
+                          <FaPhoneAlt className="text-xs" />
                           {dorm.ownerPhone || 'ไม่ระบุ'}
                         </div>
                       </td>
@@ -336,7 +339,7 @@ function AdminDormApprovalPage() {
                     </div>
                   ) : (
                     <div className="bg-gray-100 rounded-lg p-8 text-center">
-                      <FaBuilding className="mx-auto text-4xl text-gray-400 mb-2" />
+                      <FaUniversity className="mx-auto text-4xl text-gray-400 mb-2" />
                       <p className="text-gray-500">ไม่มีรูปภาพ</p>
                     </div>
                   )}

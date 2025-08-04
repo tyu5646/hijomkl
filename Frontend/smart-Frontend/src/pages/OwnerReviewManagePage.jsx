@@ -1,10 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import OwnerSidebar from '../components/OwnerSidebar';
-import { FaStar, FaComment, FaUser, FaCalendarAlt, FaHotel } from 'react-icons/fa';
+import { 
+  FaStar, 
+  FaComment, 
+  FaUserCircle, 
+  FaCalendarAlt, 
+  FaHome,
+  FaChartLine,
+  FaThumbsUp,
+  FaEye,
+  FaFilter,
+  FaUsers
+} from 'react-icons/fa';
 
 function OwnerReviewManagePage() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reviewStats, setReviewStats] = useState({
+    totalReviews: 0,
+    averageRating: 0,
+    ratingBreakdown: {}
+  });
 
   useEffect(() => {
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
@@ -16,6 +32,20 @@ function OwnerReviewManagePage() {
       .then(res => res.json())
       .then(data => {
         setReviews(Array.isArray(data) ? data : []);
+        // คำนวณสถิติ
+        if (Array.isArray(data) && data.length > 0) {
+          const avgRating = data.reduce((sum, r) => sum + (r.rating || 0), 0) / data.length;
+          const breakdown = {};
+          data.forEach(r => {
+            const rating = r.rating || 0;
+            breakdown[rating] = (breakdown[rating] || 0) + 1;
+          });
+          setReviewStats({
+            totalReviews: data.length,
+            averageRating: avgRating,
+            ratingBreakdown: breakdown
+          });
+        }
         setLoading(false);
       })
       .catch(err => {
@@ -65,13 +95,13 @@ function OwnerReviewManagePage() {
               <div className="hidden md:flex gap-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-white">
-                    {reviews.length}
+                    {reviewStats.totalReviews}
                   </div>
                   <div className="text-blue-200 text-xs">รีวิวทั้งหมด</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-white">
-                    {reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '0.0'}
+                    {reviewStats.totalReviews > 0 ? reviewStats.averageRating.toFixed(1) : '0.0'}
                   </div>
                   <div className="text-blue-200 text-xs">คะแนนเฉลี่ย</div>
                 </div>
@@ -116,7 +146,15 @@ function OwnerReviewManagePage() {
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center">
-                              <FaUser className="text-white w-5 h-5" />
+                              {review.customerAvatar ? (
+                                <img 
+                                  src={`http://localhost:3001${review.customerAvatar}`} 
+                                  alt={review.customerName}
+                                  className="w-full h-full rounded-full object-cover"
+                                />
+                              ) : (
+                                <FaUserCircle className="text-white w-5 h-5" />
+                              )}
                             </div>
                             <div>
                               <h3 className="font-bold text-gray-900">{review.customerName || 'ลูกค้า'}</h3>
@@ -126,39 +164,61 @@ function OwnerReviewManagePage() {
                               </div>
                             </div>
                           </div>
+                          <div className="text-right">
+                            <div className="text-xs text-gray-500">
+                              {review.created_at ? new Date(review.created_at).toLocaleDateString('th-TH', {
+                                year: 'numeric',
+                                month: 'long', 
+                                day: 'numeric'
+                              }) : 'ไม่ระบุวันที่'}
+                            </div>
+                          </div>
                         </div>
                         
                         {/* Dorm Name */}
                         <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
-                          <FaHotel className="w-4 h-4" />
+                          <FaHome className="w-4 h-4" />
                           {review.dormName || 'ไม่ระบุหอพัก'}
                         </div>
                       </div>
 
                       {/* Review Content */}
                       <div className="p-6">
-                        <div className="mb-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
-                            <FaCalendarAlt className="w-4 h-4" />
-                            {review.date ? new Date(review.date).toLocaleDateString('th-TH') : 'ไม่ระบุวันที่'}
+                        {/* Comment */}
+                        {review.comment && (
+                          <div className="mb-4">
+                            <div className="bg-gray-50 rounded-xl p-4">
+                              <p className="text-gray-700 leading-relaxed">
+                                "{review.comment}"
+                              </p>
+                            </div>
                           </div>
-                          <div className="bg-gray-50 rounded-xl p-4">
-                            <p className="text-gray-700 leading-relaxed">
-                              {review.comment || 'ไม่มีความคิดเห็น'}
-                            </p>
-                          </div>
-                        </div>
+                        )}
 
                         {/* Rating Breakdown */}
                         <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">คะแนนรวม</span>
-                            <div className="flex items-center gap-2">
-                              <div className="flex gap-1">
-                                {renderStars(review.rating || 0)}
-                              </div>
-                              <span className="font-bold text-lg text-gray-900">{review.rating || 0}</span>
-                            </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            {[
+                              { key: 'cleanliness_rating', label: 'ความสะอาด', icon: '🧽' },
+                              { key: 'location_rating', label: 'ทำเลที่ตั้ง', icon: '📍' },
+                              { key: 'value_rating', label: 'คุณค่าต่อราคา', icon: '💰' },
+                              { key: 'service_rating', label: 'การบริการ', icon: '👥' }
+                            ].map(item => (
+                              review[item.key] && (
+                                <div key={item.key} className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg">{item.icon}</span>
+                                    <span className="text-sm font-medium text-gray-700">{item.label}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex gap-1">
+                                      {renderStars(review[item.key] || 0)}
+                                    </div>
+                                    <span className="font-bold text-lg text-gray-900">{review[item.key] || 0}</span>
+                                  </div>
+                                </div>
+                              )
+                            ))}
                           </div>
                         </div>
                       </div>

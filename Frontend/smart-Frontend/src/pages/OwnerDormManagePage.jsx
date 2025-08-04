@@ -1,6 +1,26 @@
 import React, { useEffect, useState, useRef } from 'react';
 import OwnerSidebar from '../components/OwnerSidebar';
-import { FaBed, FaMoneyBillWave, FaBuilding, FaDoorOpen, FaMapMarkerAlt, FaCouch, FaLandmark, FaEdit, FaTrashAlt, FaPlusCircle, FaTimesCircle, FaImages, FaTags, FaChartLine, FaPhone } from 'react-icons/fa';
+import { 
+  FaHome, 
+  FaMoneyBillWave, 
+  FaUniversity, 
+  FaDoorOpen, 
+  FaMapMarkerAlt, 
+  FaWifi, 
+  FaLandmark, 
+  FaEdit, 
+  FaTrashAlt, 
+  FaPlusCircle, 
+  FaTimesCircle, 
+  FaImages, 
+  FaTags, 
+  FaChartLine, 
+  FaPhoneAlt,
+  FaStar,
+  FaEye,
+  FaCheckCircle,
+  FaExclamationTriangle
+} from 'react-icons/fa';
 
 function OwnerDormManagePage() {
   const [dorms, setDorms] = useState([]);
@@ -247,7 +267,7 @@ function OwnerDormManagePage() {
             <div className="relative px-8 py-8 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4">
-                  <FaBed className="text-white w-8 h-8" />
+                  <FaHome className="text-white w-8 h-8" />
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-white tracking-tight">
@@ -300,7 +320,7 @@ function OwnerDormManagePage() {
             <div className="text-center py-20">
               <div className="max-w-md mx-auto">
                 <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
-                  <FaBed className="w-10 h-10 text-gray-400" />
+                  <FaHome className="w-10 h-10 text-gray-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">ยังไม่มีหอพัก</h3>
                 <p className="text-gray-600 mb-8 leading-relaxed">
@@ -409,7 +429,7 @@ function OwnerDormManagePage() {
                     {/* Details */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center gap-2">
-                        <FaBuilding className="w-4 h-4 text-blue-500" />
+                        <FaUniversity className="w-4 h-4 text-blue-500" />
                         <span className="text-sm text-gray-600">{dorm.floor_count || 0} ชั้น</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -436,7 +456,7 @@ function OwnerDormManagePage() {
                       )}
                       {dorm.contact_phone && (
                         <div className="flex items-center gap-2">
-                          <FaPhone className="w-4 h-4 text-green-600" />
+                          <FaPhoneAlt className="w-4 h-4 text-green-600" />
                           <span className="text-sm text-gray-600">{dorm.contact_phone}</span>
                         </div>
                       )}
@@ -446,7 +466,7 @@ function OwnerDormManagePage() {
                     {dorm.facilities && (
                       <div className="mb-4">
                         <div className="flex items-center gap-2 mb-2">
-                          <FaCouch className="w-4 h-4 text-purple-500" />
+                          <FaWifi className="w-4 h-4 text-purple-500" />
                           <span className="text-sm font-medium text-gray-700">สิ่งอำนวยความสะดวก</span>
                         </div>
                         <div className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2 line-clamp-2">
@@ -544,7 +564,7 @@ function OwnerDormManagePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
                     <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
-                      <FaBed className="text-orange-500" />
+                      <FaHome className="text-orange-500" />
                       ชื่อหอพัก *
                     </label>
                     <input
@@ -573,7 +593,7 @@ function OwnerDormManagePage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
-                        <FaBuilding className="text-orange-500" />
+                        <FaUniversity className="text-orange-500" />
                         จำนวนชั้น
                       </label>
                       <input
@@ -705,7 +725,7 @@ function OwnerDormManagePage() {
                 {/* สิ่งอำนวยความสะดวก */}
                 <div>
                   <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
-                    <FaCouch className="text-orange-500" />
+                    <FaWifi className="text-orange-500" />
                     สิ่งอำนวยความสะดวก
                   </label>
                   <textarea
@@ -839,7 +859,7 @@ function OwnerDormManagePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
                     <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
-                      <FaBed className="text-blue-500" />
+                      <FaHome className="text-blue-500" />
                       ชื่อหอพัก *
                     </label>
                     <input
@@ -868,7 +888,7 @@ function OwnerDormManagePage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
-                        <FaBuilding className="text-blue-500" />
+                        <FaUniversity className="text-blue-500" />
                         จำนวนชั้น
                       </label>
                       <input
@@ -1000,7 +1020,7 @@ function OwnerDormManagePage() {
                 {/* สิ่งอำนวยความสะดวก */}
                 <div>
                   <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
-                    <FaCouch className="text-blue-500" />
+                    <FaWifi className="text-blue-500" />
                     สิ่งอำนวยความสะดวก
                   </label>
                   <textarea

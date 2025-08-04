@@ -92,13 +92,13 @@ function OwnerProfilePage() {
         return;
       }
 
-      const res = await fetch(`http://localhost:3001/users/${profile.id}`, {
+      const res = await fetch(`http://localhost:3001/owner/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ ...form, role: 'owner' })
+        body: JSON.stringify(form)
       });
       
       if (res.status === 401) {
@@ -331,7 +331,7 @@ function OwnerProfilePage() {
                 <form onSubmit={handleSave}>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {Object.entries(profile)
-                      .filter(([key]) => !['id', 'password'].includes(key))
+                      .filter(([key]) => !['id', 'password', 'role_id'].includes(key))
                       .map(([key, value]) => (
                         <div key={key} className="space-y-2">
                           <label className="block text-sm font-medium text-gray-700">
