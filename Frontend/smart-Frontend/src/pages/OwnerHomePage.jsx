@@ -300,7 +300,7 @@ function OwnerHomePage() {
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="sticky top-0 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 px-6 py-4 rounded-t-3xl z-10 relative overflow-hidden">
+              <div className="sticky top-0 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 px-6 py-4 rounded-t-3xl z-10 overflow-hidden">
                 {/* Decorative Elements */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
                 <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-4 -translate-x-4"></div>
