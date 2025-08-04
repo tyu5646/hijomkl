@@ -8,6 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminDormApprovalPage from './pages/AdminDormApprovalPage';
 import AdminUserManager from './pages/AdminUserManager';
 import OwnerDormManagePage from './pages/OwnerDormManagePage';
+import OwnerRoomManagePage from './pages/OwnerRoomManagePage';
 import OwnerProfilePage from './pages/OwnerProfilePage';
 import OwnerReviewManagePage from './pages/OwnerReviewManagePage';
 import CustomerProfilePage from './pages/CustomerProfilePage';
@@ -61,6 +62,22 @@ function App() {
           element={
             <ProtectedRoute>
               <OwnerDormManagePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/rooms"
+          element={
+            <ProtectedRoute>
+              <OwnerDormManagePage roomManageMode={true} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/dorms/:dormId/rooms"
+          element={
+            <ProtectedRoute>
+              <OwnerRoomManagePage />
             </ProtectedRoute>
           }
         />

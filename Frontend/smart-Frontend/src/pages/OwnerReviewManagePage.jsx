@@ -138,14 +138,14 @@ function OwnerReviewManagePage() {
                   {reviews.map((review, index) => (
                     <div
                       key={review.id || index}
-                      className="bg-white rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-blue-200 transform hover:-translate-y-1"
+                      className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-blue-200 transform hover:-translate-y-1"
                       style={{ animationDelay: `${index * 100}ms` }}
                     >
-                      {/* Review Header */}
-                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 px-6 py-4 border-b border-gray-100">
-                        <div className="flex items-center justify-between mb-3">
+                      {/* Header - ข้อมูลลูกค้าและคะแนน */}
+                      <div className="bg-gradient-to-r from-blue-100 to-purple-100 px-6 py-4">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center">
+                            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                               {review.customerAvatar ? (
                                 <img 
                                   src={`http://localhost:3001${review.customerAvatar}`} 
@@ -153,72 +153,115 @@ function OwnerReviewManagePage() {
                                   className="w-full h-full rounded-full object-cover"
                                 />
                               ) : (
-                                <FaUserCircle className="text-white w-5 h-5" />
+                                <FaUserCircle className="text-white w-6 h-6" />
                               )}
                             </div>
                             <div>
-                              <h3 className="font-bold text-gray-900">{review.customerName || 'ลูกค้า'}</h3>
+                              <h3 className="text-lg font-bold text-gray-900">{review.customerName || 'ลูกค้า'}</h3>
                               <div className="flex items-center gap-1">
                                 {renderStars(review.rating || 0)}
-                                <span className="text-sm text-gray-600 ml-1">({review.rating || 0}/5)</span>
+                                <span className="text-sm font-bold text-gray-700 ml-1">
+                                  {review.rating || 0}/5
+                                </span>
                               </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-xs text-gray-500">
-                              {review.created_at ? new Date(review.created_at).toLocaleDateString('th-TH', {
-                                year: 'numeric',
-                                month: 'long', 
-                                day: 'numeric'
-                              }) : 'ไม่ระบุวันที่'}
+                          
+                          {/* คะแนนรวม */}
+                          <div className="text-center">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg text-white ${
+                              (review.rating || 0) >= 4 ? 'bg-green-500' :
+                              (review.rating || 0) >= 3 ? 'bg-yellow-500' :
+                              (review.rating || 0) >= 2 ? 'bg-orange-500' : 'bg-red-500'
+                            }`}>
+                              {review.rating || 0}
                             </div>
+                            <div className="text-xs text-gray-600 mt-1">คะแนน</div>
                           </div>
-                        </div>
-                        
-                        {/* Dorm Name */}
-                        <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
-                          <FaHome className="w-4 h-4" />
-                          {review.dormName || 'ไม่ระบุหอพัก'}
                         </div>
                       </div>
 
-                      {/* Review Content */}
+                      {/* ข้อมูลหลัก */}
                       <div className="p-6">
-                        {/* Comment */}
+                        {/* ข้อมูลหอพักและวันที่ */}
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">หอพัก</label>
+                              <div className="flex items-center gap-2">
+                                <FaHome className="w-4 h-4 text-blue-500" />
+                                <span className="text-sm font-semibold text-gray-800">
+                                  {review.dormName || 'ไม่ระบุหอพัก'}
+                                </span>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">วันที่รีวิว</label>
+                              <div className="flex items-center gap-2">
+                                <FaCalendarAlt className="w-4 h-4 text-purple-500" />
+                                <span className="text-sm font-semibold text-gray-800">
+                                  {review.created_at ? new Date(review.created_at).toLocaleDateString('th-TH', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  }) : 'ไม่ระบุ'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ข้อความรีวิว */}
                         {review.comment && (
                           <div className="mb-4">
-                            <div className="bg-gray-50 rounded-xl p-4">
-                              <p className="text-gray-700 leading-relaxed">
+                            <label className="block text-xs font-medium text-gray-500 mb-2">ความคิดเห็น</label>
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                              <p className="text-gray-700 leading-relaxed text-sm">
                                 "{review.comment}"
                               </p>
                             </div>
                           </div>
                         )}
 
-                        {/* Rating Breakdown */}
-                        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4">
-                          <div className="grid grid-cols-2 gap-4">
+                        {/* คะแนนแต่ละหมวด */}
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                          <label className="block text-xs font-medium text-gray-500 mb-3">คะแนนรายละเอียด</label>
+                          <div className="space-y-3">
                             {[
-                              { key: 'cleanliness_rating', label: 'ความสะอาด', icon: '🧽' },
-                              { key: 'location_rating', label: 'ทำเลที่ตั้ง', icon: '📍' },
-                              { key: 'value_rating', label: 'คุณค่าต่อราคา', icon: '💰' },
-                              { key: 'service_rating', label: 'การบริการ', icon: '👥' }
+                              { key: 'cleanliness_rating', label: 'ความสะอาด', icon: '🧽', color: 'text-blue-600' },
+                              { key: 'location_rating', label: 'ทำเลที่ตั้ง', icon: '📍', color: 'text-green-600' },
+                              { key: 'value_rating', label: 'คุณค่าต่อราคา', icon: '💰', color: 'text-yellow-600' },
+                              { key: 'service_rating', label: 'การบริการ', icon: '👥', color: 'text-purple-600' }
                             ].map(item => (
                               review[item.key] && (
                                 <div key={item.key} className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-lg">{item.icon}</span>
+                                    <span className="text-base">{item.icon}</span>
                                     <span className="text-sm font-medium text-gray-700">{item.label}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <div className="flex gap-1">
                                       {renderStars(review[item.key] || 0)}
                                     </div>
-                                    <span className="font-bold text-lg text-gray-900">{review[item.key] || 0}</span>
+                                    <span className={`font-bold text-lg ${item.color}`}>
+                                      {review[item.key] || 0}
+                                    </span>
                                   </div>
                                 </div>
                               )
                             ))}
+                          </div>
+                        </div>
+
+                        {/* สถิติรีวิว */}
+                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <FaThumbsUp className="w-3 h-3" />
+                            <span>รีวิวที่ {index + 1}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <FaEye className="w-3 h-3" />
+                            <span>ID: {review.id || 'N/A'}</span>
                           </div>
                         </div>
                       </div>

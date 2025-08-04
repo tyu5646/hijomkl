@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaTachometerAlt, FaBuilding, FaUserCircle, FaSignOutAlt, FaStar } from 'react-icons/fa';
+import { FaTachometerAlt, FaBuilding, FaUserCircle, FaSignOutAlt, FaStar, FaBed } from 'react-icons/fa';
 import logo from '../assets/logo-H.jpg';
 
 function OwnerSidebar() {
@@ -25,7 +25,14 @@ function OwnerSidebar() {
       icon: FaBuilding,
       label: "จัดการหอพัก",
       color: "blue",
-      description: "เพิ่ม แก้ไข ห้องพัก"
+      description: "เพิ่ม แก้ไข หอพัก"
+    },
+    {
+      to: "/owner/rooms",
+      icon: FaBed,
+      label: "จัดการห้องพัก",
+      color: "indigo",
+      description: "จัดการห้องแต่ละห้อง"
     },
     {
       to: "/owner/profile",
@@ -51,6 +58,9 @@ function OwnerSidebar() {
       blue: isActive 
         ? 'text-blue-700 bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200' 
         : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50',
+      indigo: isActive 
+        ? 'text-indigo-700 bg-gradient-to-r from-indigo-50 to-indigo-100 border-indigo-200' 
+        : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50',
       orange: isActive 
         ? 'text-orange-700 bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200' 
         : 'text-gray-700 hover:text-orange-600 hover:bg-orange-50',
