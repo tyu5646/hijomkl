@@ -27,7 +27,21 @@ function AdminDormApprovalPage() {
 
   const fetchPendingDorms = useCallback(() => {
     setLoading(true);
-    fetch(`http://localhost:3001/admin/dorms?status=${filterStatus}`)
+    const token = sessionStorage.getItem('token');
+    
+    if (!token) {
+      console.error('No admin token found');
+      setPendingDorms([]);
+      setLoading(false);
+      return;
+    }
+    
+    fetch(`http://localhost:3001/admin/dorms?status=${filterStatus}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
       .then(res => {
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
@@ -58,9 +72,18 @@ function AdminDormApprovalPage() {
   const handleApprove = async (dormId) => {
     if (window.confirm('คุณต้องการอนุมัติหอพักนี้หรือไม่?')) {
       try {
+        const token = sessionStorage.getItem('token');
+        if (!token) {
+          alert('กรุณาเข้าสู่ระบบใหม่');
+          return;
+        }
+        
         const response = await fetch(`http://localhost:3001/admin/dorms/${dormId}/approve`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
         });
         
         if (response.ok) {
@@ -79,9 +102,18 @@ function AdminDormApprovalPage() {
   const handleReject = async (dormId) => {
     if (window.confirm('คุณต้องการปฏิเสธหอพักนี้หรือไม่?')) {
       try {
+        const token = sessionStorage.getItem('token');
+        if (!token) {
+          alert('กรุณาเข้าสู่ระบบใหม่');
+          return;
+        }
+        
         const response = await fetch(`http://localhost:3001/admin/dorms/${dormId}/reject`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
         });
         
         if (response.ok) {

@@ -239,6 +239,21 @@ function OwnerDormManagePage({ roomManageMode = false }) {
   // เพิ่มหอพักใหม่
   const handleAddDorm = async (e) => {
     e.preventDefault();
+    
+    console.log('🔧 Debug - เริ่มต้นการเพิ่มหอพัก');
+    console.log('🔧 Debug - Form data:', {
+      name: form.name,
+      latitude: form.latitude,
+      longitude: form.longitude,
+      images: form.images?.length || 0
+    });
+    
+    // ตรวจสอบข้อมูลที่จำเป็น
+    if (!form.name || !form.latitude || !form.longitude) {
+      alert('กรุณากรอกข้อมูลให้ครบถ้วน (ชื่อ, ที่อยู่, พิกัด)');
+      return;
+    }
+    
     const formData = new FormData();
     formData.append('name', form.name);
     formData.append('price_daily', form.price_daily);
@@ -258,6 +273,9 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     for (const file of form.images) {
       formData.append('images', file);
     }
+    
+    console.log('🔧 Debug - FormData prepared, sending request...');
+    
     try {
       const res = await fetch('http://localhost:3001/owner/dorms', {
         method: 'POST',
@@ -267,19 +285,33 @@ function OwnerDormManagePage({ roomManageMode = false }) {
         body: formData
       });
       
+      console.log('🔧 Debug - Response status:', res.status);
+      console.log('🔧 Debug - Response ok:', res.ok);
+      
       if (res.ok) {
+        const responseData = await res.json();
+        console.log('🔧 Debug - Response data:', responseData);
         alert('เพิ่มหอพักเรียบร้อยแล้ว! \nหอพักของคุณอยู่ในสถานะรออนุมัติจากผู้ดูแลระบบ \nจะแสดงในหน้าหลักหลังจากได้รับการอนุมัติ');
         setShowAddModal(false);
         setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', floor_count: '', room_count: '', address_detail: '', water_cost: '', electricity_cost: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
         if (fileInputRef.current) fileInputRef.current.value = '';
         fetchDorms(sessionStorage.getItem('token'));
       } else {
-        const err = await res.json();
-        alert(err.error || 'เกิดข้อผิดพลาดในการเพิ่มหอพัก');
+        console.log('🔧 Debug - Error response status:', res.status);
+        try {
+          const err = await res.json();
+          console.log('🔧 Debug - Error response:', err);
+          alert(err.error || 'เกิดข้อผิดพลาดในการเพิ่มหอพัก');
+        } catch (parseError) {
+          console.log('🔧 Debug - Failed to parse error response:', parseError);
+          alert(`เกิดข้อผิดพลาด: HTTP ${res.status} ${res.statusText}`);
+        }
       }
-    // eslint-disable-next-line no-unused-vars
     } catch (error) {
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      console.error('🔧 Debug - Network/Fetch Error:', error);
+      console.error('🔧 Debug - Error message:', error.message);
+      console.error('🔧 Debug - Error stack:', error.stack);
+      alert(`เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: ${error.message}`);
     }
   };
 
