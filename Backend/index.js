@@ -1257,6 +1257,192 @@ app.delete('/admin/users/:type/:id', verifyAdminToken, (req, res) => {
   });
 });
 
+// === ADMIN MANAGEMENT ENDPOINTS ===
+
+// ดึงข้อมูลแอดมินทั้งหมด
+app.get('/admin/admins', verifyAdminToken, (req, res) => {
+  const sql = `
+    SELECT * FROM admins 
+    ORDER BY id DESC
+  `;
+  
+  pool.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error fetching admins:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลแอดมิน', details: err.message });
+    }
+    
+    // ไม่ส่งรหัสผ่านกลับไป
+    const admins = results.map(admin => {
+      const { password, ...adminWithoutPassword } = admin;
+      return adminWithoutPassword;
+    });
+    
+    res.json(admins);
+  });
+});
+
+// ดึงข้อมูลบทบาททั้งหมด
+app.get('/admin/roles', verifyAdminToken, (req, res) => {
+  const sql = 'SELECT * FROM roles ORDER BY id';
+  
+  pool.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error fetching roles:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลบทบาท', details: err.message });
+    }
+    
+    res.json(results);
+  });
+});
+
+// เพิ่มแอดมินใหม่
+app.post('/admin/admins', verifyAdminToken, async (req, res) => {
+  const {
+    firstName, lastName, age, dob, houseNo, moo, soi, road,
+    subdistrict, district, province, email, password, phone,
+    role_id: role_name, zip_code
+  } = req.body;
+
+  // ตรวจสอบข้อมูลที่จำเป็น
+  if (!firstName || !lastName || !email || !password || !phone || !role_name) {
+    return res.status(400).json({ 
+      error: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน (ชื่อ, นามสกุล, อีเมล, รหัสผ่าน, เบอร์โทร, บทบาท)' 
+    });
+  }
+
+  try {
+    // เข้ารหัสรหัสผ่าน
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const sql = `
+      INSERT INTO admins 
+      (firstName, lastName, age, dob, houseNo, moo, soi, road, 
+       subdistrict, district, province, email, password, phone, role_name, zip_code)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    pool.query(sql, [
+      firstName, lastName, age, dob, houseNo, moo, soi, road,
+      subdistrict, district, province, email, hashedPassword, phone,
+      role_name, zip_code
+    ], (err, result) => {
+      if (err) {
+        console.error('Error adding admin:', err);
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ error: 'อีเมลนี้ถูกใช้งานแล้ว' });
+        }
+        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเพิ่มแอดมิน', details: err.message });
+      }
+
+      res.status(201).json({ 
+        success: true, 
+        message: 'เพิ่มแอดมินสำเร็จ',
+        adminId: result.insertId 
+      });
+    });
+  } catch (error) {
+    console.error('Error hashing password:', error);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเข้ารหัสรหัสผ่าน' });
+  }
+});
+
+// อัพเดทข้อมูลแอดมิน
+app.put('/admin/admins/:id', verifyAdminToken, async (req, res) => {
+  const adminId = req.params.id;
+  const {
+    firstName, lastName, age, dob, houseNo, moo, soi, road,
+    subdistrict, district, province, email, password, phone,
+    role_id: role_name, zip_code
+  } = req.body;
+
+  // ตรวจสอบข้อมูลที่จำเป็น
+  if (!firstName || !lastName || !email || !phone || !role_name) {
+    return res.status(400).json({ 
+      error: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน (ชื่อ, นามสกุล, อีเมล, เบอร์โทร, บทบาท)' 
+    });
+  }
+
+  try {
+    let sql, params;
+
+    // ถ้ามีการเปลี่ยนรหัสผ่าน
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      sql = `
+        UPDATE admins 
+        SET firstName = ?, lastName = ?, age = ?, dob = ?, houseNo = ?, moo = ?, 
+            soi = ?, road = ?, subdistrict = ?, district = ?, province = ?, 
+            email = ?, password = ?, phone = ?, role_name = ?, zip_code = ?
+        WHERE id = ?
+      `;
+      params = [
+        firstName, lastName, age, dob, houseNo, moo, soi, road,
+        subdistrict, district, province, email, hashedPassword, phone,
+        role_name, zip_code, adminId
+      ];
+    } else {
+      // ไม่เปลี่ยนรหัสผ่าน
+      sql = `
+        UPDATE admins 
+        SET firstName = ?, lastName = ?, age = ?, dob = ?, houseNo = ?, moo = ?, 
+            soi = ?, road = ?, subdistrict = ?, district = ?, province = ?, 
+            email = ?, phone = ?, role_name = ?, zip_code = ?
+        WHERE id = ?
+      `;
+      params = [
+        firstName, lastName, age, dob, houseNo, moo, soi, road,
+        subdistrict, district, province, email, phone,
+        role_name, zip_code, adminId
+      ];
+    }
+
+    pool.query(sql, params, (err, result) => {
+      if (err) {
+        console.error('Error updating admin:', err);
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ error: 'อีเมลนี้ถูกใช้งานแล้ว' });
+        }
+        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัพเดทแอดมิน', details: err.message });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: 'ไม่พบแอดมินที่ต้องการอัพเดท' });
+      }
+
+      res.json({ success: true, message: 'อัพเดทข้อมูลแอดมินสำเร็จ' });
+    });
+  } catch (error) {
+    console.error('Error processing admin update:', error);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการประมวลผลข้อมูล' });
+  }
+});
+
+// ลบแอดมิน
+app.delete('/admin/admins/:id', verifyAdminToken, (req, res) => {
+  const adminId = req.params.id;
+
+  // ตรวจสอบว่าไม่ลบตัวเอง
+  if (parseInt(adminId) === req.user.id) {
+    return res.status(400).json({ error: 'ไม่สามารถลบบัญชีของตัวเองได้' });
+  }
+
+  const sql = 'DELETE FROM admins WHERE id = ?';
+
+  pool.query(sql, [adminId], (err, result) => {
+    if (err) {
+      console.error('Error deleting admin:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการลบแอดมิน', details: err.message });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'ไม่พบแอดมินที่ต้องการลบ' });
+    }
+
+    res.json({ success: true, message: 'ลบแอดมินสำเร็จ' });
+  });
+});
+
 // === OWNER PROFILE ENDPOINTS ===
 
 // ดึงข้อมูลโปรไฟล์เจ้าของหอพัก

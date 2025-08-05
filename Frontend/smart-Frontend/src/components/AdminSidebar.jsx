@@ -5,7 +5,8 @@ import {
   FaCheckCircle, 
   FaSignOutAlt, 
   FaUsers,
-  FaChartLine
+  FaChartLine,
+  FaUserShield
 } from 'react-icons/fa';
 import logo from '../assets/logo-H.jpg'; // Import รูปโลโก้
 
@@ -108,6 +109,27 @@ function AdminSidebar() {
             <div className="flex-1">
               <span className="font-semibold">จัดการผู้ใช้</span>
               <p className="text-xs opacity-75">CRUD ผู้ใช้งาน</p>
+            </div>
+          </NavLink>
+
+          <NavLink
+            to="/admin/manage"
+            className={({ isActive }) =>
+              `group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${
+                isActive 
+                  ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg transform scale-105' 
+                  : 'text-gray-700 hover:bg-white hover:shadow-md hover:scale-105'
+              }`
+            }
+          >
+            <div className={`p-2 rounded-lg transition-colors ${
+              ({ isActive }) => isActive ? 'bg-white bg-opacity-20' : 'bg-purple-100 group-hover:bg-purple-200'
+            }`}>
+              <FaUserShield className="text-lg" />
+            </div>
+            <div className="flex-1">
+              <span className="font-semibold">จัดการแอดมิน</span>
+              <p className="text-xs opacity-75">CRUD แอดมิน</p>
             </div>
           </NavLink>
         </div>

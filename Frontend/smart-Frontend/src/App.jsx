@@ -7,6 +7,7 @@ import RegisterPage from './pages/RegisterPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminDormApprovalPage from './pages/AdminDormApprovalPage';
 import AdminUserManager from './pages/AdminUserManager';
+import AdminManagePage from './pages/AdminManagePage';
 import OwnerDormManagePage from './pages/OwnerDormManagePage';
 import OwnerRoomManagePage from './pages/OwnerRoomManagePage';
 import OwnerProfilePage from './pages/OwnerProfilePage';
@@ -54,6 +55,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminUserManager />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/manage"
+          element={
+            <ProtectedRoute>
+              <AdminManagePage />
             </ProtectedRoute>
           }
         />
