@@ -24,7 +24,8 @@ import {
   FaBolt,
   FaTint,
   FaHistory,
-  FaCalculator
+  FaCalculator,
+  FaCopy
 } from 'react-icons/fa';
 
 function OwnerRoomManagePage() {
@@ -1311,7 +1312,7 @@ function OwnerRoomManagePage() {
         {/* Modal อัปเดตข้อมูลสาธารณูปโภค */}
         {showUtilityModal && selectedRoom && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative overflow-hidden max-h-[85vh] overflow-y-auto">
               {/* Header */}
               <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 p-6">
                 <div className="flex items-center justify-between">
@@ -1408,9 +1409,26 @@ function OwnerRoomManagePage() {
 
                   {/* มิเตอร์ไฟฟ้า */}
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                    <h4 className="text-sm font-semibold text-yellow-700 mb-3 flex items-center gap-2">
-                      <FaBolt className="w-4 h-4" />
-                      มิเตอร์ไฟฟ้า
+                    <h4 className="text-sm font-semibold text-yellow-700 mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FaBolt className="w-4 h-4" />
+                        มิเตอร์ไฟฟ้า
+                      </div>
+                      {selectedRoom.electricity_meter_new && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUtilityForm({
+                              ...utilityForm, 
+                              electricity_meter_old: selectedRoom.electricity_meter_new
+                            });
+                          }}
+                          className="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+                        >
+                          <FaCopy className="w-3 h-3" />
+                          คัดลอกจากมิเตอร์ใหม่
+                        </button>
+                      )}
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -1438,8 +1456,19 @@ function OwnerRoomManagePage() {
                         />
                       </div>
                     </div>
+                    {/* คำเตือนเมื่อมิเตอร์ใหม่น้อยกว่าเก่า - ไฟฟ้า */}
+                    {utilityForm.electricity_meter_old && utilityForm.electricity_meter_new && 
+                     parseFloat(utilityForm.electricity_meter_new) < parseFloat(utilityForm.electricity_meter_old) && (
+                      <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-lg">
+                        <div className="flex items-center gap-2 text-red-700">
+                          <FaExclamationTriangle className="w-4 h-4" />
+                          <span className="text-sm font-semibold">เตือน: เลขมิเตอร์ใหม่ต้องมากกว่าเลขมิเตอร์เก่า</span>
+                        </div>
+                      </div>
+                    )}
                     {/* แสดงการคำนวณไฟฟ้า */}
-                    {utilityForm.electricity_meter_old && utilityForm.electricity_meter_new && utilityForm.electricity_rate && (
+                    {utilityForm.electricity_meter_old && utilityForm.electricity_meter_new && utilityForm.electricity_rate && 
+                     parseFloat(utilityForm.electricity_meter_new) >= parseFloat(utilityForm.electricity_meter_old) && (
                       <div className="mt-3 p-3 bg-white rounded-lg border">
                         <div className="text-sm text-gray-600">
                           <div className="flex justify-between">
@@ -1461,9 +1490,26 @@ function OwnerRoomManagePage() {
 
                   {/* มิเตอร์น้ำ */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
-                      <FaTint className="w-4 h-4" />
-                      มิเตอร์น้ำ
+                    <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FaTint className="w-4 h-4" />
+                        มิเตอร์น้ำ
+                      </div>
+                      {selectedRoom.water_meter_new && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUtilityForm({
+                              ...utilityForm, 
+                              water_meter_old: selectedRoom.water_meter_new
+                            });
+                          }}
+                          className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+                        >
+                          <FaCopy className="w-3 h-3" />
+                          คัดลอกจากมิเตอร์ใหม่
+                        </button>
+                      )}
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -1491,8 +1537,19 @@ function OwnerRoomManagePage() {
                         />
                       </div>
                     </div>
+                    {/* คำเตือนเมื่อมิเตอร์ใหม่น้อยกว่าเก่า - น้ำ */}
+                    {utilityForm.water_meter_old && utilityForm.water_meter_new && 
+                     parseFloat(utilityForm.water_meter_new) < parseFloat(utilityForm.water_meter_old) && (
+                      <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-lg">
+                        <div className="flex items-center gap-2 text-red-700">
+                          <FaExclamationTriangle className="w-4 h-4" />
+                          <span className="text-sm font-semibold">เตือน: เลขมิเตอร์ใหม่ต้องมากกว่าเลขมิเตอร์เก่า</span>
+                        </div>
+                      </div>
+                    )}
                     {/* แสดงการคำนวณน้ำ */}
-                    {utilityForm.water_meter_old && utilityForm.water_meter_new && utilityForm.water_rate && (
+                    {utilityForm.water_meter_old && utilityForm.water_meter_new && utilityForm.water_rate && 
+                     parseFloat(utilityForm.water_meter_new) >= parseFloat(utilityForm.water_meter_old) && (
                       <div className="mt-3 p-3 bg-white rounded-lg border">
                         <div className="text-sm text-gray-600">
                           <div className="flex justify-between">
@@ -1548,6 +1605,79 @@ function OwnerRoomManagePage() {
                     </div>
                   </div>
 
+                  {/* สรุปยอดรวม */}
+                  {utilityForm.electricity_meter_old && utilityForm.electricity_meter_new && 
+                   utilityForm.water_meter_old && utilityForm.water_meter_new &&
+                   utilityForm.electricity_rate && utilityForm.water_rate &&
+                   parseFloat(utilityForm.electricity_meter_new) >= parseFloat(utilityForm.electricity_meter_old) &&
+                   parseFloat(utilityForm.water_meter_new) >= parseFloat(utilityForm.water_meter_old) && (
+                    <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 mt-6">
+                      <h4 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                        <FaCalculator className="w-5 h-5" />
+                        สรุปค่าใช้จ่ายทั้งหมด
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white rounded-lg p-3 border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <FaBolt className="w-4 h-4 text-yellow-500" />
+                            <span className="font-medium text-gray-700">ค่าไฟฟ้า</span>
+                          </div>
+                          <div className="text-sm space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">การใช้งาน:</span>
+                              <span className="font-semibold">
+                                {(parseFloat(utilityForm.electricity_meter_new) - parseFloat(utilityForm.electricity_meter_old)).toFixed(2)} หน่วย
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">อัตรา:</span>
+                              <span>฿{parseFloat(utilityForm.electricity_rate).toFixed(2)}/หน่วย</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-yellow-600 pt-1 border-t">
+                              <span>รวม:</span>
+                              <span>฿{((parseFloat(utilityForm.electricity_meter_new) - parseFloat(utilityForm.electricity_meter_old)) * parseFloat(utilityForm.electricity_rate)).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white rounded-lg p-3 border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <FaTint className="w-4 h-4 text-blue-500" />
+                            <span className="font-medium text-gray-700">ค่าน้ำ</span>
+                          </div>
+                          <div className="text-sm space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">การใช้งาน:</span>
+                              <span className="font-semibold">
+                                {(parseFloat(utilityForm.water_meter_new) - parseFloat(utilityForm.water_meter_old)).toFixed(2)} หน่วย
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">อัตรา:</span>
+                              <span>฿{parseFloat(utilityForm.water_rate).toFixed(2)}/หน่วย</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-blue-600 pt-1 border-t">
+                              <span>รวม:</span>
+                              <span>฿{((parseFloat(utilityForm.water_meter_new) - parseFloat(utilityForm.water_meter_old)) * parseFloat(utilityForm.water_rate)).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 p-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-lg font-bold">ยอดรวมทั้งหมด:</span>
+                          <span className="text-2xl font-bold">
+                            ฿{(
+                              ((parseFloat(utilityForm.electricity_meter_new) - parseFloat(utilityForm.electricity_meter_old)) * parseFloat(utilityForm.electricity_rate)) +
+                              ((parseFloat(utilityForm.water_meter_new) - parseFloat(utilityForm.water_meter_old)) * parseFloat(utilityForm.water_rate))
+                            ).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Submit Buttons */}
                   <div className="flex gap-3 pt-6 border-t border-gray-200 mt-6">
                     <button
@@ -1559,7 +1689,22 @@ function OwnerRoomManagePage() {
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white py-3 px-6 rounded-lg font-semibold shadow-lg transition-all duration-200"
+                      disabled={
+                        !utilityForm.electricity_meter_old || !utilityForm.electricity_meter_new ||
+                        !utilityForm.water_meter_old || !utilityForm.water_meter_new ||
+                        !utilityForm.electricity_rate || !utilityForm.water_rate ||
+                        parseFloat(utilityForm.electricity_meter_new) < parseFloat(utilityForm.electricity_meter_old) ||
+                        parseFloat(utilityForm.water_meter_new) < parseFloat(utilityForm.water_meter_old)
+                      }
+                      className={`flex-1 py-3 px-6 rounded-lg font-semibold shadow-lg transition-all duration-200 ${
+                        !utilityForm.electricity_meter_old || !utilityForm.electricity_meter_new ||
+                        !utilityForm.water_meter_old || !utilityForm.water_meter_new ||
+                        !utilityForm.electricity_rate || !utilityForm.water_rate ||
+                        parseFloat(utilityForm.electricity_meter_new) < parseFloat(utilityForm.electricity_meter_old) ||
+                        parseFloat(utilityForm.water_meter_new) < parseFloat(utilityForm.water_meter_old)
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                        : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white'
+                      }`}
                     >
                       บันทึกข้อมูล
                     </button>
