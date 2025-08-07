@@ -100,6 +100,9 @@ function AdminDormApprovalPage() {
   };
 
   const handleReject = async (dormId) => {
+    const reason = prompt('กรุณาระบุเหตุผลในการปฏิเสธ (ไม่บังคับ):');
+    if (reason === null) return; // ผู้ใช้กด Cancel
+    
     if (window.confirm('คุณต้องการปฏิเสธหอพักนี้หรือไม่?')) {
       try {
         const token = sessionStorage.getItem('token');
@@ -113,18 +116,20 @@ function AdminDormApprovalPage() {
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
-          }
+          },
+          body: JSON.stringify({ reason: reason || '' })
         });
         
         if (response.ok) {
           alert('ปฏิเสธหอพักเรียบร้อยแล้ว');
           fetchPendingDorms();
         } else {
-          throw new Error('Failed to reject dorm');
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to reject dorm');
         }
       } catch (error) {
         console.error('Error rejecting dorm:', error);
-        alert('เกิดข้อผิดพลาดในการปฏิเสธหอพัก');
+        alert(`เกิดข้อผิดพลาดในการปฏิเสธหอพัก: ${error.message}`);
       }
     }
   };

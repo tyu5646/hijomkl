@@ -58,8 +58,12 @@ function OwnerRoomManagePage() {
   });
 
   const [utilityForm, setUtilityForm] = useState({
-    electricity_usage: '',
-    water_usage: '',
+    electricity_meter_old: '',
+    electricity_meter_new: '',
+    water_meter_old: '',
+    water_meter_new: '',
+    electricity_rate: '', // อัตราค่าไฟ (บาท/หน่วย)
+    water_rate: '', // อัตราค่าน้ำ (บาท/หน่วย)
     electricity_notes: '',
     water_notes: '',
     meter_reading_date: new Date().toISOString().split('T')[0]
@@ -253,8 +257,12 @@ function OwnerRoomManagePage() {
         alert('อัปเดตข้อมูลการใช้สาธารณูปโภคเรียบร้อยแล้ว!');
         setShowUtilityModal(false);
         setUtilityForm({
-          electricity_usage: '',
-          water_usage: '',
+          electricity_meter_old: '',
+          electricity_meter_new: '',
+          water_meter_old: '',
+          water_meter_new: '',
+          electricity_rate: '',
+          water_rate: '',
           electricity_notes: '',
           water_notes: '',
           meter_reading_date: new Date().toISOString().split('T')[0]
@@ -297,8 +305,12 @@ function OwnerRoomManagePage() {
   const handleOpenUtilityModal = (room) => {
     setSelectedRoom(room);
     setUtilityForm({
-      electricity_usage: room.electricity_usage || '',
-      water_usage: room.water_usage || '',
+      electricity_meter_old: room.electricity_meter_old || '',
+      electricity_meter_new: room.electricity_meter_new || '',
+      water_meter_old: room.water_meter_old || '',
+      water_meter_new: room.water_meter_new || '',
+      electricity_rate: room.electricity_rate || '',
+      water_rate: room.water_rate || '',
       electricity_notes: room.electricity_notes || '',
       water_notes: room.water_notes || '',
       meter_reading_date: room.meter_reading_date || new Date().toISOString().split('T')[0]
@@ -642,22 +654,69 @@ function OwnerRoomManagePage() {
                           <FaCalculator className="w-4 h-4 text-indigo-500" />
                           <span className="text-sm font-medium text-gray-700">การใช้สาธารณูปโภค</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="flex items-center gap-2">
-                            <FaBolt className="w-3 h-3 text-yellow-500" />
-                            <span className="text-xs text-gray-600">ไฟฟ้า:</span>
-                            <span className="text-xs font-medium text-gray-800">
-                              {room.electricity_usage ? `${Number(room.electricity_usage).toLocaleString()} หน่วย` : '0 หน่วย'}
-                            </span>
+                        
+                        {/* แสดงข้อมูลมิเตอร์ไฟ */}
+                        {(room.electricity_meter_old || room.electricity_meter_new) && (
+                          <div className="bg-yellow-50 rounded-lg p-2 mb-2">
+                            <div className="flex items-center gap-1 mb-1">
+                              <FaBolt className="w-3 h-3 text-yellow-500" />
+                              <span className="text-xs font-medium text-yellow-700">ไฟฟ้า</span>
+                            </div>
+                            <div className="text-xs text-gray-600 space-y-1">
+                              {room.electricity_meter_old && (
+                                <div>มิเตอร์เก่า: {parseFloat(room.electricity_meter_old).toLocaleString()} หน่วย</div>
+                              )}
+                              {room.electricity_meter_new && (
+                                <div>มิเตอร์ใหม่: {parseFloat(room.electricity_meter_new).toLocaleString()} หน่วย</div>
+                              )}
+                              {room.electricity_meter_old && room.electricity_meter_new && (
+                                <div className="font-semibold text-yellow-700">
+                                  ใช้งาน: {(parseFloat(room.electricity_meter_new) - parseFloat(room.electricity_meter_old)).toLocaleString()} หน่วย
+                                  {room.electricity_rate && (
+                                    <span className="ml-1">
+                                      (฿{((parseFloat(room.electricity_meter_new) - parseFloat(room.electricity_meter_old)) * parseFloat(room.electricity_rate)).toLocaleString()})
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <FaTint className="w-3 h-3 text-blue-500" />
-                            <span className="text-xs text-gray-600">น้ำ:</span>
-                            <span className="text-xs font-medium text-gray-800">
-                              {room.water_usage ? `${Number(room.water_usage).toLocaleString()} ลบ.ม.` : '0 ลบ.ม.'}
-                            </span>
+                        )}
+
+                        {/* แสดงข้อมูลมิเตอร์น้ำ */}
+                        {(room.water_meter_old || room.water_meter_new) && (
+                          <div className="bg-blue-50 rounded-lg p-2 mb-2">
+                            <div className="flex items-center gap-1 mb-1">
+                              <FaTint className="w-3 h-3 text-blue-500" />
+                              <span className="text-xs font-medium text-blue-700">น้ำ</span>
+                            </div>
+                            <div className="text-xs text-gray-600 space-y-1">
+                              {room.water_meter_old && (
+                                <div>มิเตอร์เก่า: {parseFloat(room.water_meter_old).toLocaleString()} หน่วย</div>
+                              )}
+                              {room.water_meter_new && (
+                                <div>มิเตอร์ใหม่: {parseFloat(room.water_meter_new).toLocaleString()} หน่วย</div>
+                              )}
+                              {room.water_meter_old && room.water_meter_new && (
+                                <div className="font-semibold text-blue-700">
+                                  ใช้งาน: {(parseFloat(room.water_meter_new) - parseFloat(room.water_meter_old)).toLocaleString()} หน่วย
+                                  {room.water_rate && (
+                                    <span className="ml-1">
+                                      (฿{((parseFloat(room.water_meter_new) - parseFloat(room.water_meter_old)) * parseFloat(room.water_rate)).toLocaleString()})
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )}
+
+                        {/* ถ้าไม่มีข้อมูลมิเตอร์ แสดงข้อความเริ่มต้น */}
+                        {!(room.electricity_meter_old || room.electricity_meter_new || room.water_meter_old || room.water_meter_new) && (
+                          <div className="text-xs text-gray-500 text-center py-2">
+                            ยังไม่มีข้อมูลมิเตอร์
+                          </div>
+                        )}
                         {room.meter_reading_date && (
                           <div className="mt-2 text-xs text-gray-500">
                             อัปเดตล่าสุด: {new Date(room.meter_reading_date).toLocaleDateString('th-TH')}
@@ -1278,56 +1337,182 @@ function OwnerRoomManagePage() {
               <div className="p-6 space-y-6">
                 {/* ข้อมูลปัจจุบัน */}
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-700 mb-3">ข้อมูลปัจจุบัน</h4>
+                  <h4 className="font-semibold text-gray-700 mb-3">ข้อมูลมิเตอร์ปัจจุบัน</h4>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-2">
-                      <FaBolt className="w-4 h-4 text-yellow-500" />
-                      <span className="text-sm text-gray-600">ไฟฟ้า:</span>
-                      <span className="text-sm font-medium">{selectedRoom.electricity_usage || 0} หน่วย</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FaBolt className="w-4 h-4 text-yellow-500" />
+                        <span className="text-sm font-medium text-gray-700">ไฟฟ้า</span>
+                      </div>
+                      <div className="text-xs text-gray-600 space-y-1">
+                        <div>มิเตอร์เก่า: {selectedRoom.electricity_meter_old || 'ยังไม่มีข้อมูล'}</div>
+                        <div>มิเตอร์ใหม่: {selectedRoom.electricity_meter_new || 'ยังไม่มีข้อมูล'}</div>
+                        {selectedRoom.electricity_meter_old && selectedRoom.electricity_meter_new && (
+                          <div className="font-semibold text-yellow-700">
+                            การใช้งาน: {(parseFloat(selectedRoom.electricity_meter_new) - parseFloat(selectedRoom.electricity_meter_old)).toLocaleString()} หน่วย
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <FaTint className="w-4 h-4 text-blue-500" />
-                      <span className="text-sm text-gray-600">น้ำ:</span>
-                      <span className="text-sm font-medium">{selectedRoom.water_usage || 0} ลบ.ม.</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FaTint className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm font-medium text-gray-700">น้ำ</span>
+                      </div>
+                      <div className="text-xs text-gray-600 space-y-1">
+                        <div>มิเตอร์เก่า: {selectedRoom.water_meter_old || 'ยังไม่มีข้อมูล'}</div>
+                        <div>มิเตอร์ใหม่: {selectedRoom.water_meter_new || 'ยังไม่มีข้อมูล'}</div>
+                        {selectedRoom.water_meter_old && selectedRoom.water_meter_new && (
+                          <div className="font-semibold text-blue-700">
+                            การใช้งาน: {(parseFloat(selectedRoom.water_meter_new) - parseFloat(selectedRoom.water_meter_old)).toLocaleString()} หน่วย
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* ฟอร์มอัปเดต */}
                 <form onSubmit={(e) => { e.preventDefault(); handleUpdateUtilities(selectedRoom.id); }}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
-                        <FaBolt className="text-yellow-500" />
-                        การใช้ไฟฟ้า (หน่วย)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                        placeholder="ระบุการใช้ไฟฟ้า"
-                        value={utilityForm.electricity_usage}
-                        onChange={(e) => setUtilityForm({...utilityForm, electricity_usage: e.target.value})}
-                      />
+                  
+                  {/* อัตราค่าบริการ */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <h4 className="text-sm font-semibold text-blue-700 mb-3">อัตราค่าบริการ (บาท/หน่วย)</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block mb-2 text-sm text-gray-600">อัตราค่าไฟฟ้า</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
+                          placeholder="เช่น 7.50"
+                          value={utilityForm.electricity_rate}
+                          onChange={(e) => setUtilityForm({...utilityForm, electricity_rate: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block mb-2 text-sm text-gray-600">อัตราค่าน้ำ</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder="เช่น 18.00"
+                          value={utilityForm.water_rate}
+                          onChange={(e) => setUtilityForm({...utilityForm, water_rate: e.target.value})}
+                        />
+                      </div>
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
-                        <FaTint className="text-blue-500" />
-                        การใช้น้ำ (ลบ.ม.)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                        placeholder="ระบุการใช้น้ำ"
-                        value={utilityForm.water_usage}
-                        onChange={(e) => setUtilityForm({...utilityForm, water_usage: e.target.value})}
-                      />
+                  {/* มิเตอร์ไฟฟ้า */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <h4 className="text-sm font-semibold text-yellow-700 mb-3 flex items-center gap-2">
+                      <FaBolt className="w-4 h-4" />
+                      มิเตอร์ไฟฟ้า
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์เก่า</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
+                          placeholder="เช่น 3450.50"
+                          value={utilityForm.electricity_meter_old}
+                          onChange={(e) => setUtilityForm({...utilityForm, electricity_meter_old: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์ใหม่</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
+                          placeholder="เช่น 3520.75"
+                          value={utilityForm.electricity_meter_new}
+                          onChange={(e) => setUtilityForm({...utilityForm, electricity_meter_new: e.target.value})}
+                        />
+                      </div>
                     </div>
+                    {/* แสดงการคำนวณไฟฟ้า */}
+                    {utilityForm.electricity_meter_old && utilityForm.electricity_meter_new && utilityForm.electricity_rate && (
+                      <div className="mt-3 p-3 bg-white rounded-lg border">
+                        <div className="text-sm text-gray-600">
+                          <div className="flex justify-between">
+                            <span>การใช้งาน:</span>
+                            <span className="font-semibold">
+                              {(parseFloat(utilityForm.electricity_meter_new) - parseFloat(utilityForm.electricity_meter_old)).toFixed(2)} หน่วย
+                            </span>
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span>ค่าไฟรวม:</span>
+                            <span className="font-bold text-yellow-600">
+                              ฿{((parseFloat(utilityForm.electricity_meter_new) - parseFloat(utilityForm.electricity_meter_old)) * parseFloat(utilityForm.electricity_rate)).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
+                  {/* มิเตอร์น้ำ */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
+                      <FaTint className="w-4 h-4" />
+                      มิเตอร์น้ำ
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์เก่า</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder="เช่น 1250.25"
+                          value={utilityForm.water_meter_old}
+                          onChange={(e) => setUtilityForm({...utilityForm, water_meter_old: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์ใหม่</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder="เช่น 1280.50"
+                          value={utilityForm.water_meter_new}
+                          onChange={(e) => setUtilityForm({...utilityForm, water_meter_new: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                    {/* แสดงการคำนวณน้ำ */}
+                    {utilityForm.water_meter_old && utilityForm.water_meter_new && utilityForm.water_rate && (
+                      <div className="mt-3 p-3 bg-white rounded-lg border">
+                        <div className="text-sm text-gray-600">
+                          <div className="flex justify-between">
+                            <span>การใช้งาน:</span>
+                            <span className="font-semibold">
+                              {(parseFloat(utilityForm.water_meter_new) - parseFloat(utilityForm.water_meter_old)).toFixed(2)} หน่วย
+                            </span>
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span>ค่าน้ำรวม:</span>
+                            <span className="font-bold text-blue-600">
+                              ฿{((parseFloat(utilityForm.water_meter_new) - parseFloat(utilityForm.water_meter_old)) * parseFloat(utilityForm.water_rate)).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
                       <label className="block mb-2 text-sm font-semibold text-gray-700">วันที่อ่านมิเตอร์</label>
                       <input

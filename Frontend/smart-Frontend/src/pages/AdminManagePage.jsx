@@ -155,6 +155,9 @@ const AdminManagePage = () => {
 
   // เปิด modal แก้ไข
   const openEditModal = (admin) => {
+    console.log('🔧 เริ่มเปิด modal แก้ไข, admin:', admin);
+    console.log('🔧 showEditModal ก่อน:', showEditModal);
+    
     setEditingAdmin(admin);
     setFormData({
       firstName: admin.firstName || '',
@@ -175,6 +178,8 @@ const AdminManagePage = () => {
       zip_code: admin.zip_code || ''
     });
     setShowEditModal(true);
+    
+    console.log('🔧 เซ็ต showEditModal = true แล้ว');
   };
 
   // รีเซ็ตฟอร์ม
@@ -206,12 +211,25 @@ const AdminManagePage = () => {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-800">จัดการแอดมิน</h1>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              + เพิ่มแอดมินใหม่
-            </button>
+            <div className="flex gap-2">
+              {/* ปุ่มทดสอบ */}
+              <button
+                onClick={() => {
+                  console.log('🔧 ทดสอบเปิด modal โดยตรง');
+                  setShowEditModal(true);
+                  setEditingAdmin({ id: 999, firstName: 'Test', lastName: 'User', email: 'test@test.com' });
+                }}
+                className="bg-yellow-500 text-white px-3 py-2 rounded text-sm hover:bg-yellow-600"
+              >
+                Test Modal
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                + เพิ่มแอดมินใหม่
+              </button>
+            </div>
           </div>
         </div>
 
@@ -247,14 +265,25 @@ const AdminManagePage = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
-                        onClick={() => openEditModal(admin)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('กดปุ่มแก้ไข:', admin);
+                          openEditModal(admin);
+                        }}
+                        className="bg-indigo-500 text-white px-3 py-1 rounded mr-2 hover:bg-indigo-600 transition-colors cursor-pointer"
+                        style={{ pointerEvents: 'auto' }}
                       >
                         แก้ไข
                       </button>
                       <button
-                        onClick={() => handleDeleteAdmin(admin.id)}
-                        className="text-red-600 hover:text-red-900"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDeleteAdmin(admin.id);
+                        }}
+                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors cursor-pointer"
+                        style={{ pointerEvents: 'auto' }}
                       >
                         ลบ
                       </button>
@@ -484,9 +513,17 @@ const AdminManagePage = () => {
             <div className="bg-white rounded-lg w-full max-w-4xl max-h-screen overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">แก้ไขข้อมูลแอดมิน</h2>
+                  <h2 className="text-xl font-bold text-gray-800">
+                    แก้ไขข้อมูลแอดมิน 
+                    <span className="text-sm text-green-600 ml-2">
+                      (Modal เปิดแล้ว! showEditModal: {showEditModal.toString()})
+                    </span>
+                  </h2>
                   <button
-                    onClick={() => setShowEditModal(false)}
+                    onClick={() => {
+                      console.log('🔧 กดปิด modal');
+                      setShowEditModal(false);
+                    }}
                     className="text-gray-500 hover:text-gray-700"
                   >
                     ✕

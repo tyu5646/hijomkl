@@ -626,6 +626,122 @@ app.get('/dorms', (req, res) => {
 });
 
 /**
+ * Get Single Dorm by ID
+ * ดึงข้อมูลหอพักเดี่ยวด้วย ID
+ * @route GET /dorms/:id
+ * @returns {Object} ข้อมูลหอพักพร้อมรูปภาพ
+ */
+app.get('/dorms/:id', (req, res) => {
+  const dormId = req.params.id;
+  const sql = `
+    SELECT 
+      dorms.*, 
+      GROUP_CONCAT(dorm_images.image_path) AS images,
+      GROUP_CONCAT(
+        CONCAT(lc.location_type, ':', lc.location_name, ':', lc.latitude, ':', lc.longitude, ':', IFNULL(lc.distance_km, '0'))
+        ORDER BY lc.location_type, lc.distance_km SEPARATOR ';'
+      ) AS location_coordinates
+    FROM dorms
+    LEFT JOIN dorm_images ON dorms.id = dorm_images.dorm_id
+    LEFT JOIN location_coordinates lc ON dorms.id = lc.dorm_id
+    WHERE dorms.id = ?
+    GROUP BY dorms.id
+  `;
+  
+  pool.query(sql, [dormId], (err, results) => {
+    if (err) {
+      console.error('Error fetching dorm:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลหอพัก' });
+    }
+    
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'ไม่พบข้อมูลหอพัก' });
+    }
+    
+    const dorm = results[0];
+    
+    // แปลงรูปภาพเป็น array
+    if (dorm.images) {
+      dorm.images = dorm.images.split(',').filter(img => img);
+    } else {
+      dorm.images = [];
+    }
+    
+    // แปลงพิกัดสถานที่ใกล้เคียง
+    if (dorm.location_coordinates) {
+      dorm.coordinates = dorm.location_coordinates.split(';')
+        .filter(coord => coord)
+        .map(coord => {
+          const [type, name, lat, lng, distance] = coord.split(':');
+          return { type, name, latitude: parseFloat(lat), longitude: parseFloat(lng), distance: parseFloat(distance) || 0 };
+        });
+    } else {
+      dorm.coordinates = [];
+    }
+    
+    delete dorm.location_coordinates;
+    res.json(dorm);
+  });
+});
+
+/**
+ * Delete Dorm
+ * ลบหอพัก (เฉพาะเจ้าของหรือ Admin)
+ * @route DELETE /dorms/:id
+ */
+app.delete('/dorms/:id', authOwner, (req, res) => {
+  const dormId = req.params.id;
+  const userId = req.user.id;
+  
+  // ตรวจสอบว่าหอพักนี้เป็นของเจ้าของคนนี้หรือไม่
+  const checkOwnerSql = 'SELECT id FROM dorms WHERE id = ? AND owner_id = ?';
+  
+  pool.query(checkOwnerSql, [dormId, userId], (err, results) => {
+    if (err) {
+      console.error('Error checking dorm ownership:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์' });
+    }
+    
+    if (results.length === 0) {
+      return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ลบหอพักนี้' });
+    }
+    
+    // ลบรูปภาพก่อน
+    const deleteImagesSql = 'DELETE FROM dorm_images WHERE dorm_id = ?';
+    pool.query(deleteImagesSql, [dormId], (err) => {
+      if (err) {
+        console.error('Error deleting dorm images:', err);
+        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการลบรูปภาพ' });
+      }
+      
+      // ลบพิกัดสถานที่ใกล้เคียง
+      const deleteCoordsSql = 'DELETE FROM location_coordinates WHERE dorm_id = ?';
+      pool.query(deleteCoordsSql, [dormId], (err) => {
+        if (err) {
+          console.error('Error deleting coordinates:', err);
+        }
+        
+        // ลบหอพัก
+        const deleteDormSql = 'DELETE FROM dorms WHERE id = ?';
+        pool.query(deleteDormSql, [dormId], (err, result) => {
+          if (err) {
+            console.error('Error deleting dorm:', err);
+            return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการลบหอพัก' });
+          }
+          
+          if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'ไม่พบหอพักที่ต้องการลบ' });
+          }
+          
+          broadcastDormsUpdate();
+          res.json({ success: true, message: 'ลบหอพักสำเร็จ' });
+        });
+      });
+    });
+  });
+});
+
+/**
  * Get Owner's Dorms
  * ดึงข้อมูลหอพักของเจ้าของหอพักคนนั้นๆ
  * @route GET /owner/dorms
@@ -1187,7 +1303,7 @@ app.put('/admin/dorms/:id/reject', verifyAdminToken, (req, res) => {
   const dormId = req.params.id;
   const { reason } = req.body;
   
-  const sql = 'UPDATE dorms SET status = ?, rejection_reason = ? WHERE id = ?';
+  const sql = 'UPDATE dorms SET status = ?, reject_reason = ? WHERE id = ?';
   
   pool.query(sql, ['rejected', reason || null, dormId], (err, result) => {
     if (err) {
