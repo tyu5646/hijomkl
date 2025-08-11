@@ -837,6 +837,35 @@ function OwnerHomePage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Actions */}
+                    <div className="space-y-3">
+                      {selectedDorm.contact_phone && (
+                        <button
+                          onClick={() => window.open(`tel:${selectedDorm.contact_phone}`, '_self')}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2"
+                        >
+                          <FaPhoneAlt className="w-5 h-5" />
+                          โทรหาเจ้าของหอพัก
+                        </button>
+                      )}
+                      <button
+                        onClick={() => navigate('/owner/dorm-manage')}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        จัดการหอพัก
+                      </button>
+                      <button
+                        onClick={() => navigate(`/owner/room-manage/${selectedDorm.id}`)}
+                        className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2"
+                      >
+                        <FaBed className="w-5 h-5" />
+                        จัดการห้องพัก
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

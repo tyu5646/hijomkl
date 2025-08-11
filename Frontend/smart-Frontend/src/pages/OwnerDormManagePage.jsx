@@ -18,10 +18,13 @@ import {
   FaChartLine, 
   FaPhoneAlt,
   FaStar,
+  FaTint,
+  FaBolt,
   FaEye,
   FaCheckCircle,
   FaExclamationTriangle,
-  FaInfoCircle
+  FaInfoCircle,
+  FaCouch
 } from 'react-icons/fa';
 
 function OwnerDormManagePage({ roomManageMode = false }) {
@@ -36,8 +39,8 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     price_monthly: '',
     price_term: '',
     address_detail: '', // เปลี่ยนจาก location เป็น address_detail
-    water_cost: '', // เพิ่มค่าน้ำ
-    electricity_cost: '', // เพิ่มค่าไฟ
+    water_rate: '', // อัตราค่าน้ำต่อหน่วย
+    electricity_rate: '', // อัตราค่าไฟต่อหน่วย
     deposit: '', // เพิ่มเงินมัดจำ
     contact_phone: '', // เพิ่มเบอร์โทร
     facilities: '',
@@ -258,12 +261,8 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     formData.append('price_monthly', form.price_monthly);
     formData.append('price_term', form.price_term);
     formData.append('address_detail', form.address_detail); // เปลี่ยนจาก location
-    formData.append('water_rate', form.water_rate);
-    formData.append('electricity_rate', form.electricity_rate);
-    formData.append('water_meter_old', form.water_meter_old);
-    formData.append('water_meter_new', form.water_meter_new);
-    formData.append('electricity_meter_old', form.electricity_meter_old);
-    formData.append('electricity_meter_new', form.electricity_meter_new);
+    formData.append('water_cost', form.water_rate); // แก้ไขจาก water_rate เป็น water_cost
+    formData.append('electricity_cost', form.electricity_rate); // แก้ไขจาก electricity_rate เป็น electricity_cost
     formData.append('deposit', form.deposit);
     formData.append('contact_phone', form.contact_phone);
     formData.append('facilities', form.facilities);
@@ -293,7 +292,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
         console.log('🔧 Debug - Response data:', responseData);
         alert('เพิ่มหอพักเรียบร้อยแล้ว! \nหอพักของคุณอยู่ในสถานะรออนุมัติจากผู้ดูแลระบบ \nจะแสดงในหน้าหลักหลังจากได้รับการอนุมัติ');
         setShowAddModal(false);
-        setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', address_detail: '', water_cost: '', electricity_cost: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
+        setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', address_detail: '', water_rate: '', electricity_rate: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
         if (fileInputRef.current) fileInputRef.current.value = '';
         fetchDorms(sessionStorage.getItem('token'));
       } else {
@@ -344,12 +343,8 @@ function OwnerDormManagePage({ roomManageMode = false }) {
       price_monthly: dorm.price_monthly || '',
       price_term: dorm.price_term || '',
       address_detail: dorm.address_detail || '', // เปลี่ยนจาก location
-      water_rate: dorm.water_rate || '',
-      electricity_rate: dorm.electricity_rate || '',
-      water_meter_old: dorm.water_meter_old || '',
-      water_meter_new: dorm.water_meter_new || '',
-      electricity_meter_old: dorm.electricity_meter_old || '',
-      electricity_meter_new: dorm.electricity_meter_new || '',
+      water_rate: dorm.water_rate || '', // อัตราค่าน้ำ
+      electricity_rate: dorm.electricity_rate || '', // อัตราค่าไฟ
       deposit: dorm.deposit || '',
       contact_phone: dorm.contact_phone || '',
       facilities: dorm.facilities || '',
@@ -406,12 +401,8 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     formData.append('price_monthly', form.price_monthly);
     formData.append('price_term', form.price_term);
     formData.append('address_detail', form.address_detail); // เปลี่ยนจาก location
-    formData.append('water_rate', form.water_rate);
-    formData.append('electricity_rate', form.electricity_rate);
-    formData.append('water_meter_old', form.water_meter_old);
-    formData.append('water_meter_new', form.water_meter_new);
-    formData.append('electricity_meter_old', form.electricity_meter_old);
-    formData.append('electricity_meter_new', form.electricity_meter_new);
+    formData.append('water_cost', form.water_rate); // แก้ไขจาก water_rate เป็น water_cost
+    formData.append('electricity_cost', form.electricity_rate); // แก้ไขจาก electricity_rate เป็น electricity_cost
     formData.append('deposit', form.deposit);
     formData.append('contact_phone', form.contact_phone);
     formData.append('facilities', form.facilities);
@@ -445,12 +436,6 @@ function OwnerDormManagePage({ roomManageMode = false }) {
         price_monthly: '', 
         price_term: '', 
         address_detail: '', 
-        water_rate: '', 
-        electricity_rate: '', 
-        water_meter_old: '', 
-        water_meter_new: '', 
-        electricity_meter_old: '', 
-        electricity_meter_new: '', 
         deposit: '', 
         contact_phone: '', 
         facilities: '', 
@@ -745,72 +730,33 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                     </div>
 
                     {/* ค่าใช้จ่ายเพิ่มเติม */}
-                    {(dorm.water_rate || dorm.electricity_rate || dorm.deposit) && (
+                    {(dorm.water_cost || dorm.electricity_cost || dorm.deposit) && (
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                         <label className="block text-xs font-medium text-gray-500 mb-3">ค่าใช้จ่ายเพิ่มเติม</label>
                         <div className="space-y-3">
-                          {/* ค่าน้ำ */}
-                          {dorm.water_rate && (
-                            <div className="bg-white rounded-lg p-3 border border-cyan-200">
-                              <div className="flex items-center gap-2 mb-2">
-                                <FaMoneyBillWave className="w-4 h-4 text-cyan-500" />
-                                <span className="text-sm font-medium text-gray-700">ค่าน้ำ</span>
+                          {dorm.water_cost && Number(dorm.water_cost) > 0 && (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <FaTint className="w-4 h-4 text-cyan-500" />
+                                <span className="text-sm text-gray-700">ค่าน้ำ</span>
                               </div>
-                              {dorm.water_meter_old && dorm.water_meter_new ? (
-                                <div className="space-y-1">
-                                  <div className="flex justify-between text-xs text-gray-600">
-                                    <span>มิเตอร์เก่า: {parseFloat(dorm.water_meter_old).toLocaleString()} หน่วย</span>
-                                    <span>มิเตอร์ใหม่: {parseFloat(dorm.water_meter_new).toLocaleString()} หน่วย</span>
-                                  </div>
-                                  <div className="flex justify-between text-xs text-gray-600">
-                                    <span>การใช้งาน: {(parseFloat(dorm.water_meter_new) - parseFloat(dorm.water_meter_old)).toLocaleString()} หน่วย</span>
-                                    <span>อัตรา: ฿{parseFloat(dorm.water_rate).toLocaleString()}/หน่วย</span>
-                                  </div>
-                                  <div className="text-right">
-                                    <span className="text-sm font-semibold text-cyan-600">
-                                      รวม: ฿{((parseFloat(dorm.water_meter_new) - parseFloat(dorm.water_meter_old)) * parseFloat(dorm.water_rate)).toLocaleString()}
-                                    </span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-sm text-cyan-600">
-                                  อัตรา: ฿{parseFloat(dorm.water_rate).toLocaleString()}/หน่วย
-                                </div>
-                              )}
+                              <span className="text-sm font-semibold text-cyan-600">
+                                ฿{parseInt(dorm.water_cost).toLocaleString()}/หน่วย
+                              </span>
                             </div>
                           )}
-                          
-                          {/* ค่าไฟ */}
-                          {dorm.electricity_rate && (
-                            <div className="bg-white rounded-lg p-3 border border-yellow-200">
-                              <div className="flex items-center gap-2 mb-2">
-                                <FaMoneyBillWave className="w-4 h-4 text-yellow-500" />
-                                <span className="text-sm font-medium text-gray-700">ค่าไฟ</span>
+                          {dorm.electricity_cost && Number(dorm.electricity_cost) > 0 && (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <FaBolt className="w-4 h-4 text-yellow-500" />
+                                <span className="text-sm text-gray-700">ค่าไฟ</span>
                               </div>
-                              {dorm.electricity_meter_old && dorm.electricity_meter_new ? (
-                                <div className="space-y-1">
-                                  <div className="flex justify-between text-xs text-gray-600">
-                                    <span>มิเตอร์เก่า: {parseFloat(dorm.electricity_meter_old).toLocaleString()} หน่วย</span>
-                                    <span>มิเตอร์ใหม่: {parseFloat(dorm.electricity_meter_new).toLocaleString()} หน่วย</span>
-                                  </div>
-                                  <div className="flex justify-between text-xs text-gray-600">
-                                    <span>การใช้งาน: {(parseFloat(dorm.electricity_meter_new) - parseFloat(dorm.electricity_meter_old)).toLocaleString()} หน่วย</span>
-                                    <span>อัตรา: ฿{parseFloat(dorm.electricity_rate).toLocaleString()}/หน่วย</span>
-                                  </div>
-                                  <div className="text-right">
-                                    <span className="text-sm font-semibold text-yellow-600">
-                                      รวม: ฿{((parseFloat(dorm.electricity_meter_new) - parseFloat(dorm.electricity_meter_old)) * parseFloat(dorm.electricity_rate)).toLocaleString()}
-                                    </span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-sm text-yellow-600">
-                                  อัตรา: ฿{parseFloat(dorm.electricity_rate).toLocaleString()}/หน่วย
-                                </div>
-                              )}
+                              <span className="text-sm font-semibold text-yellow-600">
+                                ฿{parseInt(dorm.electricity_cost).toLocaleString()}/หน่วย
+                              </span>
                             </div>
                           )}
-                          {dorm.deposit && (
+                          {dorm.deposit && Number(dorm.deposit) > 0 && (
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <FaMoneyBillWave className="w-4 h-4 text-purple-500" />
@@ -1063,146 +1009,48 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                   </div>
                 </div>
 
-                {/* ค่าใช้จ่ายเพิ่มเติม */}
+                {/* อัตราค่าสาธารณูปโภค */}
                 <div>
                   <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
-                    <FaMoneyBillWave className="text-orange-500" />
-                    การคำนวณค่าสาธารณูปโภค
+                    <FaMoneyBillWave className="text-green-500" />
+                    อัตราค่าสาธารณูปโภค
                   </label>
-                  
-                  {/* อัตราค่าน้ำและค่าไฟ */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block mb-2 text-sm text-gray-600">อัตราค่าน้ำ (บาท/หน่วย)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        อัตราค่าน้ำ (บาท/หน่วย)
+                      </label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-                        placeholder="เช่น 18"
                         type="number"
-                        min="0"
                         step="0.01"
+                        placeholder="เช่น 18.00"
                         value={form.water_rate}
                         onChange={e => setForm({ ...form, water_rate: e.target.value })}
                       />
                     </div>
                     <div>
-                      <label className="block mb-2 text-sm text-gray-600">อัตราค่าไฟ (บาท/หน่วย)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        อัตราค่าไฟ (บาท/หน่วย)
+                      </label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-                        placeholder="เช่น 7"
                         type="number"
-                        min="0"
                         step="0.01"
+                        placeholder="เช่น 7.50"
                         value={form.electricity_rate}
                         onChange={e => setForm({ ...form, electricity_rate: e.target.value })}
                       />
                     </div>
                   </div>
+                </div>
 
-                  {/* มิเตอร์น้ำ */}
-                  <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 mb-4">
-                    <h4 className="text-sm font-semibold text-cyan-700 mb-3 flex items-center gap-2">
-                      <FaMoneyBillWave className="w-4 h-4" />
-                      มิเตอร์น้ำ
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์เก่า</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-                          placeholder="เช่น 1250"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={form.water_meter_old}
-                          onChange={e => setForm({ ...form, water_meter_old: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์ใหม่</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-                          placeholder="เช่น 1280"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={form.water_meter_new}
-                          onChange={e => setForm({ ...form, water_meter_new: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    {/* แสดงการคำนวณค่าน้ำ */}
-                    {form.water_meter_old && form.water_meter_new && form.water_rate && (
-                      <div className="mt-3 p-3 bg-white rounded-lg border">
-                        <div className="text-sm text-gray-600">
-                          <div className="flex justify-between">
-                            <span>การใช้งาน:</span>
-                            <span className="font-semibold">
-                              {(parseFloat(form.water_meter_new) - parseFloat(form.water_meter_old)).toFixed(2)} หน่วย
-                            </span>
-                          </div>
-                          <div className="flex justify-between mt-1">
-                            <span>ค่าน้ำรวม:</span>
-                            <span className="font-bold text-cyan-600">
-                              ฿{((parseFloat(form.water_meter_new) - parseFloat(form.water_meter_old)) * parseFloat(form.water_rate)).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* มิเตอร์ไฟ */}
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                    <h4 className="text-sm font-semibold text-yellow-700 mb-3 flex items-center gap-2">
-                      <FaMoneyBillWave className="w-4 h-4" />
-                      มิเตอร์ไฟ
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์เก่า</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
-                          placeholder="เช่น 3450"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={form.electricity_meter_old}
-                          onChange={e => setForm({ ...form, electricity_meter_old: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์ใหม่</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
-                          placeholder="เช่น 3520"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={form.electricity_meter_new}
-                          onChange={e => setForm({ ...form, electricity_meter_new: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    {/* แสดงการคำนวณค่าไฟ */}
-                    {form.electricity_meter_old && form.electricity_meter_new && form.electricity_rate && (
-                      <div className="mt-3 p-3 bg-white rounded-lg border">
-                        <div className="text-sm text-gray-600">
-                          <div className="flex justify-between">
-                            <span>การใช้งาน:</span>
-                            <span className="font-semibold">
-                              {(parseFloat(form.electricity_meter_new) - parseFloat(form.electricity_meter_old)).toFixed(2)} หน่วย
-                            </span>
-                          </div>
-                          <div className="flex justify-between mt-1">
-                            <span>ค่าไฟรวม:</span>
-                            <span className="font-bold text-yellow-600">
-                              ฿{((parseFloat(form.electricity_meter_new) - parseFloat(form.electricity_meter_old)) * parseFloat(form.electricity_rate)).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                {/* สิ่งอำนวยความสะดวก */}
+                <div>
+                  <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
+                    <FaCouch className="text-orange-500" />
+                    สิ่งอำนวยความสะดวก
+                  </label>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div>
@@ -1417,7 +1265,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                     onClick={() => {
                       setShowEditModal(false);
                       setEditId(null);
-                      setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', address_detail: '', water_cost: '', electricity_cost: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
+                      setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', address_detail: '', water_rate: '', electricity_rate: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
                       setEditImages([]);
                     }}
                   >
@@ -1600,152 +1448,53 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                   </div>
                 </div>
 
-                {/* ค่าใช้จ่ายเพิ่มเติม */}
+                {/* อัตราค่าสาธารณูปโภค */}
                 <div>
                   <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
-                    <FaMoneyBillWave className="text-blue-500" />
-                    การคำนวณค่าสาธารณูปโภค
+                    <FaMoneyBillWave className="text-green-500" />
+                    อัตราค่าสาธารณูปโภค
                   </label>
-                  
-                  {/* อัตราค่าน้ำและค่าไฟ */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block mb-2 text-sm text-gray-600">อัตราค่าน้ำ (บาท/หน่วย)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        อัตราค่าน้ำ (บาท/หน่วย)
+                      </label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        placeholder="เช่น 18"
                         type="number"
-                        min="0"
                         step="0.01"
+                        placeholder="เช่น 18.00"
                         value={form.water_rate}
                         onChange={e => setForm({ ...form, water_rate: e.target.value })}
                       />
                     </div>
                     <div>
-                      <label className="block mb-2 text-sm text-gray-600">อัตราค่าไฟ (บาท/หน่วย)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        อัตราค่าไฟ (บาท/หน่วย)
+                      </label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        placeholder="เช่น 7"
                         type="number"
-                        min="0"
                         step="0.01"
+                        placeholder="เช่น 7.50"
                         value={form.electricity_rate}
                         onChange={e => setForm({ ...form, electricity_rate: e.target.value })}
                       />
                     </div>
                   </div>
+                </div>
 
-                  {/* มิเตอร์น้ำ */}
-                  <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 mb-4">
-                    <h4 className="text-sm font-semibold text-cyan-700 mb-3 flex items-center gap-2">
-                      <FaMoneyBillWave className="w-4 h-4" />
-                      มิเตอร์น้ำ
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์เก่า</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-                          placeholder="เช่น 1250"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={form.water_meter_old}
-                          onChange={e => setForm({ ...form, water_meter_old: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์ใหม่</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-                          placeholder="เช่น 1280"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={form.water_meter_new}
-                          onChange={e => setForm({ ...form, water_meter_new: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    {/* แสดงการคำนวณค่าน้ำ */}
-                    {form.water_meter_old && form.water_meter_new && form.water_rate && (
-                      <div className="mt-3 p-3 bg-white rounded-lg border">
-                        <div className="text-sm text-gray-600">
-                          <div className="flex justify-between">
-                            <span>การใช้งาน:</span>
-                            <span className="font-semibold">
-                              {(parseFloat(form.water_meter_new) - parseFloat(form.water_meter_old)).toFixed(2)} หน่วย
-                            </span>
-                          </div>
-                          <div className="flex justify-between mt-1">
-                            <span>ค่าน้ำรวม:</span>
-                            <span className="font-bold text-cyan-600">
-                              ฿{((parseFloat(form.water_meter_new) - parseFloat(form.water_meter_old)) * parseFloat(form.water_rate)).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* มิเตอร์ไฟ */}
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                    <h4 className="text-sm font-semibold text-yellow-700 mb-3 flex items-center gap-2">
-                      <FaMoneyBillWave className="w-4 h-4" />
-                      มิเตอร์ไฟ
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์เก่า</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
-                          placeholder="เช่น 3450"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={form.electricity_meter_old}
-                          onChange={e => setForm({ ...form, electricity_meter_old: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block mb-2 text-sm text-gray-600">เลขมิเตอร์ใหม่</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
-                          placeholder="เช่น 3520"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={form.electricity_meter_new}
-                          onChange={e => setForm({ ...form, electricity_meter_new: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    {/* แสดงการคำนวณค่าไฟ */}
-                    {form.electricity_meter_old && form.electricity_meter_new && form.electricity_rate && (
-                      <div className="mt-3 p-3 bg-white rounded-lg border">
-                        <div className="text-sm text-gray-600">
-                          <div className="flex justify-between">
-                            <span>การใช้งาน:</span>
-                            <span className="font-semibold">
-                              {(parseFloat(form.electricity_meter_new) - parseFloat(form.electricity_meter_old)).toFixed(2)} หน่วย
-                            </span>
-                          </div>
-                          <div className="flex justify-between mt-1">
-                            <span>ค่าไฟรวม:</span>
-                            <span className="font-bold text-yellow-600">
-                              ฿{((parseFloat(form.electricity_meter_new) - parseFloat(form.electricity_meter_old)) * parseFloat(form.electricity_rate)).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                {/* เงินมัดจำและค่าประกัน */}
+                <div>
+                  <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
+                    <FaCouch className="text-orange-500" />
+                    เงินมัดจำและค่าประกัน
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">เงินมัดจำ (บาท)</label>
                       <input
-                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                         placeholder="เช่น 5000"
                         type="number"
                         min="0"
@@ -1756,8 +1505,8 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">เบอร์โทรติดต่อ</label>
                       <input
-                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        placeholder="เช่น 02-123-4567"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+                        placeholder="เช่น 0812345678"
                         type="tel"
                         value={form.contact_phone}
                         onChange={e => setForm({ ...form, contact_phone: e.target.value })}
@@ -1924,7 +1673,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                     onClick={() => {
                       setShowEditModal(false);
                       setEditId(null);
-                      setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', address_detail: '', water_cost: '', electricity_cost: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
+                      setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', address_detail: '', water_rate: '', electricity_rate: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
                       setEditImages([]);
                     }}
                   >

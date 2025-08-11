@@ -573,7 +573,6 @@ function OwnerHomePage() {
             </>
           )}
         </div>
-
         {/* Enhanced Modal - Agoda Style */}
         {selectedDorm && modalVisible && (
           <div
@@ -608,7 +607,6 @@ function OwnerHomePage() {
                       </div>
                     )}
                   </div>
-
                   {/* Main Image Gallery */}
                   <div className="mb-6">
                     <div className="relative h-80 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden shadow-lg image-container">
@@ -710,133 +708,161 @@ function OwnerHomePage() {
                 {/* Right Side - Details & Information */}
                 <div className="w-full lg:w-1/2 bg-white">
                   <div className="p-6">
-                    {/* Price Information */}
-                    <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <FaMoneyBillWave className="w-4 h-4 text-green-500" />
-                        ราคาห้องพัก
-                      </h3>
-                      <div className="space-y-2">
-                        {selectedDorm.price_daily && Number(selectedDorm.price_daily) > 0 && (
-                          <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
-                            <span className="text-sm font-medium text-green-800">รายวัน</span>
-                            <div className="text-right">
-                              <span className="text-lg font-bold text-green-600">฿{Number(selectedDorm.price_daily).toLocaleString()}</span>
-                              <span className="text-sm text-gray-500 ml-1">/วัน</span>
-                            </div>
+                  {/* Price Information */}
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <FaMoneyBillWave className="w-4 h-4 text-green-500" />
+                      ราคาห้องพัก
+                    </h3>
+                    <div className="space-y-2">
+                      {selectedDorm.price_daily && Number(selectedDorm.price_daily) > 0 && (
+                        <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
+                          <span className="text-sm font-medium text-green-800">รายวัน</span>
+                          <div className="text-right">
+                            <span className="text-lg font-bold text-green-600">฿{Number(selectedDorm.price_daily).toLocaleString()}</span>
+                            <span className="text-sm text-gray-500 ml-1">/วัน</span>
                           </div>
-                        )}
-                        {selectedDorm.price_monthly && Number(selectedDorm.price_monthly) > 0 && (
-                          <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
-                            <span className="text-sm font-medium text-blue-800">รายเดือน</span>
-                            <div className="text-right">
-                              <span className="text-lg font-bold text-blue-600">฿{Number(selectedDorm.price_monthly).toLocaleString()}</span>
-                              <span className="text-sm text-gray-500 ml-1">/เดือน</span>
-                            </div>
+                        </div>
+                      )}
+                      {selectedDorm.price_monthly && Number(selectedDorm.price_monthly) > 0 && (
+                        <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
+                          <span className="text-sm font-medium text-blue-800">รายเดือน</span>
+                          <div className="text-right">
+                            <span className="text-lg font-bold text-blue-600">฿{Number(selectedDorm.price_monthly).toLocaleString()}</span>
+                            <span className="text-sm text-gray-500 ml-1">/เดือน</span>
                           </div>
-                        )}
-                        {selectedDorm.price_term && Number(selectedDorm.price_term) > 0 && (
-                          <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200">
-                            <span className="text-sm font-medium text-purple-800">รายเทอม</span>
-                            <div className="text-right">
-                              <span className="text-lg font-bold text-purple-600">฿{Number(selectedDorm.price_term).toLocaleString()}</span>
-                              <span className="text-sm text-gray-500 ml-1">/เทอม</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Additional Cost Info */}
-                      {(selectedDorm.water_cost || selectedDorm.electricity_cost || selectedDorm.deposit) && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
-                            {selectedDorm.water_cost && Number(selectedDorm.water_cost) > 0 && (
-                              <span className="flex items-center gap-1">
-                                <FaTint className="w-3 h-3 text-cyan-500" />
-                                น้ำ ฿{Number(selectedDorm.water_cost)}/หน่วย
-                              </span>
-                            )}
-                            {selectedDorm.electricity_cost && Number(selectedDorm.electricity_cost) > 0 && (
-                              <span className="flex items-center gap-1">
-                                <FaBolt className="w-3 h-3 text-yellow-500" />
-                                ไฟ ฿{Number(selectedDorm.electricity_cost)}/หน่วย
-                              </span>
-                            )}
-                            {selectedDorm.deposit && Number(selectedDorm.deposit) > 0 && (
-                              <span className="flex items-center gap-1">
-                                <FaMoneyBillWave className="w-3 h-3 text-green-500" />
-                                มัดจำ ฿{Number(selectedDorm.deposit).toLocaleString()}
-                              </span>
-                            )}
+                        </div>
+                      )}
+                      {selectedDorm.price_term && Number(selectedDorm.price_term) > 0 && (
+                        <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200">
+                          <span className="text-sm font-medium text-purple-800">รายเทอม</span>
+                          <div className="text-right">
+                            <span className="text-lg font-bold text-purple-600">฿{Number(selectedDorm.price_term).toLocaleString()}</span>
+                            <span className="text-sm text-gray-500 ml-1">/เทอม</span>
                           </div>
                         </div>
                       )}
                     </div>
-
-                    {/* Rating & Reviews Summary */}
-                    <div className="mb-6">
-                      <div className="flex items-center gap-4 mb-4 p-3 bg-blue-50 rounded-lg">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600 mb-1">5.0</div>
-                          <div className="text-xs text-gray-600">คะแนนรีวิว</div>
+                    
+                    {/* Additional Cost Info */}
+                    {(selectedDorm.water_cost || selectedDorm.electricity_cost || selectedDorm.deposit) && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                          {selectedDorm.water_cost && Number(selectedDorm.water_cost) > 0 && (
+                            <span className="flex items-center gap-1">
+                              <FaTint className="w-3 h-3 text-cyan-500" />
+                              น้ำ ฿{Number(selectedDorm.water_cost)}/หน่วย
+                            </span>
+                          )}
+                          {selectedDorm.electricity_cost && Number(selectedDorm.electricity_cost) > 0 && (
+                            <span className="flex items-center gap-1">
+                              <FaBolt className="w-3 h-3 text-yellow-500" />
+                              ไฟ ฿{Number(selectedDorm.electricity_cost)}/หน่วย
+                            </span>
+                          )}
+                          {selectedDorm.deposit && Number(selectedDorm.deposit) > 0 && (
+                            <span className="flex items-center gap-1">
+                              <FaMoneyBillWave className="w-3 h-3 text-green-500" />
+                              มัดจำ ฿{Number(selectedDorm.deposit).toLocaleString()}
+                            </span>
+                          )}
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-1 mb-1">
-                            {[...Array(5)].map((_, i) => (
-                              <FaStar key={i} className="w-4 h-4 text-yellow-400" />
-                            ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Rating & Reviews Summary */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-4 mb-4 p-3 bg-blue-50 rounded-lg">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600 mb-1">5.0</div>
+                        <div className="text-xs text-gray-600">คะแนนรีวิว</div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1 mb-1">
+                          {[...Array(5)].map((_, i) => (
+                            <FaStar key={i} className="w-4 h-4 text-yellow-400" />
+                          ))}
+                        </div>
+                        <div className="text-sm text-gray-600">0 รีวิวจากผู้เข้าพัก</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Facilities & Amenities */}
+                  {selectedDorm.facilities && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <FaCouch className="w-4 h-4 text-green-500" />
+                        สิ่งอำนวยความสะดวก
+                      </h3>
+                      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                        <p className="text-gray-700 leading-relaxed">{selectedDorm.facilities}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Nearby Places */}
+                  {selectedDorm.near_places && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <FaLandmark className="w-4 h-4 text-purple-500" />
+                        สถานที่ใกล้เคียง
+                      </h3>
+                      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                        <p className="text-gray-700 leading-relaxed">{selectedDorm.near_places}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contact Information */}
+                  {selectedDorm.contact_phone && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <FaPhoneAlt className="w-4 h-4 text-blue-500" />
+                        ข้อมูลติดต่อ
+                      </h3>
+                      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <FaPhoneAlt className="w-4 h-4 text-blue-600" />
                           </div>
-                          <div className="text-sm text-gray-600">0 รีวิวจากผู้เข้าพัก</div>
+                          <div>
+                            <p className="font-medium text-gray-900">เบอร์โทรศัพท์</p>
+                            <p className="text-blue-600 font-semibold">{selectedDorm.contact_phone}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  )}
 
-                    {/* Facilities & Amenities */}
-                    {selectedDorm.facilities && (
-                      <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <FaCouch className="w-4 h-4 text-green-500" />
-                          สิ่งอำนวยความสะดวก
-                        </h3>
-                        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                          <p className="text-gray-700 leading-relaxed">{selectedDorm.facilities}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Nearby Places */}
-                    {selectedDorm.near_places && (
-                      <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <FaLandmark className="w-4 h-4 text-purple-500" />
-                          สถานที่ใกล้เคียง
-                        </h3>
-                        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                          <p className="text-gray-700 leading-relaxed">{selectedDorm.near_places}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Contact Information */}
+                  {/* Actions */}
+                  <div className="space-y-3">
                     {selectedDorm.contact_phone && (
-                      <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <FaPhoneAlt className="w-4 h-4 text-blue-500" />
-                          ข้อมูลติดต่อ
-                        </h3>
-                        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <FaPhoneAlt className="w-4 h-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">เบอร์โทรศัพท์</p>
-                              <p className="text-blue-600 font-semibold">{selectedDorm.contact_phone}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <button
+                        onClick={() => window.open(`tel:${selectedDorm.contact_phone}`, '_self')}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2"
+                      >
+                        <FaPhoneAlt className="w-5 h-5" />
+                        โทรหาเจ้าของหอพัก
+                      </button>
                     )}
+                    <button
+                      onClick={() => navigate('/owner/dorm-manage')}
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      จัดการหอพัก
+                    </button>
+                    <button
+                      onClick={() => navigate(`/owner/room-manage/${selectedDorm.id}`)}
+                      className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2"
+                    >
+                      <FaBed className="w-5 h-5" />
+                      จัดการห้องพัก
+                    </button>
                   </div>
                 </div>
               </div>

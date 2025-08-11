@@ -321,6 +321,15 @@ function CustomerHomePage() {
   const [modalClosing, setModalClosing] = useState(false);
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
 
+  // โหลดข้อมูลรีวิวสำหรับหอพักทุกแห่งเมื่อได้ข้อมูลหอพัก
+  useEffect(() => {
+    if (dorms && dorms.length > 0) {
+      dorms.forEach(dorm => {
+        fetchDormReviewStats(dorm.id);
+      });
+    }
+  }, [dorms]);
+
   // State สำหรับฟอร์มค้นหา
   const [searchName, setSearchName] = useState('');
   const [searchPrice, setSearchPrice] = useState('');
@@ -332,6 +341,7 @@ function CustomerHomePage() {
   // State สำหรับรีวิว
   const [dormReviews, setDormReviews] = useState([]);
   const [reviewStats, setReviewStats] = useState(null);
+  const [dormReviewStats, setDormReviewStats] = useState({}); // เก็บข้อมูลรีวิวของแต่ละหอพัก
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewForm, setReviewForm] = useState({
@@ -346,6 +356,24 @@ function CustomerHomePage() {
   // State สำหรับ AI Distance Calculation
   const [aiDistances, setAiDistances] = useState({});
   const [calculatingDistances, setCalculatingDistances] = useState(false);
+
+  // ฟังก์ชันดึงข้อมูลรีวิวสำหรับหอพักแต่ละแห่ง
+  const fetchDormReviewStats = async (dormId) => {
+    try {
+      const response = await fetch(`http://localhost:3001/dorms/${dormId}/reviews/stats`);
+      if (response.ok) {
+        const stats = await response.json();
+        setDormReviewStats(prev => ({
+          ...prev,
+          [dormId]: stats
+        }));
+        return stats;
+      }
+    } catch (error) {
+      console.error('Error fetching review stats:', error);
+    }
+    return null;
+  };
 
   // ฟังก์ชันคำนวณระยะทางด้วย AI เมื่อเปิด modal
   const calculateAIDistances = async (dorm) => {
@@ -419,14 +447,22 @@ function CustomerHomePage() {
     if (isModalImage) {
       if (devicePixelRatio >= 3) {
         // หน้าจอความละเอียดสูงมาก
-        e.target.style.filter = 'contrast(1.6) brightness(1.35) saturate(1.4) drop-shadow(0 0 0.5px rgba(0,0,0,0.7)) unsharp-mask(amount=250% radius=0.5px threshold=0)';
+        e.target.style.filter = 'contrast(1.4) brightness(1.2) saturate(1.25) sharpen(1.5) unsharp-mask(amount=300% radius=0.3px threshold=0)';
       } else if (devicePixelRatio >= 2) {
         // หน้าจอ Retina
-        e.target.style.filter = 'contrast(1.5) brightness(1.3) saturate(1.35) drop-shadow(0 0 0.5px rgba(0,0,0,0.6)) unsharp-mask(amount=200% radius=0.5px threshold=0)';
+        e.target.style.filter = 'contrast(1.35) brightness(1.18) saturate(1.22) sharpen(1.3) unsharp-mask(amount=250% radius=0.4px threshold=0)';
       } else {
         // หน้าจอปกติ แต่ใช้ค่าที่แรงขึ้น
-        e.target.style.filter = 'contrast(1.4) brightness(1.25) saturate(1.3) drop-shadow(0 0 1px rgba(0,0,0,0.5)) unsharp-mask(amount=180% radius=0.5px threshold=0)';
+        e.target.style.filter = 'contrast(1.3) brightness(1.15) saturate(1.2) sharpen(1.2) unsharp-mask(amount=200% radius=0.5px threshold=0)';
       }
+      
+      // เพิ่มความคมชัดโดยใช้ CSS properties
+      e.target.style.imageRendering = 'high-quality';
+      e.target.style.textRendering = 'optimizeLegibility';
+      e.target.style.fontSmooth = 'always';
+      e.target.style.webkitFontSmoothing = 'antialiased';
+      e.target.style.mozOsxFontSmoothing = 'grayscale';
+      
     } else {
       // เพิ่มความคมชัดตามขนาดและความละเอียดจริงของรูป (สำหรับรูปภาพทั่วไป)
       if (devicePixelRatio >= 3) {
@@ -443,10 +479,6 @@ function CustomerHomePage() {
         e.target.style.filter = 'contrast(1.2) brightness(1.1) saturate(1.15) unsharp-mask(amount=100% radius=1px threshold=0)';
       }
     }
-    
-    // เพิ่ม sharpness สำหรับ Firefox และ Safari
-    e.target.style.imageRendering = 'crisp-edges';
-    e.target.style.imageRendering = '-webkit-optimize-contrast';
     
     // Force GPU acceleration for modal images
     if (isModalImage) {
@@ -472,19 +504,23 @@ function CustomerHomePage() {
         let filterValue = '';
         
         if (devicePixelRatio >= 3) {
-          filterValue = 'contrast(1.6) brightness(1.35) saturate(1.4) drop-shadow(0 0 0.5px rgba(0,0,0,0.7))';
+          filterValue = 'contrast(1.4) brightness(1.2) saturate(1.25) sharpen(1.5) unsharp-mask(amount=300% radius=0.3px threshold=0)';
         } else if (devicePixelRatio >= 2) {
-          filterValue = 'contrast(1.5) brightness(1.3) saturate(1.35) drop-shadow(0 0 0.5px rgba(0,0,0,0.6))';
+          filterValue = 'contrast(1.35) brightness(1.18) saturate(1.22) sharpen(1.3) unsharp-mask(amount=250% radius=0.4px threshold=0)';
         } else {
-          filterValue = 'contrast(1.4) brightness(1.25) saturate(1.3) drop-shadow(0 0 1px rgba(0,0,0,0.5))';
+          filterValue = 'contrast(1.3) brightness(1.15) saturate(1.2) sharpen(1.2) unsharp-mask(amount=200% radius=0.5px threshold=0)';
         }
         
         currentImage.style.filter = filterValue;
-        currentImage.style.imageRendering = '-webkit-optimize-contrast';
+        currentImage.style.imageRendering = 'high-quality';
+        currentImage.style.textRendering = 'optimizeLegibility';
         currentImage.style.transform = 'translate3d(0,0,0)';
         currentImage.style.webkitTransform = 'translate3d(0,0,0)';
         currentImage.style.backfaceVisibility = 'hidden';
         currentImage.style.webkitBackfaceVisibility = 'hidden';
+        currentImage.style.fontSmooth = 'always';
+        currentImage.style.webkitFontSmoothing = 'antialiased';
+        currentImage.style.mozOsxFontSmoothing = 'grayscale';
       }
     }, 50);
   };
@@ -799,15 +835,21 @@ function CustomerHomePage() {
                         : '/no-image.png'
                     }
                     alt={dorm.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 image-enhance image-loading"
+                    className="w-full h-full object-cover transition-all duration-300 image-enhance image-loading"
                     style={{
-                      imageRendering: '-webkit-optimize-contrast',
-                      filter: 'contrast(1.2) brightness(1.1) saturate(1.15)',
+                      imageRendering: 'auto',
+                      transform: 'translateZ(0)',
                       backfaceVisibility: 'hidden',
                       WebkitBackfaceVisibility: 'hidden',
-                      imageOrientation: 'from-image'
+                      imageOrientation: 'from-image',
+                      objectFit: 'cover',
+                      objectPosition: 'center',
+                      width: '100%',
+                      height: '100%',
+                      display: 'block',
+                      WebkitFontSmoothing: 'antialiased'
                     }}
-                    loading="eager"
+                    loading="lazy"
                     onLoad={handleImageLoad}
                     onError={handleImageError}
                   />
@@ -953,22 +995,22 @@ function CustomerHomePage() {
                     })()}
                   </div>
 
-                  {/* Rating & Reviews (Real Data) */}
+                  {/* Rating & Reviews (Real Data per Dorm) */}
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-1">
                       <div className="flex text-yellow-400">
                         {[...Array(5)].map((_, i) => (
                           <span key={i}>
-                            {i < Math.round(Number(reviewStats?.average_rating) || 5) ? '★' : '☆'}
+                            {i < Math.round(Number(dormReviewStats[dorm.id]?.average_rating) || 5) ? '★' : '☆'}
                           </span>
                         ))}
                       </div>
                       <span className="text-sm text-gray-600 ml-1">
-                        {reviewStats?.average_rating ? Number(reviewStats.average_rating).toFixed(1) : '5.0'}
+                        {dormReviewStats[dorm.id]?.average_rating ? Number(dormReviewStats[dorm.id].average_rating).toFixed(1) : '5.0'}
                       </span>
                     </div>
                     <span className="text-xs text-gray-500">
-                      รีวิว {reviewStats?.total_reviews || 0} คน
+                      รีวิว {dormReviewStats[dorm.id]?.total_reviews || 0} คน
                     </span>
                   </div>
 
@@ -986,8 +1028,14 @@ function CustomerHomePage() {
                         ไฟ ฿{Number(dorm.electricity_cost)}
                       </span>
                     )}
-                    {dorm.contact_phone && (
+                    {dorm.deposit && Number(dorm.deposit) > 0 && (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-xs rounded-full">
+                        <FaMoneyBillWave className="w-3 h-3" />
+                        มัดจำ ฿{Number(dorm.deposit).toLocaleString()}
+                      </span>
+                    )}
+                    {dorm.contact_phone && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
                         <FaPhoneAlt className="w-3 h-3" />
                         มีเบอร์ติดต่อ
                       </span>
@@ -1112,13 +1160,19 @@ function CustomerHomePage() {
                           alt={selectedDorm.name}
                           className="w-full h-full object-cover image-enhance modal-image-enhance dorm-detail-image image-loading"
                           style={{
-                            imageRendering: '-webkit-optimize-contrast',
-                            filter: 'contrast(1.4) brightness(1.25) saturate(1.3) drop-shadow(0 0 1px rgba(0,0,0,0.5))',
+                            imageRendering: 'high-quality',
                             backfaceVisibility: 'hidden',
                             WebkitBackfaceVisibility: 'hidden',
                             transform: 'translate3d(0,0,0)',
                             WebkitTransform: 'translate3d(0,0,0)',
-                            imageOrientation: 'from-image'
+                            imageOrientation: 'from-image',
+                            objectFit: 'cover',
+                            objectPosition: 'center',
+                            maxWidth: '100%',
+                            height: '100%',
+                            WebkitFontSmoothing: 'antialiased',
+                            filter: 'contrast(1.3) brightness(1.15) saturate(1.2) unsharp-mask(amount=150% radius=0.5px threshold=0)',
+                            textRendering: 'optimizeLegibility'
                           }}
                           loading="eager"
                           onLoad={handleImageLoad}
@@ -1196,15 +1250,19 @@ function CustomerHomePage() {
                               alt={`${selectedDorm.name} ${idx + 1}`}
                               className="w-full h-full object-cover image-enhance thumbnail-enhance dorm-detail-image image-loading"
                               style={{
-                                imageRendering: '-webkit-optimize-contrast',
-                                filter: 'contrast(1.35) brightness(1.2) saturate(1.25) drop-shadow(0 0 0.5px rgba(0,0,0,0.5))',
+                                imageRendering: 'auto',
                                 backfaceVisibility: 'hidden',
                                 WebkitBackfaceVisibility: 'hidden',
                                 transform: 'translate3d(0,0,0)',
                                 WebkitTransform: 'translate3d(0,0,0)',
-                                imageOrientation: 'from-image'
+                                imageOrientation: 'from-image',
+                                objectFit: 'cover',
+                                objectPosition: 'center',
+                                maxWidth: '100%',
+                                height: '100%',
+                                WebkitFontSmoothing: 'antialiased'
                               }}
-                              loading="eager"
+                              loading="lazy"
                               onLoad={handleImageLoad}
                               onError={handleImageError}
                             />
@@ -1307,9 +1365,9 @@ function CustomerHomePage() {
                     </div>
                     
                     {/* Additional Cost Info */}
-                    {(selectedDorm.water_cost || selectedDorm.electricity_cost) && (
+                    {(selectedDorm.water_cost || selectedDorm.electricity_cost || selectedDorm.deposit) && (
                       <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="flex items-center gap-4 text-xs text-gray-600">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
                           {selectedDorm.water_cost && Number(selectedDorm.water_cost) > 0 && (
                             <span className="flex items-center gap-1">
                               <FaTint className="w-3 h-3 text-cyan-500" />
@@ -1320,6 +1378,12 @@ function CustomerHomePage() {
                             <span className="flex items-center gap-1">
                               <FaBolt className="w-3 h-3 text-yellow-500" />
                               ไฟ ฿{Number(selectedDorm.electricity_cost)}/หน่วย
+                            </span>
+                          )}
+                          {selectedDorm.deposit && Number(selectedDorm.deposit) > 0 && (
+                            <span className="flex items-center gap-1">
+                              <FaMoneyBillWave className="w-3 h-3 text-green-500" />
+                              มัดจำ ฿{Number(selectedDorm.deposit).toLocaleString()}
                             </span>
                           )}
                         </div>
