@@ -2363,70 +2363,100 @@ app.put('/dorms/:dormId/rooms/:roomId/utilities', authOwner, (req, res) => {
   const { dormId, roomId } = req.params;
   const ownerId = req.user.id;
   const {
-    electricity_usage,
-    water_usage,
+    electricity_meter_old,
+    electricity_meter_new,
+    water_meter_old,
+    water_meter_new,
+    electricity_rate,
+    water_rate,
     electricity_notes,
     water_notes,
     meter_reading_date
   } = req.body;
 
-  // ตรวจสอบว่าเป็นเจ้าของหอพักหรือไม่
-  pool.query('SELECT id FROM dorms WHERE id = ? AND owner_id = ?', [dormId, ownerId], (err, results) => {
+  console.log('=== UTILITIES UPDATE REQUEST ===');
+  console.log('User ID:', ownerId);
+  console.log('Dorm ID:', dormId);
+  console.log('Room ID:', roomId);
+  console.log('Request body:', req.body);
+
+  // ตรวจสอบว่าเป็นเจ้าของหอพักหรือไม่ และดึงข้อมูลหอพัก
+  pool.query('SELECT * FROM dorms WHERE id = ? AND owner_id = ?', [dormId, ownerId], (err, dormResults) => {
     if (err) {
-      console.error('Database error:', err);
+      console.error('Database error in dorms query:', err);
       return res.status(500).json({ error: 'เกิดข้อผิดพลาดในระบบฐานข้อมูล' });
     }
 
-    if (results.length === 0) {
+    if (dormResults.length === 0) {
+      console.log('Dorm not found or access denied:', { dormId, ownerId });
       return res.status(404).json({ error: 'ไม่พบหอพักหรือคุณไม่มีสิทธิ์เข้าถึง' });
     }
+
+    const dorm = dormResults[0];
+    console.log('Found dorm:', { id: dorm.id, name: dorm.name });
+    const dormElectricityRate = dorm.electricity_cost || 0;
+    const dormWaterRate = dorm.water_cost || 0;
 
     // ตรวจสอบว่าห้องพักมีอยู่หรือไม่
     pool.query('SELECT * FROM rooms WHERE id = ? AND dorm_id = ?', [roomId, dormId], (err, roomResults) => {
       if (err) {
-        console.error('Database error:', err);
+        console.error('Database error in rooms query:', err);
         return res.status(500).json({ error: 'เกิดข้อผิดพลาดในระบบฐานข้อมูล' });
       }
 
       if (roomResults.length === 0) {
+        console.log('Room not found:', { roomId, dormId });
         return res.status(404).json({ error: 'ไม่พบห้องพัก' });
       }
 
       const currentRoom = roomResults[0];
+      console.log('Found room:', { id: currentRoom.id, room_number: currentRoom.room_number });
 
-      // เก็บประวัติการอ่านมิเตอร์ถ้ามีการเปลี่ยนแปลง
-      if (electricity_usage !== undefined || water_usage !== undefined) {
-        const electricityUsage = electricity_usage !== undefined ? 
-          parseFloat(electricity_usage) - (currentRoom.electricity_usage || 0) : 0;
-        const waterUsage = water_usage !== undefined ? 
-          parseFloat(water_usage) - (currentRoom.water_usage || 0) : 0;
+      // คำนวณการใช้งานจากค่ามิเตอร์เก่า-ใหม่
+      const electricityUsage = electricity_meter_new && electricity_meter_old ? 
+        parseFloat(electricity_meter_new) - parseFloat(electricity_meter_old) : 0;
+      const waterUsage = water_meter_new && water_meter_old ? 
+        parseFloat(water_meter_new) - parseFloat(water_meter_old) : 0;
 
-        if (electricityUsage !== 0 || waterUsage !== 0) {
-          pool.query(
-            'INSERT INTO meter_readings (room_id, reading_date, electricity_reading, water_reading, electricity_usage, water_usage, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [
-              roomId,
-              meter_reading_date || new Date().toISOString().split('T')[0],
-              electricity_usage || currentRoom.electricity_usage || 0,
-              water_usage || currentRoom.water_usage || 0,
-              electricityUsage,
-              waterUsage,
-              `ไฟ: ${electricity_notes || ''}, น้ำ: ${water_notes || ''}`,
-              req.user.firstName || 'เจ้าของหอพัก'
-            ],
-            (err) => {
-              if (err) {
-                console.error('Error saving meter reading:', err);
-              }
+      // เก็บประวัติการอ่านมิเตอร์
+      if (electricity_meter_new || water_meter_new) {
+        pool.query(
+          `INSERT INTO meter_readings (
+            room_id, reading_date, 
+            electricity_meter_old, electricity_meter_new, electricity_rate, electricity_usage,
+            water_meter_old, water_meter_new, water_rate, water_usage,
+            electricity_notes, water_notes, created_by
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            roomId,
+            meter_reading_date || new Date().toISOString().split('T')[0],
+            electricity_meter_old || 0,
+            electricity_meter_new || 0,
+            dormElectricityRate,
+            electricityUsage,
+            water_meter_old || 0,
+            water_meter_new || 0,
+            dormWaterRate,
+            waterUsage,
+            electricity_notes || '',
+            water_notes || '',
+            req.user.firstName || 'เจ้าของหอพัก'
+          ],
+          (err) => {
+            if (err) {
+              console.error('Error saving meter reading history:', err);
             }
-          );
-        }
+          }
+        );
       }
 
-      // อัปเดตข้อมูลการใช้สาธารณูปโภค
+      // อัปเดตข้อมูลการใช้สาธารณูปโภค (ไม่รวม rate ที่ควรมาจากการตั้งค่าหอพัก)
       const utilityData = {};
-      if (electricity_usage !== undefined) utilityData.electricity_usage = parseFloat(electricity_usage);
-      if (water_usage !== undefined) utilityData.water_usage = parseFloat(water_usage);
+      if (electricity_meter_old !== undefined) utilityData.electricity_meter_old = parseFloat(electricity_meter_old) || 0;
+      if (electricity_meter_new !== undefined) utilityData.electricity_meter_new = parseFloat(electricity_meter_new) || 0;
+      if (water_meter_old !== undefined) utilityData.water_meter_old = parseFloat(water_meter_old) || 0;
+      if (water_meter_new !== undefined) utilityData.water_meter_new = parseFloat(water_meter_new) || 0;
+      // หมายเหตุ: electricity_rate และ water_rate จะไม่ถูกอัปเดตที่นี่ ใช้ค่าจากการตั้งค่าหอพัก
       if (electricity_notes !== undefined) utilityData.electricity_notes = electricity_notes;
       if (water_notes !== undefined) utilityData.water_notes = water_notes;
       if (meter_reading_date !== undefined) utilityData.meter_reading_date = meter_reading_date;
@@ -2436,10 +2466,13 @@ app.put('/dorms/:dormId/rooms/:roomId/utilities', authOwner, (req, res) => {
 
         pool.query('UPDATE rooms SET ? WHERE id = ?', [utilityData, roomId], (err) => {
           if (err) {
-            console.error('Database error:', err);
+            console.error('Database error in UPDATE rooms:', err);
+            console.error('Query data:', utilityData);
+            console.error('Room ID:', roomId);
             return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลสาธารณูปโภค' });
           }
 
+          console.log('Successfully updated utilities for room:', roomId);
           res.json({ message: 'อัปเดตข้อมูลการใช้สาธารณูปโภคสำเร็จ' });
         });
       } else {
@@ -2460,16 +2493,58 @@ app.get('/dorms/:dormId/rooms/:roomId/utilities/history', authOwner, (req, res) 
   const { dormId, roomId } = req.params;
   const ownerId = req.user.id;
 
+  console.log('=== UTILITIES HISTORY REQUEST ===');
+  console.log('User ID:', ownerId);
+  console.log('Dorm ID:', dormId);
+  console.log('Room ID:', roomId);
+
   // ตรวจสอบว่าเป็นเจ้าของหอพักหรือไม่
   pool.query('SELECT id FROM dorms WHERE id = ? AND owner_id = ?', [dormId, ownerId], (err, results) => {
     if (err) {
-      console.error('Database error:', err);
+      console.error('Database error in dorm check:', err);
       return res.status(500).json({ error: 'เกิดข้อผิดพลาดในระบบฐานข้อมูล' });
     }
 
+    console.log('Dorm check results:', results);
+
     if (results.length === 0) {
+      console.log('Dorm not found or access denied');
       return res.status(404).json({ error: 'ไม่พบหอพักหรือคุณไม่มีสิทธิ์เข้าถึง' });
     }
+
+    console.log('Fetching meter readings for room:', roomId);
+
+    // ดึงประวัติการอ่านมิเตอร์
+    pool.query(
+      `SELECT 
+        reading_date,
+        electricity_meter_old,
+        electricity_meter_new,
+        electricity_rate,
+        electricity_usage,
+        water_meter_old,
+        water_meter_new,
+        water_rate,
+        water_usage,
+        electricity_notes,
+        water_notes,
+        created_by,
+        created_at
+      FROM meter_readings 
+      WHERE room_id = ? 
+      ORDER BY reading_date DESC, created_at DESC`,
+      [roomId],
+      (err, historyResults) => {
+        if (err) {
+          console.error('Database error in meter readings query:', err);
+          return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงประวัติ' });
+        }
+
+        console.log('History results:', historyResults);
+        console.log('Results count:', historyResults.length);
+        res.json(historyResults);
+      }
+    );
   });
 });
 

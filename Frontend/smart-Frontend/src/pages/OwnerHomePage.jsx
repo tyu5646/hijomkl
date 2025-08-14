@@ -1,7 +1,166 @@
 import React, { useEffect, useState } from 'react';
 import OwnerSidebar from '../components/OwnerSidebar';
-import { FaBed, FaMoneyBillWave, FaMapMarkerAlt, FaCouch, FaLandmark, FaChevronLeft, FaChevronRight, FaTint, FaBolt, FaPhoneAlt, FaWifi, FaStar, FaSearch } from "react-icons/fa";
+import { FaBed, FaMoneyBillWave, FaMapMarkerAlt, FaCouch, FaLandmark, FaChevronLeft, FaChevronRight, FaTint, FaBolt, FaPhoneAlt, FaWifi, FaStar, FaSearch, FaArrowUp } from "react-icons/fa";
 import { useNavigate } from 'react-router-dom';
+
+// Map Component แบบ Interactive
+function InteractiveMap({ latitude, longitude, dormName, nearbyPlaces = [] }) {
+  const [mapError, setMapError] = useState(false);
+  
+  const lat = parseFloat(latitude);
+  const lng = parseFloat(longitude);
+  
+  const handleMapError = () => {
+    setMapError(true);
+  };
+  
+  // ฟังก์ชันสร้าง Custom HTML Map ด้วย Leaflet
+  const createLeafletMap = () => {
+    const nearbyMarkersData = nearbyPlaces.map(place => ({
+      lat: parseFloat(place.latitude || 0),
+      lng: parseFloat(place.longitude || 0),
+      name: place.location_name || place.name || 'สถานที่ใกล้เคียง',
+      type: place.location_type || place.type || 'อื่นๆ'
+    }));
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <style>
+          body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+          #map { height: 100vh; width: 100%; }
+          .custom-popup { font-size: 13px; max-width: 200px; }
+          .popup-title { font-weight: bold; color: #1f2937; margin-bottom: 4px; }
+          .popup-type { color: #6b7280; font-size: 11px; }
+          .dorm-marker { background: #dc2626; border-radius: 50%; }
+          .place-marker { background: #2563eb; border-radius: 50%; }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+          // สร้างแผนที่
+          const map = L.map('map').setView([${lat}, ${lng}], 15);
+          
+          // เพิ่ม tile layer (OpenStreetMap)
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+          }).addTo(map);
+          
+          // สร้าง custom icon สำหรับหอพัก
+          const dormIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: '<div style="background: #dc2626; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          });
+          
+          // สร้าง custom icon สำหรับสถานที่ใกล้เคียง
+          const placeIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: '<div style="background: #2563eb; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          });
+          
+          // เพิ่ม marker สำหรับหอพัก
+          const dormMarker = L.marker([${lat}, ${lng}], { icon: dormIcon }).addTo(map);
+          dormMarker.bindPopup('<div class="custom-popup"><div class="popup-title">${dormName}</div><div class="popup-type">หอพัก</div></div>');
+          
+          // เพิ่ม markers สำหรับสถานที่ใกล้เคียง
+          const nearbyPlaces = ${JSON.stringify(nearbyMarkersData)};
+          nearbyPlaces.forEach(place => {
+            if (place.lat && place.lng && !isNaN(place.lat) && !isNaN(place.lng)) {
+              const marker = L.marker([place.lat, place.lng], { icon: placeIcon }).addTo(map);
+              marker.bindPopup('<div class="custom-popup"><div class="popup-title">' + place.name + '</div><div class="popup-type">' + place.type + '</div></div>');
+            }
+          });
+          
+          // ปรับ bounds ให้แสดงทุก markers
+          if (nearbyPlaces.length > 0) {
+            const allPoints = [[${lat}, ${lng}]];
+            nearbyPlaces.forEach(place => {
+              if (place.lat && place.lng && !isNaN(place.lat) && !isNaN(place.lng)) {
+                allPoints.push([place.lat, place.lng]);
+              }
+            });
+            const group = new L.featureGroup(allPoints.map(point => L.marker(point)));
+            map.fitBounds(group.getBounds().pad(0.1));
+          }
+          
+          // เปิด popup หอพักเป็นค่าเริ่มต้น
+          setTimeout(() => {
+            dormMarker.openPopup();
+          }, 500);
+        </script>
+      </body>
+      </html>
+    `;
+    
+    return `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
+  };
+  
+  return (
+    <div className="interactive-map-container relative h-64 bg-gray-100 rounded-lg overflow-hidden shadow-lg border border-gray-200">
+      {!mapError ? (
+        <>
+          {/* Map Display - Leaflet Only */}
+          <iframe
+            src={createLeafletMap()}
+            className="w-full h-full rounded-lg"
+            title={`แผนที่ Leaflet ${dormName}`}
+            onError={handleMapError}
+          />
+        </>
+      ) : (
+        // Fallback Display
+        <div className="w-full h-full bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+          <div className="text-center p-6">
+            <div className="text-6xl mb-4">🗺️</div>
+            <p className="text-lg font-semibold text-gray-800 mb-2">{dormName}</p>
+            <p className="text-sm text-gray-600 mb-4">
+              พิกัด: {lat.toFixed(6)}, {lng.toFixed(6)}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <a
+                href={`https://www.google.com/maps?q=${lat},${lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+              >
+                <FaMapMarkerAlt className="w-3 h-3" />
+                Google Maps
+              </a>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+              >
+                <FaArrowUp className="w-3 h-3" />
+                นำทาง
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Map Info Overlay */}
+      <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg">
+        <div className="flex items-center gap-2 text-sm">
+          <FaMapMarkerAlt className="w-3 h-3 text-red-500" />
+          <span className="font-medium text-gray-800">{dormName}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function OwnerHomePage() {
   const [dorms, setDorms] = useState([]);
@@ -704,6 +863,60 @@ function OwnerHomePage() {
                         )}
                       </div>
                     )}
+
+                    {/* Quick Map Preview - Left Side */}
+                    {(selectedDorm.coordinates && selectedDorm.coordinates.length > 0 && 
+                      selectedDorm.coordinates[0].latitude && selectedDorm.coordinates[0].longitude &&
+                      parseFloat(selectedDorm.coordinates[0].latitude) !== 0 && parseFloat(selectedDorm.coordinates[0].longitude) !== 0 &&
+                      !isNaN(parseFloat(selectedDorm.coordinates[0].latitude)) && !isNaN(parseFloat(selectedDorm.coordinates[0].longitude))) ? (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <FaMapMarkerAlt className="w-4 h-4 text-red-500" />
+                          ตำแหน่งหอพัก
+                          <span className="bg-gradient-to-r from-blue-500 to-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">Preview</span>
+                        </h3>
+                        <InteractiveMap
+                          latitude={selectedDorm.coordinates[0].latitude}
+                          longitude={selectedDorm.coordinates[0].longitude}
+                          dormName={selectedDorm.name}
+                          nearbyPlaces={selectedDorm.coordinates.slice(1)}
+                        />
+                      </div>
+                    ) : (selectedDorm.latitude && selectedDorm.longitude &&
+                      parseFloat(selectedDorm.latitude) !== 0 && parseFloat(selectedDorm.longitude) !== 0 &&
+                      !isNaN(parseFloat(selectedDorm.latitude)) && !isNaN(parseFloat(selectedDorm.longitude))) ? (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <FaMapMarkerAlt className="w-4 h-4 text-red-500" />
+                          ตำแหน่งหอพัก
+                          <span className="bg-gradient-to-r from-blue-500 to-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">Preview</span>
+                        </h3>
+                        <InteractiveMap
+                          latitude={selectedDorm.latitude}
+                          longitude={selectedDorm.longitude}
+                          dormName={selectedDorm.name}
+                          nearbyPlaces={[]}
+                        />
+                      </div>
+                    ) : (
+                      // แสดงแผนที่ตัวอย่างสำหรับ demo
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <FaMapMarkerAlt className="w-4 h-4 text-red-500" />
+                          ตำแหน่งหอพัก
+                          <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">Demo</span>
+                        </h3>
+                        <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-xs text-yellow-800">📍 แผนที่ตัวอย่าง - พื้นที่ใกล้เคียง</p>
+                        </div>
+                        <InteractiveMap
+                          latitude="13.7684"
+                          longitude="100.6147"
+                          dormName={`${selectedDorm.name} (ตัวอย่าง)`}
+                          nearbyPlaces={[]}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -837,6 +1050,35 @@ function OwnerHomePage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Actions */}
+                    <div className="space-y-3">
+                      {selectedDorm.contact_phone && (
+                        <button
+                          onClick={() => window.open(`tel:${selectedDorm.contact_phone}`, '_self')}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2"
+                        >
+                          <FaPhoneAlt className="w-5 h-5" />
+                          โทรหาเจ้าของหอพัก
+                        </button>
+                      )}
+                      <button
+                        onClick={() => navigate('/owner/dorm-manage')}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        จัดการหอพัก
+                      </button>
+                      <button
+                        onClick={() => navigate(`/owner/room-manage/${selectedDorm.id}`)}
+                        className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2"
+                      >
+                        <FaBed className="w-5 h-5" />
+                        จัดการห้องพัก
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

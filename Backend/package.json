@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "kill-port": "taskkill /f /im node.exe 2>nul || echo No Node processes found",
+    "restart": "npm run kill-port && timeout /t 2 /nobreak >nul && npm start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
