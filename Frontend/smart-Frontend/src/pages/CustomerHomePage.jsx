@@ -635,41 +635,64 @@ function CustomerHomePage() {
       result = result.filter(d => d.name && d.name.toLowerCase().includes(name));
     }
 
-    // ค้นหาตามราคาและประเภทราคา
-    if (searchPrice.trim() && searchPriceType !== 'all') {
+    // ค้นหาตามราคาและประเภทราคา - แบบแม่นยำ
+    if (searchPrice.trim()) {
       const price = Number(searchPrice);
       
       if (searchPriceType === 'daily') {
+        // ค้นหาเฉพาะราคารายวันที่มีค่าและไม่เกินราคาที่ระบุ
         result = result.filter(d => 
-          d.price_daily && Number(d.price_daily) <= price
+          d.price_daily && 
+          !isNaN(Number(d.price_daily)) && 
+          Number(d.price_daily) > 0 && 
+          Number(d.price_daily) <= price
         );
       } else if (searchPriceType === 'monthly') {
+        // ค้นหาเฉพาะราคารายเดือนที่มีค่าและไม่เกินราคาที่ระบุ
         result = result.filter(d => 
-          d.price_monthly && Number(d.price_monthly) <= price
+          d.price_monthly && 
+          !isNaN(Number(d.price_monthly)) && 
+          Number(d.price_monthly) > 0 && 
+          Number(d.price_monthly) <= price
         );
       } else if (searchPriceType === 'term') {
+        // ค้นหาเฉพาะราคารายเทอมที่มีค่าและไม่เกินราคาที่ระบุ
         result = result.filter(d => 
-          d.price_term && Number(d.price_term) <= price
+          d.price_term && 
+          !isNaN(Number(d.price_term)) && 
+          Number(d.price_term) > 0 && 
+          Number(d.price_term) <= price
         );
+      } else if (searchPriceType === 'all') {
+        // ถ้าเลือก "ทุกประเภท" ให้ค้นหาหอพักที่มีราคาใดราคาหนึ่งที่ไม่เกินราคาที่ระบุ
+        result = result.filter(d => {
+          const dailyValid = d.price_daily && !isNaN(Number(d.price_daily)) && Number(d.price_daily) > 0 && Number(d.price_daily) <= price;
+          const monthlyValid = d.price_monthly && !isNaN(Number(d.price_monthly)) && Number(d.price_monthly) > 0 && Number(d.price_monthly) <= price;
+          const termValid = d.price_term && !isNaN(Number(d.price_term)) && Number(d.price_term) > 0 && Number(d.price_term) <= price;
+          
+          return dailyValid || monthlyValid || termValid;
+        });
       }
-    } else if (searchPrice.trim() && searchPriceType === 'all') {
-      // ถ้าเลือก "ทุกประเภท" ให้ค้นหาในทุกราคา
-      const price = Number(searchPrice);
-      result = result.filter(d => 
-        (d.price_daily && Number(d.price_daily) <= price) ||
-        (d.price_monthly && Number(d.price_monthly) <= price) ||
-        (d.price_term && Number(d.price_term) <= price)
-      );
-    }
-
-    // กรองตามประเภทราคาที่มีอยู่ (ถ้าไม่ได้ระบุราคาแต่เลือกประเภท)
-    if (!searchPrice.trim() && searchPriceType !== 'all') {
+    } else if (!searchPrice.trim() && searchPriceType !== 'all') {
+      // กรองตามประเภทราคาที่มีอยู่ (ถ้าไม่ได้ระบุราคาแต่เลือกประเภท)
       if (searchPriceType === 'daily') {
-        result = result.filter(d => d.price_daily && Number(d.price_daily) > 0);
+        result = result.filter(d => 
+          d.price_daily && 
+          !isNaN(Number(d.price_daily)) && 
+          Number(d.price_daily) > 0
+        );
       } else if (searchPriceType === 'monthly') {
-        result = result.filter(d => d.price_monthly && Number(d.price_monthly) > 0);
+        result = result.filter(d => 
+          d.price_monthly && 
+          !isNaN(Number(d.price_monthly)) && 
+          Number(d.price_monthly) > 0
+        );
       } else if (searchPriceType === 'term') {
-        result = result.filter(d => d.price_term && Number(d.price_term) > 0);
+        result = result.filter(d => 
+          d.price_term && 
+          !isNaN(Number(d.price_term)) && 
+          Number(d.price_term) > 0
+        );
       }
     }
 
@@ -683,6 +706,42 @@ function CustomerHomePage() {
     if (searchFacility.trim()) {
       const fac = searchFacility.trim().toLowerCase();
       result = result.filter(d => d.facilities && d.facilities.toLowerCase().includes(fac));
+    }
+
+    // เรียงลำดับผลลัพธ์ตามราคา (ราคาต่ำไปสูง) ตามประเภทที่เลือก
+    if (result.length > 0) {
+      result.sort((a, b) => {
+        let priceA = 0;
+        let priceB = 0;
+
+        if (searchPriceType === 'daily') {
+          priceA = (a.price_daily && !isNaN(Number(a.price_daily))) ? Number(a.price_daily) : Infinity;
+          priceB = (b.price_daily && !isNaN(Number(b.price_daily))) ? Number(b.price_daily) : Infinity;
+        } else if (searchPriceType === 'monthly') {
+          priceA = (a.price_monthly && !isNaN(Number(a.price_monthly))) ? Number(a.price_monthly) : Infinity;
+          priceB = (b.price_monthly && !isNaN(Number(b.price_monthly))) ? Number(b.price_monthly) : Infinity;
+        } else if (searchPriceType === 'term') {
+          priceA = (a.price_term && !isNaN(Number(a.price_term))) ? Number(a.price_term) : Infinity;
+          priceB = (b.price_term && !isNaN(Number(b.price_term))) ? Number(b.price_term) : Infinity;
+        } else {
+          // ถ้าเป็น "ทุกประเภท" ให้ใช้ราคาต่ำสุดที่มี
+          const aPrices = [
+            (a.price_daily && !isNaN(Number(a.price_daily))) ? Number(a.price_daily) : Infinity,
+            (a.price_monthly && !isNaN(Number(a.price_monthly))) ? Number(a.price_monthly) : Infinity,
+            (a.price_term && !isNaN(Number(a.price_term))) ? Number(a.price_term) : Infinity
+          ];
+          const bPrices = [
+            (b.price_daily && !isNaN(Number(b.price_daily))) ? Number(b.price_daily) : Infinity,
+            (b.price_monthly && !isNaN(Number(b.price_monthly))) ? Number(b.price_monthly) : Infinity,
+            (b.price_term && !isNaN(Number(b.price_term))) ? Number(b.price_term) : Infinity
+          ];
+          
+          priceA = Math.min(...aPrices);
+          priceB = Math.min(...bPrices);
+        }
+
+        return priceA - priceB;
+      });
     }
 
     setSearchResult(result);
@@ -729,30 +788,29 @@ function CustomerHomePage() {
               onChange={e => setSearchName(e.target.value)}
             />
           </div>
-          <div className="relative w-full md:w-40">
-            <FaMoneyBillWave className="absolute left-3 top-1/2 -translate-y-1/2 text-green-500" />
-            <input
-              className="border border-gray-300 rounded-lg px-10 py-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
-              type="number"
-              placeholder="ราคาไม่เกิน (บาท)"
-              value={searchPrice}
-              onChange={e => setSearchPrice(e.target.value)}
-              min="0"
-            />
-          </div>
-          <div className="relative w-full md:w-40">
-            <FaClock className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-500" />
-            <select
-              className="border border-gray-300 rounded-lg px-10 py-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm bg-white appearance-none"
-              value={searchPriceType}
-              onChange={e => setSearchPriceType(e.target.value)}
-            >
-              <option value="all">ทุกประเภท</option>
-              <option value="daily">รายวัน</option>
-              <option value="monthly">รายเดือน</option>
-              <option value="term">รายเทอม</option>
-            </select>
-            <FaChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <div className="relative w-full md:w-64">
+            <FaMoneyBillWave className="absolute left-3 top-1/2 -translate-y-1/2 text-green-500 z-10" />
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+              <input
+                className="flex-1 px-10 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 border-r border-gray-300"
+                type="number"
+                placeholder="ราคาไม่เกิน (บาท)"
+                value={searchPrice}
+                onChange={e => setSearchPrice(e.target.value)}
+                min="0"
+              />
+              <select
+                className="bg-white px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[100px] appearance-none cursor-pointer"
+                value={searchPriceType}
+                onChange={e => setSearchPriceType(e.target.value)}
+              >
+                <option value="all">ทุกประเภท</option>
+                <option value="daily">รายวัน</option>
+                <option value="monthly">รายเดือน</option>
+                <option value="term">รายเทอม</option>
+              </select>
+            </div>
+            <FaChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
           </div>
           <div className="relative w-full md:w-40">
             <FaUniversity className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" />

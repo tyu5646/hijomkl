@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import LogoH from '../assets/logo-H.jpg';
 
 function Header() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     sessionStorage.removeItem('token');
@@ -11,69 +13,105 @@ function Header() {
   };
   
   return (
-    <header className="bg-white shadow-lg sticky top-0 z-50 border-b border-gray-200 backdrop-blur-sm bg-white/95">
-      <div className="w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between py-4 px-4 md:px-8">
-        {/* Logo Section */}
-        <div className="flex items-center gap-3 group">
-          <div className="relative">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 p-0.5 group-hover:scale-105 transition-transform duration-300">
-              <img 
-                src={LogoH} 
-                alt="Smart Dorm Logo" 
-                className="w-full h-full rounded-full object-cover" 
-              />
+    <header className="bg-white/95 backdrop-blur-sm shadow-lg sticky top-0 z-50 border-b border-gray-100">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo Section */}
+          <div className="flex items-center space-x-3 group cursor-pointer">
+            <div className="relative">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-600 p-0.5 shadow-lg group-hover:shadow-xl transition-all duration-300">
+                <img 
+                  src={LogoH} 
+                  alt="Smart Dorm Logo" 
+                  className="w-full h-full rounded-xl object-cover group-hover:scale-105 transition-transform duration-300" 
+                />
+              </div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white shadow-sm animate-pulse"></div>
             </div>
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-blue-600 transition-all duration-500">
+                SMART Dormitory
+              </span>
+              <span className="text-xs text-gray-500 font-medium tracking-wide">
+                ระบบจัดการหอพักอัจฉริยะ
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-tight">
-              SMART Dormitory
-            </span>
-            <span className="text-xs text-gray-500 font-medium">ระบบจัดการหอพักอัจฉริยะ</span>
-          </div>
-        </div>
 
-        {/* Navigation */}
-        <nav className="flex gap-2 mt-4 md:mt-0 items-center">
-          <a 
-            href="/" 
-            className="group relative px-4 py-2 text-gray-700 font-semibold hover:text-blue-600 transition-all duration-300 rounded-lg hover:bg-blue-50"
-          >
-            <span className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-              หน้าหลัก
-            </span>
-            <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-blue-600 group-hover:w-full group-hover:left-0 transition-all duration-300"></span>
-          </a>
-          
-          <a 
-            href="/profile" 
-            className="group relative px-4 py-2 text-gray-700 font-semibold hover:text-blue-600 transition-all duration-300 rounded-lg hover:bg-blue-50"
-          >
-            <span className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              ข้อมูลส่วนตัว
-            </span>
-            <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-blue-600 group-hover:w-full group-hover:left-0 transition-all duration-300"></span>
-          </a>
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center space-x-1">
+            <a 
+              href="/" 
+              className="group px-4 py-2 rounded-xl text-gray-700 font-medium hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 relative overflow-hidden"
+            >
+              <span className="relative z-10">หน้าหลัก</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-10 transition-opacity duration-200"></div>
+            </a>
+            
+            <a 
+              href="/profile" 
+              className="group px-4 py-2 rounded-xl text-gray-700 font-medium hover:text-purple-600 hover:bg-purple-50 transition-all duration-200 relative overflow-hidden"
+            >
+              <span className="relative z-10">ข้อมูลส่วนตัว</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-blue-500 opacity-0 group-hover:opacity-10 transition-opacity duration-200"></div>
+            </a>
 
-          {/* Logout Button */}
-          <div className="ml-4 pl-4 border-l border-gray-200">
             <button
               onClick={handleLogout}
-              className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2.5 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              className="group px-4 py-2 rounded-xl text-gray-700 font-medium hover:text-red-600 hover:bg-red-50 transition-all duration-200 relative overflow-hidden ml-2"
             >
-              <svg className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              ออกจากระบบ
+              <span className="relative z-10">ออกจากระบบ</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-red-400 to-pink-500 opacity-0 group-hover:opacity-10 transition-opacity duration-200"></div>
             </button>
+          </nav>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {isMenuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-sm">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              <a 
+                href="/" 
+                className="block px-3 py-2 rounded-lg text-gray-700 font-medium hover:text-blue-600 hover:bg-blue-50 transition-colors duration-200"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                หน้าหลัก
+              </a>
+              
+              <a 
+                href="/profile" 
+                className="block px-3 py-2 rounded-lg text-gray-700 font-medium hover:text-purple-600 hover:bg-purple-50 transition-colors duration-200"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                ข้อมูลส่วนตัว
+              </a>
+
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  handleLogout();
+                }}
+                className="block w-full text-left px-3 py-2 rounded-lg text-gray-700 font-medium hover:text-red-600 hover:bg-red-50 transition-colors duration-200"
+              >
+                ออกจากระบบ
+              </button>
+            </div>
           </div>
-        </nav>
+        )}
       </div>
     </header>
   );

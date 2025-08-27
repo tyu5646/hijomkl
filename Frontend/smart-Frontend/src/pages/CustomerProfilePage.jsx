@@ -20,7 +20,7 @@ const LABELS = {
 };
 
 const TH_API = {
-  provinces: 'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province.json',
+  provinces: 'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province_with_amphure_tambon.json',
   amphures: 'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_amphure.json',
   tambons: 'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_tambon.json',
 };
@@ -42,9 +42,31 @@ function CustomerProfilePage() {
 
   useEffect(() => {
     // ดึงข้อมูลจังหวัด, อำเภอ, ตำบลทั้งหมดมาเก็บไว้
-    fetch(TH_API.provinces).then(r => r.json()).then(setProvinces);
-    fetch(TH_API.amphures).then(r => r.json()).then(setAllAmphures);
-    fetch(TH_API.tambons).then(r => r.json()).then(setAllTambons);
+    const fetchThaiData = async () => {
+      try {
+        const [provincesRes, amphuresRes, tambonsRes] = await Promise.all([
+          fetch(TH_API.provinces),
+          fetch(TH_API.amphures),
+          fetch(TH_API.tambons)
+        ]);
+        
+        const provincesData = await provincesRes.json();
+        const amphuresData = await amphuresRes.json();
+        const tambonsData = await tambonsRes.json();
+        
+        console.log('Provinces loaded:', provincesData.length);
+        console.log('Amphures loaded:', amphuresData.length); 
+        console.log('Tambons loaded:', tambonsData.length);
+        
+        setProvinces(provincesData);
+        setAllAmphures(amphuresData);
+        setAllTambons(tambonsData);
+      } catch (error) {
+        console.error('Error loading Thai data:', error);
+      }
+    };
+    
+    fetchThaiData();
   }, []);
 
   useEffect(() => {
@@ -92,14 +114,24 @@ function CustomerProfilePage() {
 
   useEffect(() => {
     // โหลดอำเภอเมื่อเลือกจังหวัด
-    if (form.province && allAmphures.length > 0) {
+    if (form.province && allAmphures.length > 0 && provinces.length > 0) {
+      console.log('Loading amphures for province:', form.province);
+      
       // หา province_id จากชื่อจังหวัด
       const selectedProvince = provinces.find(p => p.name_th === form.province);
+      console.log('Selected province:', selectedProvince);
+      
       if (selectedProvince) {
         const filtered = allAmphures.filter(a => a.province_id === selectedProvince.id);
+        console.log('Filtered amphures:', filtered.length);
         setAmphures(filtered);
       } else {
         setAmphures([]);
+      }
+      
+      // Reset district และ subdistrict เมื่อเปลี่ยนจังหวัด
+      if (form.district) {
+        setForm(f => ({ ...f, district: '', subdistrict: '', zip_code: '' }));
       }
     } else {
       setAmphures([]);
@@ -109,14 +141,33 @@ function CustomerProfilePage() {
 
   useEffect(() => {
     // โหลดตำบลเมื่อเลือกอำเภอ
-    if (form.district && allTambons.length > 0) {
+    if (form.district && allTambons.length > 0 && amphures.length > 0) {
+      console.log('Loading tambons for district:', form.district);
+      
       // หา amphure_id จากชื่ออำเภอ
       const selectedAmphure = amphures.find(a => a.name_th === form.district);
+      console.log('Selected amphure:', selectedAmphure);
+      
       if (selectedAmphure) {
         const filtered = allTambons.filter(t => t.amphure_id === selectedAmphure.id);
+        console.log('Filtered tambons:', filtered.length, filtered);
         setTambons(filtered);
+        
+        // ถ้าพบตำบลเดียวและไม่มีรหัสไปรษณีย์ ให้หาจากตำบล
+        if (filtered.length > 0 && !form.zip_code) {
+          const firstTambon = filtered[0];
+          if (firstTambon.zip_code) {
+            setForm(f => ({ ...f, zip_code: firstTambon.zip_code }));
+          }
+        }
       } else {
+        console.log('Amphure not found');
         setTambons([]);
+      }
+      
+      // Reset subdistrict เมื่อเปลี่ยนอำเภอ
+      if (form.subdistrict) {
+        setForm(f => ({ ...f, subdistrict: '', zip_code: '' }));
       }
     } else {
       setTambons([]);
@@ -127,14 +178,26 @@ function CustomerProfilePage() {
   const handleCancel = () => { setEditMode(false); setForm(user); };
   const handleChange = e => {
     const { name, value } = e.target;
+    console.log('Field changed:', name, 'Value:', value);
+    
     setForm(f => ({ ...f, [name]: value }));
 
-    // Reset dependent fields
+    // Reset dependent fields และ auto-fill zip_code
     if (name === "province") {
       setForm(f => ({ ...f, district: '', subdistrict: '', zip_code: '' }));
+      setAmphures([]);
+      setTambons([]);
     }
     if (name === "district") {
       setForm(f => ({ ...f, subdistrict: '', zip_code: '' }));
+      setTambons([]);
+    }
+    if (name === "subdistrict") {
+      // หารหัสไปรษณีย์จากตำบลที่เลือก
+      const selectedTambon = tambons.find(t => t.name_th === value);
+      if (selectedTambon && selectedTambon.zip_code) {
+        setForm(f => ({ ...f, zip_code: selectedTambon.zip_code }));
+      }
     }
   };
 
