@@ -18,6 +18,9 @@ import {
   FaShoppingBag,
   FaCar,
   FaSnowflake,
+  FaImages,
+  FaEye,
+  FaSearchPlus,
   FaShower,
   FaBed,
   FaTv,
@@ -43,6 +46,47 @@ import '../components/ChatbotWidgetCircle.css';
 import '../components/DormDetailModal.css';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
+
+// CSS Animation สำหรับ smooth sticky navigation
+const stickyNavStyles = `
+  @keyframes slideDownSmooth {
+    from {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(0.98);
+    }
+  }
+  
+  @keyframes slideUpSmooth {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(0.98);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.98);
+    }
+  }
+
+  .nav-sticky-enter {
+    animation: slideDownSmooth 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+  
+  .nav-sticky-exit {
+    animation: slideUpSmooth 0.3s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+  }
+`;
+
+// เพิ่ม style tag ใน head
+if (typeof document !== 'undefined' && !document.getElementById('sticky-nav-styles')) {
+  const styleElement = document.createElement('style');
+  styleElement.id = 'sticky-nav-styles';
+  styleElement.textContent = stickyNavStyles;
+  document.head.appendChild(styleElement);
+}
 
 // Map Component แบบ Interactive
 function InteractiveMap({ latitude, longitude, dormName, nearbyPlaces = [] }) {
@@ -353,6 +397,80 @@ function CustomerHomePage() {
     service_rating: 5
   });
 
+  // State สำหรับ sticky navigation
+  const [isNavSticky, setIsNavSticky] = useState(false);
+  const [navOffset, setNavOffset] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
+  const [navAnimationClass, setNavAnimationClass] = useState('');
+
+  // useEffect สำหรับจัดการ sticky navigation
+  useEffect(() => {
+    if (!selectedDorm || !modalVisible) {
+      setIsNavSticky(false);
+      setNavAnimationClass('');
+      setNavOffset(0);
+      setScrollY(0);
+      return;
+    }
+
+    let ticking = false;
+
+    const updateScrollY = (scrollContainer) => {
+      setScrollY(scrollContainer.scrollTop);
+      ticking = false;
+    };
+
+    const handleScroll = (e) => {
+      if (!ticking) {
+        requestAnimationFrame(() => updateScrollY(e.target));
+        ticking = true;
+      }
+    };
+
+    // รอให้ modal render เสร็จก่อน แล้วค่อยหาตำแหน่งของ navigation
+    const timer = setTimeout(() => {
+      const navElement = document.getElementById('dorm-navigation');
+      const modalContent = document.querySelector('.modal-content-scroll');
+      
+      if (navElement && modalContent) {
+        // คำนวณตำแหน่งของ nav จากด้านบนของ modal content
+        const navRect = navElement.getBoundingClientRect();
+        const modalRect = modalContent.getBoundingClientRect();
+        const currentOffset = navRect.top - modalRect.top + modalContent.scrollTop;
+        
+        setNavOffset(currentOffset - 100); // เริ่ม sticky ก่อน 100px
+        
+        modalContent.addEventListener('scroll', handleScroll, { passive: true });
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      const modalContent = document.querySelector('.modal-content-scroll');
+      if (modalContent) {
+        modalContent.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [selectedDorm, modalVisible]);
+
+  // useEffect แยกสำหรับอัปเดต sticky state
+  useEffect(() => {
+    if (!selectedDorm || !modalVisible || navOffset === 0) {
+      return;
+    }
+
+    if (scrollY > navOffset && !isNavSticky) {
+      setNavAnimationClass('nav-sticky-enter');
+      setIsNavSticky(true);
+    } else if (scrollY <= navOffset && isNavSticky) {
+      setNavAnimationClass('nav-sticky-exit');
+      setTimeout(() => {
+        setIsNavSticky(false);
+        setNavAnimationClass('');
+      }, 300);
+    }
+  }, [scrollY, navOffset, isNavSticky, selectedDorm, modalVisible]);
+
   // State สำหรับ AI Distance Calculation
   const [aiDistances, setAiDistances] = useState({});
   const [calculatingDistances, setCalculatingDistances] = useState(false);
@@ -414,115 +532,21 @@ function CustomerHomePage() {
       if (currentImgIdx >= selectedDorm.images.length) {
         setCurrentImgIdx(0);
       }
-      
-      // เพิ่มการปรับปรุงคุณภาพภาพสำหรับ modal
-      setTimeout(() => {
-        const modalImages = document.querySelectorAll('.dorm-detail-image');
-        modalImages.forEach(img => {
-          if (img.complete && img.naturalHeight !== 0) {
-            img.style.filter = 'contrast(1.4) brightness(1.25) saturate(1.3) drop-shadow(0 0 1px rgba(0,0,0,0.5))';
-            img.style.imageRendering = '-webkit-optimize-contrast';
-            img.style.transform = 'translate3d(0,0,0)';
-          }
-        });
-      }, 100);
     } else {
       // ถ้าไม่มีรูปภาพให้ reset index
       setCurrentImgIdx(0);
     }
   }, [selectedDorm, currentImgIdx]);
 
-  // ฟังก์ชันเพิ่มเติมสำหรับการโหลดรูปภาพให้ชัด
+  // ฟังก์ชันเพิ่มเติมสำหรับการโหลดรูปภาพ
   const handleImageLoad = (e) => {
     e.target.classList.add('loaded');
     e.target.classList.remove('image-loading');
-    
-    // ปรับ filter ตามความละเอียดหน้าจอและขนาดรูป
-    const devicePixelRatio = window.devicePixelRatio || 1;
-    const imageWidth = e.target.naturalWidth;
-    const imageHeight = e.target.naturalHeight;
-    const isModalImage = e.target.classList.contains('modal-image-enhance') || e.target.classList.contains('dorm-detail-image');
-    
-    // ใช้ค่า filter ที่แรงขึ้นสำหรับรูปภาพในหน้ารายละเอียด
-    if (isModalImage) {
-      if (devicePixelRatio >= 3) {
-        // หน้าจอความละเอียดสูงมาก
-        e.target.style.filter = 'contrast(1.4) brightness(1.2) saturate(1.25) sharpen(1.5) unsharp-mask(amount=300% radius=0.3px threshold=0)';
-      } else if (devicePixelRatio >= 2) {
-        // หน้าจอ Retina
-        e.target.style.filter = 'contrast(1.35) brightness(1.18) saturate(1.22) sharpen(1.3) unsharp-mask(amount=250% radius=0.4px threshold=0)';
-      } else {
-        // หน้าจอปกติ แต่ใช้ค่าที่แรงขึ้น
-        e.target.style.filter = 'contrast(1.3) brightness(1.15) saturate(1.2) sharpen(1.2) unsharp-mask(amount=200% radius=0.5px threshold=0)';
-      }
-      
-      // เพิ่มความคมชัดโดยใช้ CSS properties
-      e.target.style.imageRendering = 'high-quality';
-      e.target.style.textRendering = 'optimizeLegibility';
-      e.target.style.fontSmooth = 'always';
-      e.target.style.webkitFontSmoothing = 'antialiased';
-      e.target.style.mozOsxFontSmoothing = 'grayscale';
-      
-    } else {
-      // เพิ่มความคมชัดตามขนาดและความละเอียดจริงของรูป (สำหรับรูปภาพทั่วไป)
-      if (devicePixelRatio >= 3) {
-        // หน้าจอความละเอียดสูงมาก
-        e.target.style.filter = 'contrast(1.35) brightness(1.25) saturate(1.3) unsharp-mask(amount=200% radius=1px threshold=0)';
-      } else if (devicePixelRatio >= 2) {
-        // หน้าจอ Retina
-        e.target.style.filter = 'contrast(1.3) brightness(1.2) saturate(1.25) unsharp-mask(amount=150% radius=1px threshold=0)';
-      } else if (imageWidth > 1000 && imageHeight > 600) {
-        // รูปขนาดใหญ่
-        e.target.style.filter = 'contrast(1.25) brightness(1.15) saturate(1.2) unsharp-mask(amount=120% radius=1px threshold=0)';
-      } else {
-        // รูปขนาดปกติ
-        e.target.style.filter = 'contrast(1.2) brightness(1.1) saturate(1.15) unsharp-mask(amount=100% radius=1px threshold=0)';
-      }
-    }
-    
-    // Force GPU acceleration for modal images
-    if (isModalImage) {
-      e.target.style.transform = 'translate3d(0,0,0)';
-      e.target.style.webkitTransform = 'translate3d(0,0,0)';
-      e.target.style.backfaceVisibility = 'hidden';
-      e.target.style.webkitBackfaceVisibility = 'hidden';
-    }
   };
 
   const handleImageError = (e) => {
     e.target.src = '/no-image.png';
-    e.target.style.filter = 'grayscale(0.2) contrast(1.15) brightness(1.05)';
     e.target.classList.remove('image-loading');
-  };
-
-  // ฟังก์ชันสำหรับปรับปรุงคุณภาพภาพเมื่อเปลี่ยนรูป
-  const enhanceCurrentImage = () => {
-    setTimeout(() => {
-      const currentImage = document.querySelector('.dorm-detail-image:not(.thumbnail-enhance)');
-      if (currentImage && currentImage.complete && currentImage.naturalHeight !== 0) {
-        const devicePixelRatio = window.devicePixelRatio || 1;
-        let filterValue = '';
-        
-        if (devicePixelRatio >= 3) {
-          filterValue = 'contrast(1.4) brightness(1.2) saturate(1.25) sharpen(1.5) unsharp-mask(amount=300% radius=0.3px threshold=0)';
-        } else if (devicePixelRatio >= 2) {
-          filterValue = 'contrast(1.35) brightness(1.18) saturate(1.22) sharpen(1.3) unsharp-mask(amount=250% radius=0.4px threshold=0)';
-        } else {
-          filterValue = 'contrast(1.3) brightness(1.15) saturate(1.2) sharpen(1.2) unsharp-mask(amount=200% radius=0.5px threshold=0)';
-        }
-        
-        currentImage.style.filter = filterValue;
-        currentImage.style.imageRendering = 'high-quality';
-        currentImage.style.textRendering = 'optimizeLegibility';
-        currentImage.style.transform = 'translate3d(0,0,0)';
-        currentImage.style.webkitTransform = 'translate3d(0,0,0)';
-        currentImage.style.backfaceVisibility = 'hidden';
-        currentImage.style.webkitBackfaceVisibility = 'hidden';
-        currentImage.style.fontSmooth = 'always';
-        currentImage.style.webkitFontSmoothing = 'antialiased';
-        currentImage.style.mozOsxFontSmoothing = 'grayscale';
-      }
-    }, 50);
   };
 
   // ดึงรีวิวเมื่อเปิด modal
@@ -883,7 +907,7 @@ function CustomerHomePage() {
                 onClick={() => handleOpenDorm(dorm)}
               >
                 {/* Image Section */}
-                <div className="relative h-52 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 image-container">
+                <div className="relative h-52 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                   <img
                     src={
                       dorm.images && dorm.images.length > 0 && dorm.images[0]
@@ -893,20 +917,7 @@ function CustomerHomePage() {
                         : '/no-image.png'
                     }
                     alt={dorm.name}
-                    className="w-full h-full object-cover transition-all duration-300 image-enhance image-loading"
-                    style={{
-                      imageRendering: 'auto',
-                      transform: 'translateZ(0)',
-                      backfaceVisibility: 'hidden',
-                      WebkitBackfaceVisibility: 'hidden',
-                      imageOrientation: 'from-image',
-                      objectFit: 'cover',
-                      objectPosition: 'center',
-                      width: '100%',
-                      height: '100%',
-                      display: 'block',
-                      WebkitFontSmoothing: 'antialiased'
-                    }}
+                    className="w-full h-full object-cover transition-all duration-300"
                     loading="lazy"
                     onLoad={handleImageLoad}
                     onError={handleImageError}
@@ -1178,7 +1189,7 @@ function CustomerHomePage() {
           onClick={handleCloseDorm}
         >
           <div
-            className={`bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[95vh] overflow-y-auto relative modal-content ${modalClosing ? 'animate-zoomOutModal' : 'animate-zoomInModal'}`}
+            className={`bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[95vh] overflow-y-auto relative modal-content modal-content-scroll ${modalClosing ? 'animate-zoomOutModal' : 'animate-zoomInModal'}`}
             onClick={e => e.stopPropagation()}
           >
             {/* Close Button - Fixed Position */}
@@ -1191,201 +1202,360 @@ function CustomerHomePage() {
               </svg>
             </button>
 
-            {/* Content Container */}
-            <div className="flex flex-col lg:flex-row">
-              {/* Left Side - Name, Images, Location, Map */}
-              <div className="w-full lg:w-1/2 bg-gray-50 p-6">
-                {/* Dorm Name */}
-                <div className="mb-6">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">{selectedDorm.name}</h1>
-                  {selectedDorm.address_detail && (
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <FaMapMarkerAlt className="w-3 h-3 text-red-500" />
-                      <span>{selectedDorm.address_detail}</span>
-                    </div>
-                  )}
-                </div>
+            {/* Content Container - Single Column Layout */}
+            <div className="bg-white">
+              {/* Image Gallery - Full Width First */}
+              <div className="p-6 pt-16">
+                {selectedDorm.images && selectedDorm.images.length > 0 ? (
+                  <div className="space-y-6">
+                    {/* Agoda-Style Image Gallery */}
+                    <div>
+                      {/* Custom 7 Photos Layout */}
+                      <div className="flex gap-4 h-80 rounded-lg overflow-hidden">
+                        {/* Main Large Image - Left Side (รูปแรก) */}
+                        <div className="w-1/2 relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-l-3xl rounded-r-lg">
+                          <img
+                            src={selectedDorm.images[0] && selectedDorm.images[0].startsWith ? 
+                              (selectedDorm.images[0].startsWith('http') ? selectedDorm.images[0] : `http://localhost:3001${selectedDorm.images[0]}`) 
+                              : '/no-image.png'}
+                            alt={`${selectedDorm.name} - รูปหลัก`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 rounded-l-3xl rounded-r-lg"
+                            onClick={() => setCurrentImgIdx(0)}
+                            onLoad={handleImageLoad}
+                            onError={handleImageError}
+                          />
+                          {/* Main Image Overlay */}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200 flex items-center justify-center rounded-l-3xl rounded-r-lg">
+                            <FaSearchPlus className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          </div>
+                          {/* Current Image Indicator */}
+                          <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded text-sm font-medium">
+                            {currentImgIdx + 1} / {selectedDorm.images.length}
+                          </div>
+                          {/* Ring indicator for selected */}
+                          {0 === currentImgIdx && (
+                            <div className="absolute inset-0 ring-4 ring-blue-500 ring-inset rounded-l-3xl rounded-r-lg pointer-events-none"></div>
+                          )}
+                        </div>
 
-                {/* Main Image Gallery */}
-                <div className="mb-6">
-                  <div className="relative h-80 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden shadow-lg image-container">
-                    {selectedDorm.images && selectedDorm.images.length > 0 && selectedDorm.images[currentImgIdx] ? (
-                      <>
-                        <img
-                          src={selectedDorm.images[currentImgIdx] && selectedDorm.images[currentImgIdx].startsWith ? 
-                            (selectedDorm.images[currentImgIdx].startsWith('http') ? selectedDorm.images[currentImgIdx] : `http://localhost:3001${selectedDorm.images[currentImgIdx]}`) 
-                            : '/no-image.png'}
-                          alt={selectedDorm.name}
-                          className="w-full h-full object-cover image-enhance modal-image-enhance dorm-detail-image image-loading"
-                          style={{
-                            imageRendering: 'high-quality',
-                            backfaceVisibility: 'hidden',
-                            WebkitBackfaceVisibility: 'hidden',
-                            transform: 'translate3d(0,0,0)',
-                            WebkitTransform: 'translate3d(0,0,0)',
-                            imageOrientation: 'from-image',
-                            objectFit: 'cover',
-                            objectPosition: 'center',
-                            maxWidth: '100%',
-                            height: '100%',
-                            WebkitFontSmoothing: 'antialiased',
-                            filter: 'contrast(1.3) brightness(1.15) saturate(1.2) unsharp-mask(amount=150% radius=0.5px threshold=0)',
-                            textRendering: 'optimizeLegibility'
-                          }}
-                          loading="eager"
-                          onLoad={handleImageLoad}
-                          onError={handleImageError}
-                        />
-                        
-                        {/* Image Navigation - Agoda Style */}
-                        {selectedDorm.images.length > 1 && (
-                          <>
-                            <button
-                              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 text-gray-800 rounded-full p-2 shadow-lg transition-all duration-200"
-                              onClick={e => { 
-                                e.stopPropagation(); 
-                                if (selectedDorm.images && selectedDorm.images.length > 0) {
-                                  setCurrentImgIdx((currentImgIdx - 1 + selectedDorm.images.length) % selectedDorm.images.length); 
-                                  enhanceCurrentImage();
-                                }
-                              }}
+                        {/* Right Side Grid 3x2 (6 รูป) */}
+                        <div className="w-1/2 grid grid-cols-3 gap-4 rounded-lg overflow-hidden">
+                          {/* รูปที่ 2 */}
+                          {selectedDorm.images[1] && (
+                            <div 
+                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-lg ${
+                                1 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
+                              }`}
+                              onClick={() => setCurrentImgIdx(1)}
                             >
-                              <FaChevronLeft className="w-4 h-4" />
-                            </button>
-                            <button
-                              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 text-gray-800 rounded-full p-2 shadow-lg transition-all duration-200"
-                              onClick={e => { 
-                                e.stopPropagation(); 
-                                if (selectedDorm.images && selectedDorm.images.length > 0) {
-                                  setCurrentImgIdx((currentImgIdx + 1) % selectedDorm.images.length); 
-                                  enhanceCurrentImage();
-                                }
-                              }}
-                            >
-                              <FaChevronRight className="w-4 h-4" />
-                            </button>
-                            
-                            {/* Image Counter - Agoda Style */}
-                            <div className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-medium">
-                              {currentImgIdx + 1} / {selectedDorm.images.length}
+                              <img
+                                src={selectedDorm.images[1] && selectedDorm.images[1].startsWith ? 
+                                  (selectedDorm.images[1].startsWith('http') ? selectedDorm.images[1] : `http://localhost:3001${selectedDorm.images[1]}`) 
+                                  : '/no-image.png'}
+                                alt={`${selectedDorm.name} - รูปที่ 2`}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-lg"
+                                loading="lazy"
+                                onLoad={handleImageLoad}
+                                onError={handleImageError}
+                              />
+                              {1 !== currentImgIdx && (
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-lg" />
+                              )}
                             </div>
-                          </>
-                        )}
-                      </>
+                          )}
+
+                          {/* รูปที่ 3 */}
+                          {selectedDorm.images[2] && (
+                            <div 
+                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-lg ${
+                                2 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
+                              }`}
+                              onClick={() => setCurrentImgIdx(2)}
+                            >
+                              <img
+                                src={selectedDorm.images[2] && selectedDorm.images[2].startsWith ? 
+                                  (selectedDorm.images[2].startsWith('http') ? selectedDorm.images[2] : `http://localhost:3001${selectedDorm.images[2]}`) 
+                                  : '/no-image.png'}
+                                alt={`${selectedDorm.name} - รูปที่ 3`}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-lg"
+                                loading="lazy"
+                                onLoad={handleImageLoad}
+                                onError={handleImageError}
+                              />
+                              {2 !== currentImgIdx && (
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-lg" />
+                              )}
+                            </div>
+                          )}
+
+                          {/* รูปที่ 4 */}
+                          {selectedDorm.images[3] && (
+                            <div 
+                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-tr-3xl rounded-bl-lg rounded-tl-lg rounded-br-lg ${
+                                3 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
+                              }`}
+                              onClick={() => setCurrentImgIdx(3)}
+                            >
+                              <img
+                                src={selectedDorm.images[3] && selectedDorm.images[3].startsWith ? 
+                                  (selectedDorm.images[3].startsWith('http') ? selectedDorm.images[3] : `http://localhost:3001${selectedDorm.images[3]}`) 
+                                  : '/no-image.png'}
+                                alt={`${selectedDorm.name} - รูปที่ 4`}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-tr-3xl rounded-bl-lg rounded-tl-lg rounded-br-lg"
+                                loading="lazy"
+                                onLoad={handleImageLoad}
+                                onError={handleImageError}
+                              />
+                              {3 !== currentImgIdx && (
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-tr-3xl rounded-bl-lg rounded-tl-lg rounded-br-lg" />
+                              )}
+                            </div>
+                          )}
+
+                          {/* รูปที่ 5 */}
+                          {selectedDorm.images[4] && (
+                            <div 
+                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-lg ${
+                                4 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
+                              }`}
+                              onClick={() => setCurrentImgIdx(4)}
+                            >
+                              <img
+                                src={selectedDorm.images[4] && selectedDorm.images[4].startsWith ? 
+                                  (selectedDorm.images[4].startsWith('http') ? selectedDorm.images[4] : `http://localhost:3001${selectedDorm.images[4]}`) 
+                                  : '/no-image.png'}
+                                alt={`${selectedDorm.name} - รูปที่ 5`}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-lg"
+                                loading="lazy"
+                                onLoad={handleImageLoad}
+                                onError={handleImageError}
+                              />
+                              {4 !== currentImgIdx && (
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-lg" />
+                              )}
+                            </div>
+                          )}
+
+                          {/* รูปที่ 6 */}
+                          {selectedDorm.images[5] && (
+                            <div 
+                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-lg ${
+                                5 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
+                              }`}
+                              onClick={() => setCurrentImgIdx(5)}
+                            >
+                              <img
+                                src={selectedDorm.images[5] && selectedDorm.images[5].startsWith ? 
+                                  (selectedDorm.images[5].startsWith('http') ? selectedDorm.images[5] : `http://localhost:3001${selectedDorm.images[5]}`) 
+                                  : '/no-image.png'}
+                                alt={`${selectedDorm.name} - รูปที่ 6`}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-lg"
+                                loading="lazy"
+                                onLoad={handleImageLoad}
+                                onError={handleImageError}
+                              />
+                              {5 !== currentImgIdx && (
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-lg" />
+                              )}
+                            </div>
+                          )}
+
+                          {/* รูปที่ 7 */}
+                          {selectedDorm.images[6] && (
+                            <div 
+                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-br-3xl rounded-tl-lg rounded-tr-lg rounded-bl-lg ${
+                                6 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
+                              }`}
+                              onClick={() => setCurrentImgIdx(6)}
+                            >
+                              <img
+                                src={selectedDorm.images[6] && selectedDorm.images[6].startsWith ? 
+                                  (selectedDorm.images[6].startsWith('http') ? selectedDorm.images[6] : `http://localhost:3001${selectedDorm.images[6]}`) 
+                                  : '/no-image.png'}
+                                alt={`${selectedDorm.name} - รูปที่ 7`}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-br-3xl rounded-tl-lg rounded-tr-lg rounded-bl-lg"
+                                loading="lazy"
+                                onLoad={handleImageLoad}
+                                onError={handleImageError}
+                              />
+                              {6 !== currentImgIdx && (
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-br-3xl rounded-tl-lg rounded-tr-lg rounded-bl-lg" />
+                              )}
+                              {/* Show remaining photos count overlay */}
+                              {selectedDorm.images.length > 7 && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-br-3xl rounded-tl-lg rounded-tr-lg rounded-bl-lg">
+                                  <div className="text-center text-white">
+                                    <FaImages className="w-3 h-3 mx-auto mb-1" />
+                                    <span className="text-xs font-semibold">+{selectedDorm.images.length - 7}</span>
+                                    <div className="text-xs">รูปเพิ่มเติม</div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* See All Photos Button */}
+                        <div className="absolute bottom-3 right-3">
+                          <button
+                            onClick={() => {
+                              const detailsElement = document.querySelector('details');
+                              if (detailsElement) detailsElement.open = true;
+                            }}
+                            className="bg-white/95 backdrop-blur-sm text-gray-800 px-3 py-1.5 rounded text-sm font-medium hover:bg-white transition-colors flex items-center gap-1 shadow-lg border"
+                          >
+                            <FaImages className="w-3 h-3" />
+                            ดูรูปทั้งหมด
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-80 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center">
+                    <div className="text-center text-gray-400">
+                      <FaHome className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg">ไม่มีรูปภาพ</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Dorm Header - Below Images */}
+              <div className="px-6 pb-6 border-b border-gray-200">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">{selectedDorm.name}</h1>
+                {selectedDorm.address_detail && (
+                  <div className="flex items-center gap-2 text-gray-600 mb-4">
+                    <FaMapMarkerAlt className="w-4 h-4 text-red-500" />
+                    <span className="text-lg">{selectedDorm.address_detail}</span>
+                  </div>
+                )}
+
+                {/* Navigation Bar - Agoda Style */}
+                <div className="mt-6" style={{ position: 'relative' }}>
+                  {/* Spacer เมื่อ nav เป็น fixed */}
+                  {isNavSticky && <div style={{ height: '92px' }}></div>}
+                  
+                  <nav 
+                    id="dorm-navigation"
+                    aria-label="ข้อมูลที่พัก" 
+                    className={`bg-white border-2 rounded-lg shadow-sm transition-all duration-300 ease-out ${navAnimationClass} ${
+                      isNavSticky 
+                        ? 'fixed top-0 left-0 right-0 z-50 shadow-xl backdrop-blur-sm border-blue-500 mx-4' 
+                        : 'relative shadow-md border-gray-300'
+                    }`}
+                    style={{
+                      ...(isNavSticky ? { 
+                        maxWidth: 'calc(100vw - 32px)',
+                        borderRadius: '8px'
+                      } : {}),
+                    }}
+                  >
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex grow">
+                        <div className="w-full">
+                          <div className="grid grid-cols-5 gap-4 w-full">
+                            <div className="flex items-center justify-center">
+                              <button 
+                                type="button"
+                                className="w-full items-center cursor-pointer flex justify-center text-center px-3 py-2 rounded border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                              >
+                                <span className="text-sm font-medium">รายละเอียดที่พัก</span>
+                              </button>
+                            </div>
+                            <div className="flex items-center justify-center">
+                              <button 
+                                type="button"
+                                className="w-full items-center cursor-pointer flex justify-center text-center px-3 py-2 rounded border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                              >
+                                <span className="text-sm font-medium">ห้องพัก</span>
+                              </button>
+                            </div>
+                            <div className="flex items-center justify-center">
+                              <button 
+                                type="button"
+                                className="w-full items-center cursor-pointer flex justify-center text-center px-3 py-2 rounded border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                              >
+                                <span className="text-sm font-medium">สิ่งอำนวยความสะดวก</span>
+                              </button>
+                            </div>
+                            <div className="flex items-center justify-center">
+                              <button 
+                                type="button"
+                                className="w-full items-center cursor-pointer flex justify-center text-center px-3 py-2 rounded border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                              >
+                                <span className="text-sm font-medium">รีวิว</span>
+                              </button>
+                            </div>
+                            <div className="flex items-center justify-center">
+                              <button 
+                                type="button"
+                                className="w-full items-center cursor-pointer flex justify-center text-center px-3 py-2 rounded border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                              >
+                                <span className="text-sm font-medium">ตำแหน่งที่ตั้ง</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center shrink-0 ml-6">
+                        <div className="flex items-center">
+                          <span className="text-sm text-gray-600 mr-2">เริ่มต้นที่</span>
+                          <span className="text-lg font-bold text-gray-900">฿ {getPriorityPrice(selectedDorm).price.toLocaleString()}{getPriorityPrice(selectedDorm).label}</span>
+                        </div>
+                        
+                        <div className="table-cell align-middle">
+                          <button 
+                            type="button"
+                            className="bg-blue-600 text-white items-center cursor-pointer flex flex-col justify-center ml-4 px-4 py-2 rounded border-0 hover:bg-blue-700 transition-colors"
+                            style={{height: '36px'}}
+                          >
+                            <div className="flex items-center flex-row">
+                              <span className="text-sm font-medium">ดูห้องพัก</span>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </nav>
+                </div>
+              </div>
+
+              {/* Main Content - Two Columns */}
+              <div className="flex flex-col lg:flex-row">
+                {/* Left Column - Map and Location */}
+                <div className="w-full lg:w-1/2 p-6">
+                  {/* Interactive Map Section */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <FaMapMarkerAlt className="w-4 h-4 text-red-500" />
+                      ตำแหน่งหอพัก
+                      <span className="bg-gradient-to-r from-blue-500 to-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">Interactive</span>
+                    </h3>
+                    {(selectedDorm.coordinates && selectedDorm.coordinates.length > 0 && 
+                      selectedDorm.coordinates[0].latitude && selectedDorm.coordinates[0].longitude &&
+                      parseFloat(selectedDorm.coordinates[0].latitude) !== 0 && parseFloat(selectedDorm.coordinates[0].longitude) !== 0 &&
+                      !isNaN(parseFloat(selectedDorm.coordinates[0].latitude)) && !isNaN(parseFloat(selectedDorm.coordinates[0].longitude))) ? (
+                      <InteractiveMap
+                        latitude={selectedDorm.coordinates[0].latitude}
+                        longitude={selectedDorm.coordinates[0].longitude}
+                        dormName={selectedDorm.name}
+                        nearbyPlaces={selectedDorm.coordinates.slice(1)}
+                      />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="text-center text-gray-400">
-                          <FaHome className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                          <p className="text-lg">ไม่มีรูปภาพ</p>
+                      <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden shadow-lg border border-gray-200 flex items-center justify-center">
+                        <div className="text-center text-gray-500">
+                          <FaMapMarkerAlt className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                          <p className="text-lg font-medium">ไม่มีข้อมูลตำแหน่ง</p>
+                          <p className="text-sm">หอพักนี้ยังไม่มีการระบุพิกัด</p>
                         </div>
                       </div>
                     )}
                   </div>
-
-                  {/* Thumbnail Strip - Agoda Style */}
-                  {selectedDorm.images && selectedDorm.images.length > 1 && (
-                    <div className="mt-4">
-                      <div className="flex gap-2 overflow-x-auto">
-                        {selectedDorm.images.slice(0, 6).map((image, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => {
-                              if (selectedDorm.images && selectedDorm.images.length > idx) {
-                                setCurrentImgIdx(idx);
-                                enhanceCurrentImage();
-                              }
-                            }}
-                            className={`flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                              idx === currentImgIdx 
-                                ? 'border-blue-500 shadow-md' 
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}  
-                          >
-                            <img
-                              src={image && image.startsWith ? 
-                                (image.startsWith('http') ? image : `http://localhost:3001${image}`) 
-                                : '/no-image.png'}
-                              alt={`${selectedDorm.name} ${idx + 1}`}
-                              className="w-full h-full object-cover image-enhance thumbnail-enhance dorm-detail-image image-loading"
-                              style={{
-                                imageRendering: 'auto',
-                                backfaceVisibility: 'hidden',
-                                WebkitBackfaceVisibility: 'hidden',
-                                transform: 'translate3d(0,0,0)',
-                                WebkitTransform: 'translate3d(0,0,0)',
-                                imageOrientation: 'from-image',
-                                objectFit: 'cover',
-                                objectPosition: 'center',
-                                maxWidth: '100%',
-                                height: '100%',
-                                WebkitFontSmoothing: 'antialiased'
-                              }}
-                              loading="lazy"
-                              onLoad={handleImageLoad}
-                              onError={handleImageError}
-                            />
-                          </button>
-                        ))}
-                        {selectedDorm.images.length > 6 && (
-                          <div className="flex-shrink-0 w-16 h-12 rounded-lg bg-gray-100 border-2 border-gray-200 flex items-center justify-center text-xs text-gray-600 font-medium">
-                            +{selectedDorm.images.length - 6}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                {/* Interactive Map Section */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <FaMapMarkerAlt className="w-4 h-4 text-red-500" />
-                    ตำแหน่งหอพัก
-                    <span className="bg-gradient-to-r from-blue-500 to-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">Interactive</span>
-                  </h3>
-                  {(selectedDorm.coordinates && selectedDorm.coordinates.length > 0 && 
-                    selectedDorm.coordinates[0].latitude && selectedDorm.coordinates[0].longitude &&
-                    parseFloat(selectedDorm.coordinates[0].latitude) !== 0 && parseFloat(selectedDorm.coordinates[0].longitude) !== 0 &&
-                    !isNaN(parseFloat(selectedDorm.coordinates[0].latitude)) && !isNaN(parseFloat(selectedDorm.coordinates[0].longitude))) ? (
-                    <InteractiveMap
-                      latitude={selectedDorm.coordinates[0].latitude}
-                      longitude={selectedDorm.coordinates[0].longitude}
-                      dormName={selectedDorm.name}
-                      nearbyPlaces={selectedDorm.coordinates.slice(1)}
-                    />
-                  ) : (
-                    <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden shadow-lg border border-gray-200 flex items-center justify-center">
-                      <div className="text-center text-gray-500">
-                        <FaMapMarkerAlt className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                        <p className="text-lg font-medium">ไม่มีข้อมูลตำแหน่ง</p>
-                        <p className="text-sm">หอพักนี้ยังไม่มีการระบุพิกัด</p>
-                        <div className="mt-2 text-xs bg-yellow-100 text-yellow-800 p-2 rounded max-h-32 overflow-y-auto">
-                          <p className="font-semibold mb-2">Debug Info:</p>
-                          <p>coordinates array length: {selectedDorm.coordinates ? selectedDorm.coordinates.length : 0}</p>
-                          {selectedDorm.coordinates && selectedDorm.coordinates.length > 0 ? (
-                            <>
-                              <p>First coordinate:</p>
-                              <p>- lat = "{selectedDorm.coordinates[0].latitude}" (type: {typeof selectedDorm.coordinates[0].latitude})</p>
-                              <p>- lng = "{selectedDorm.coordinates[0].longitude}" (type: {typeof selectedDorm.coordinates[0].longitude})</p>
-                              <p>- location_name = "{selectedDorm.coordinates[0].location_name}"</p>
-                              <p>- location_type = "{selectedDorm.coordinates[0].location_type}"</p>
-                              <p>- lat valid: {selectedDorm.coordinates[0].latitude && !isNaN(parseFloat(selectedDorm.coordinates[0].latitude)) && parseFloat(selectedDorm.coordinates[0].latitude) !== 0 ? 'true' : 'false'}</p>
-                              <p>- lng valid: {selectedDorm.coordinates[0].longitude && !isNaN(parseFloat(selectedDorm.coordinates[0].longitude)) && parseFloat(selectedDorm.coordinates[0].longitude) !== 0 ? 'true' : 'false'}</p>
-                            </>
-                          ) : (
-                            <p>No coordinates found</p>
-                          )}
-                          <p className="mt-2 text-xs">Legacy fields: lat={selectedDorm.latitude || 'null'}, lng={selectedDorm.longitude || 'null'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Side - Details & Information */}
-              <div className="w-full lg:w-1/2 bg-white">
-                <div className="p-6">
+                {/* Right Column - Details & Information */}
+                <div className="w-full lg:w-1/2 p-6">
                   {/* Price Information */}
                   <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm mb-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
