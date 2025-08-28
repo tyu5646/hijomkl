@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { 
   FaTachometerAlt, 
   FaCheckCircle, 
@@ -11,8 +11,6 @@ import {
 import logo from '../assets/logo-H.jpg'; // Import รูปโลโก้
 
 function AdminSidebar() {
-  const navigate = useNavigate();
-
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
@@ -112,44 +110,12 @@ function AdminSidebar() {
             </div>
           </NavLink>
 
-          <NavLink
-            to="/admin/manage"
-            className={({ isActive }) =>
-              `group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${
-                isActive 
-                  ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg transform scale-105' 
-                  : 'text-gray-700 hover:bg-white hover:shadow-md hover:scale-105'
-              }`
-            }
-          >
-            <div className={`p-2 rounded-lg transition-colors ${
-              ({ isActive }) => isActive ? 'bg-white bg-opacity-20' : 'bg-purple-100 group-hover:bg-purple-200'
-            }`}>
-              <FaUserShield className="text-lg" />
-            </div>
-            <div className="flex-1">
-              <span className="font-semibold">จัดการแอดมิน</span>
-              <p className="text-xs opacity-75">CRUD แอดมิน</p>
-            </div>
-          </NavLink>
+          
         </div>
 
         <div className="mb-6">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-3">
-            รายงาน
-          </p>
-          <button
-            className="group w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-gray-700 hover:bg-white hover:shadow-md hover:scale-105"
-            onClick={() => navigate('/admin/statistics')}
-          >
-            <div className="p-2 rounded-lg bg-purple-100 group-hover:bg-purple-200 transition-colors">
-              <FaChartLine className="text-lg text-purple-600" />
-            </div>
-            <div className="flex-1 text-left">
-              <span className="font-semibold">รายงาน & สถิติ</span>
-              <p className="text-xs opacity-75">วิเคราะห์ข้อมูล</p>
-            </div>
-          </button>
+          
+          
         </div>
       </nav>
 
