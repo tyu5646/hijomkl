@@ -880,7 +880,7 @@ function CustomerHomePage() {
             {(searchResult !== null ? searchResult : filteredDorms).map((dorm, index) => (
               <div 
                 key={dorm.id} 
-                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200 group cursor-pointer transform hover:-translate-y-1"
+                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200 group cursor-pointer transform hover:-translate-y-1 flex flex-col h-full"
                 onClick={() => handleOpenDorm(dorm)}
               >
                 {/* Image Section */}
@@ -944,7 +944,7 @@ function CustomerHomePage() {
                 </div>
 
                 {/* Content Section */}
-                <div className="p-5">
+                <div className="p-5 flex flex-col flex-1">
                   {/* Title */}
                   <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
                     {dorm.name}
@@ -1153,17 +1153,19 @@ function CustomerHomePage() {
                     </div>
                   )}
 
-                  {/* View Details Button */}
-                  <button 
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-xl font-semibold transition-all duration-200 text-sm shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenDorm(dorm);
-                    }}
-                  >
-                    <FaSearch className="w-4 h-4" />
-                    ดูรายละเอียด
-                  </button>
+                  {/* View Details Button - ปิด flex-1 เพื่อให้ปุ่มอยู่ด้านล่างเสมอ */}
+                  <div className="mt-auto pt-4">
+                    <button 
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-xl font-semibold transition-all duration-200 text-sm shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDorm(dorm);
+                      }}
+                    >
+                      <FaSearch className="w-4 h-4" />
+                      ดูรายละเอียด
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
