@@ -44,6 +44,7 @@ import '../components/DormDetailModal.css';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
 
+// map
 // Map Component แบบ Interactive
 function InteractiveMap({ latitude, longitude, dormName, nearbyPlaces = [] }) {
   const [mapError, setMapError] = useState(false);
