@@ -37,7 +37,8 @@ import {
   FaBook,
   FaHospital,
   FaShoppingCart,
-  FaClock
+  FaClock,
+  FaCouch
 } from 'react-icons/fa';
 import Header from '../components/Header';
 import ChatbotWidget from '../components/ChatbotWidget';
@@ -887,6 +888,7 @@ function CustomerHomePage() {
           </div>
         </div>
       )}
+      
       {/* วงกลม chatbot */}
       {minimizeChatbot && (
         <div className="chatbot-circle-btn" onClick={() => setMinimizeChatbot(false)} title="เปิด Smart Dorm Chatbot">
@@ -896,7 +898,7 @@ function CustomerHomePage() {
       <div className="w-full max-w-7xl mx-auto mt-10 px-4 md:px-8 flex-1">
         <h2 className="text-3xl font-extrabold mb-8 text-gray-800 tracking-tight border-l-4 border-orange-400 pl-6 bg-white py-4 rounded-xl shadow-md flex items-center gap-3">
           <FaHome className="text-orange-400 w-8 h-8" />
-          ผลการค้นหาหอพัก
+          หอพักทั้งหมด
         </h2>
         {(searchResult !== null ? searchResult : filteredDorms).length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1111,7 +1113,7 @@ function CustomerHomePage() {
                     )}
                   </div>
 
-                  {/* Nearby Places with Distance */}
+                  {/* Nearby Places with Distance (from coordinates) */}
                   {dorm.coordinates && dorm.coordinates.length > 1 && (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
@@ -1163,6 +1165,32 @@ function CustomerHomePage() {
                     </div>
                   )}
 
+                  {/* Nearby Places (from text field) */}
+                  {dorm.near_places && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                        <FaMapMarkerAlt className="w-3 h-3 text-red-500" />
+                        สถานที่ใกล้เคียงอื่นๆ
+                      </h4>
+                      <div className="flex flex-wrap gap-1">
+                        {dorm.near_places.split(',').slice(0, 3).map((place, index) => (
+                          <span 
+                            key={index}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full"
+                          >
+                            <FaMapMarkerAlt className="w-2 h-2" />
+                            {place.trim()}
+                          </span>
+                        ))}
+                        {dorm.near_places.split(',').length > 3 && (
+                          <span className="inline-flex items-center px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full">
+                            +{dorm.near_places.split(',').length - 3} สถานที่
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* View Details Button */}
                   <button 
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-xl font-semibold transition-all duration-200 text-sm shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
@@ -1202,889 +1230,407 @@ function CustomerHomePage() {
               </svg>
             </button>
 
-            {/* Content Container - Single Column Layout */}
-            <div className="bg-white">
-              {/* Image Gallery - Full Width First */}
-              <div className="p-6 pt-16">
-                {selectedDorm.images && selectedDorm.images.length > 0 ? (
-                  <div className="space-y-6">
-                    {/* Agoda-Style Image Gallery */}
-                    <div>
-                      {/* Custom 7 Photos Layout */}
-                      <div className="flex gap-4 h-80 rounded-lg overflow-hidden">
-                        {/* Main Large Image - Left Side (รูปแรก) */}
-                        <div className="w-1/2 relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-l-3xl rounded-r-lg">
+            {/* Content Container */}
+            <div className="flex flex-col lg:flex-row">
+              {/* Left Side - Name, Images, Location */}
+              <div className="w-full lg:w-1/2 bg-gray-50 p-6">
+                {/* Dorm Name */}
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">{selectedDorm.name}</h1>
+                  {(selectedDorm.address_detail || selectedDorm.location) && (
+                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                      <FaMapMarkerAlt className="w-3 h-3 text-red-500" />
+                      <span>{selectedDorm.address_detail || selectedDorm.location}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Main Image Gallery */}
+                  <div className="mb-6">
+                    <div className="relative h-80 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden shadow-lg image-container">
+                      {selectedDorm.images && selectedDorm.images.length > 0 && selectedDorm.images[currentImgIdx] ? (
+                        <>
                           <img
-                            src={selectedDorm.images[0] && selectedDorm.images[0].startsWith ? 
-                              (selectedDorm.images[0].startsWith('http') ? selectedDorm.images[0] : `http://localhost:3001${selectedDorm.images[0]}`) 
+                            src={selectedDorm.images[currentImgIdx] && selectedDorm.images[currentImgIdx].startsWith ? 
+                              (selectedDorm.images[currentImgIdx].startsWith('http') ? selectedDorm.images[currentImgIdx] : `http://localhost:3001${selectedDorm.images[currentImgIdx]}`) 
                               : '/no-image.png'}
-                            alt={`${selectedDorm.name} - รูปหลัก`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 rounded-l-3xl rounded-r-lg"
-                            onClick={() => setCurrentImgIdx(0)}
+                            alt={selectedDorm.name}
+                            className="w-full h-full object-cover image-enhance modal-image-enhance dorm-detail-image image-loading"
+                            style={{
+                              imageRendering: 'high-quality',
+                              backfaceVisibility: 'hidden',
+                              WebkitBackfaceVisibility: 'hidden',
+                              transform: 'translate3d(0,0,0)',
+                              WebkitTransform: 'translate3d(0,0,0)',
+                              imageOrientation: 'from-image',
+                              objectFit: 'cover',
+                              objectPosition: 'center',
+                              maxWidth: '100%',
+                              height: '100%',
+                              WebkitFontSmoothing: 'antialiased',
+                              filter: 'contrast(1.3) brightness(1.15) saturate(1.2)',
+                              textRendering: 'optimizeLegibility'
+                            }}
+                            loading="eager"
                             onLoad={handleImageLoad}
                             onError={handleImageError}
                           />
-                          {/* Main Image Overlay */}
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200 flex items-center justify-center rounded-l-3xl rounded-r-lg">
-                            <FaSearchPlus className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          
+                          {/* Image Navigation */}
+                          {selectedDorm.images.length > 1 && (
+                            <>
+                              <button
+                                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 text-gray-800 rounded-full p-2 shadow-lg transition-all duration-200"
+                                onClick={() => setCurrentImgIdx(prev => prev === 0 ? selectedDorm.images.length - 1 : prev - 1)}
+                              >
+                                <FaChevronLeft className="w-4 h-4" />
+                              </button>
+                              <button
+                                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 text-gray-800 rounded-full p-2 shadow-lg transition-all duration-200"
+                                onClick={() => setCurrentImgIdx(prev => prev === selectedDorm.images.length - 1 ? 0 : prev + 1)}
+                              >
+                                <FaChevronRight className="w-4 h-4" />
+                              </button>
+                              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                                {selectedDorm.images.map((_, idx) => (
+                                  <button
+                                    key={idx}
+                                    className={`w-3 h-3 rounded-full transition-all ${idx === currentImgIdx ? 'bg-white scale-125' : 'bg-white/60 hover:bg-white/80'}`}
+                                    onClick={e => { e.stopPropagation(); setCurrentImgIdx(idx); }}
+                                  />
+                                ))}
+                              </div>
+                              <div className="absolute top-4 right-4 bg-black/70 text-white text-sm px-3 py-1 rounded-full">
+                                {currentImgIdx + 1} / {selectedDorm.images.length}
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <div className="h-80 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <div className="text-center text-gray-500">
+                            <FaBed className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                            <p>ไม่มีรูปภาพ</p>
                           </div>
-                          {/* Current Image Indicator */}
-                          <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded text-sm font-medium">
-                            {currentImgIdx + 1} / {selectedDorm.images.length}
-                          </div>
-                          {/* Ring indicator for selected */}
-                          {0 === currentImgIdx && (
-                            <div className="absolute inset-0 ring-4 ring-blue-500 ring-inset rounded-l-3xl rounded-r-lg pointer-events-none"></div>
-                          )}
                         </div>
+                      )}
+                    </div>
 
-                        {/* Right Side Grid 3x2 (6 รูป) */}
-                        <div className="w-1/2 grid grid-cols-3 gap-4 rounded-lg overflow-hidden">
-                          {/* รูปที่ 2 */}
-                          {selectedDorm.images[1] && (
-                            <div 
-                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-lg ${
-                                1 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
-                              }`}
-                              onClick={() => setCurrentImgIdx(1)}
-                            >
-                              <img
-                                src={selectedDorm.images[1] && selectedDorm.images[1].startsWith ? 
-                                  (selectedDorm.images[1].startsWith('http') ? selectedDorm.images[1] : `http://localhost:3001${selectedDorm.images[1]}`) 
-                                  : '/no-image.png'}
-                                alt={`${selectedDorm.name} - รูปที่ 2`}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-lg"
-                                loading="lazy"
-                                onLoad={handleImageLoad}
-                                onError={handleImageError}
-                              />
-                              {1 !== currentImgIdx && (
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-lg" />
-                              )}
-                            </div>
-                          )}
-
-                          {/* รูปที่ 3 */}
-                          {selectedDorm.images[2] && (
-                            <div 
-                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-lg ${
-                                2 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
-                              }`}
-                              onClick={() => setCurrentImgIdx(2)}
-                            >
-                              <img
-                                src={selectedDorm.images[2] && selectedDorm.images[2].startsWith ? 
-                                  (selectedDorm.images[2].startsWith('http') ? selectedDorm.images[2] : `http://localhost:3001${selectedDorm.images[2]}`) 
-                                  : '/no-image.png'}
-                                alt={`${selectedDorm.name} - รูปที่ 3`}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-lg"
-                                loading="lazy"
-                                onLoad={handleImageLoad}
-                                onError={handleImageError}
-                              />
-                              {2 !== currentImgIdx && (
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-lg" />
-                              )}
-                            </div>
-                          )}
-
-                          {/* รูปที่ 4 */}
-                          {selectedDorm.images[3] && (
-                            <div 
-                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-tr-3xl rounded-bl-lg rounded-tl-lg rounded-br-lg ${
-                                3 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
-                              }`}
-                              onClick={() => setCurrentImgIdx(3)}
-                            >
-                              <img
-                                src={selectedDorm.images[3] && selectedDorm.images[3].startsWith ? 
-                                  (selectedDorm.images[3].startsWith('http') ? selectedDorm.images[3] : `http://localhost:3001${selectedDorm.images[3]}`) 
-                                  : '/no-image.png'}
-                                alt={`${selectedDorm.name} - รูปที่ 4`}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-tr-3xl rounded-bl-lg rounded-tl-lg rounded-br-lg"
-                                loading="lazy"
-                                onLoad={handleImageLoad}
-                                onError={handleImageError}
-                              />
-                              {3 !== currentImgIdx && (
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-tr-3xl rounded-bl-lg rounded-tl-lg rounded-br-lg" />
-                              )}
-                            </div>
-                          )}
-
-                          {/* รูปที่ 5 */}
-                          {selectedDorm.images[4] && (
-                            <div 
-                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-lg ${
-                                4 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
-                              }`}
-                              onClick={() => setCurrentImgIdx(4)}
-                            >
-                              <img
-                                src={selectedDorm.images[4] && selectedDorm.images[4].startsWith ? 
-                                  (selectedDorm.images[4].startsWith('http') ? selectedDorm.images[4] : `http://localhost:3001${selectedDorm.images[4]}`) 
-                                  : '/no-image.png'}
-                                alt={`${selectedDorm.name} - รูปที่ 5`}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-lg"
-                                loading="lazy"
-                                onLoad={handleImageLoad}
-                                onError={handleImageError}
-                              />
-                              {4 !== currentImgIdx && (
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-lg" />
-                              )}
-                            </div>
-                          )}
-
-                          {/* รูปที่ 6 */}
-                          {selectedDorm.images[5] && (
-                            <div 
-                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-lg ${
-                                5 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
-                              }`}
-                              onClick={() => setCurrentImgIdx(5)}
-                            >
-                              <img
-                                src={selectedDorm.images[5] && selectedDorm.images[5].startsWith ? 
-                                  (selectedDorm.images[5].startsWith('http') ? selectedDorm.images[5] : `http://localhost:3001${selectedDorm.images[5]}`) 
-                                  : '/no-image.png'}
-                                alt={`${selectedDorm.name} - รูปที่ 6`}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-lg"
-                                loading="lazy"
-                                onLoad={handleImageLoad}
-                                onError={handleImageError}
-                              />
-                              {5 !== currentImgIdx && (
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-lg" />
-                              )}
-                            </div>
-                          )}
-
-                          {/* รูปที่ 7 */}
-                          {selectedDorm.images[6] && (
-                            <div 
-                              className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer group rounded-br-3xl rounded-tl-lg rounded-tr-lg rounded-bl-lg ${
-                                6 === currentImgIdx ? 'ring-2 ring-blue-500 ring-inset' : ''
-                              }`}
-                              onClick={() => setCurrentImgIdx(6)}
-                            >
-                              <img
-                                src={selectedDorm.images[6] && selectedDorm.images[6].startsWith ? 
-                                  (selectedDorm.images[6].startsWith('http') ? selectedDorm.images[6] : `http://localhost:3001${selectedDorm.images[6]}`) 
-                                  : '/no-image.png'}
-                                alt={`${selectedDorm.name} - รูปที่ 7`}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200 rounded-br-3xl rounded-tl-lg rounded-tr-lg rounded-bl-lg"
-                                loading="lazy"
-                                onLoad={handleImageLoad}
-                                onError={handleImageError}
-                              />
-                              {6 !== currentImgIdx && (
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-200 rounded-br-3xl rounded-tl-lg rounded-tr-lg rounded-bl-lg" />
-                              )}
-                              {/* Show remaining photos count overlay */}
-                              {selectedDorm.images.length > 7 && (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-br-3xl rounded-tl-lg rounded-tr-lg rounded-bl-lg">
-                                  <div className="text-center text-white">
-                                    <FaImages className="w-3 h-3 mx-auto mb-1" />
-                                    <span className="text-xs font-semibold">+{selectedDorm.images.length - 7}</span>
-                                    <div className="text-xs">รูปเพิ่มเติม</div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* See All Photos Button */}
-                        <div className="absolute bottom-3 right-3">
+                    {/* Thumbnail Strip */}
+                    {selectedDorm.images && selectedDorm.images.length > 1 && (
+                      <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+                        {selectedDorm.images.slice(0, 6).map((img, idx) => (
                           <button
-                            onClick={() => {
-                              const detailsElement = document.querySelector('details');
-                              if (detailsElement) detailsElement.open = true;
-                            }}
-                            className="bg-white/95 backdrop-blur-sm text-gray-800 px-3 py-1.5 rounded text-sm font-medium hover:bg-white transition-colors flex items-center gap-1 shadow-lg border"
+                            key={idx}
+                            className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentImgIdx ? 'border-blue-500 scale-105' : 'border-gray-200 hover:border-gray-400'}`}
+                            onClick={e => { e.stopPropagation(); setCurrentImgIdx(idx); }}
                           >
-                            <FaImages className="w-3 h-3" />
-                            ดูรูปทั้งหมด
+                            <img
+                              src={img.startsWith('http') ? img : `http://localhost:3001${img}`}
+                              alt={`${selectedDorm.name} ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={e => { e.target.src = '/no-image.png'; }}
+                            />
                           </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-80 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center">
-                    <div className="text-center text-gray-400">
-                      <FaHome className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg">ไม่มีรูปภาพ</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Dorm Header - Below Images */}
-              <div className="px-6 pb-6 border-b border-gray-200">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{selectedDorm.name}</h1>
-                {selectedDorm.address_detail && (
-                  <div className="flex items-center gap-2 text-gray-600 mb-4">
-                    <FaMapMarkerAlt className="w-4 h-4 text-red-500" />
-                    <span className="text-lg">{selectedDorm.address_detail}</span>
-                  </div>
-                )}
-
-                {/* Navigation Bar - Agoda Style */}
-                <div className="mt-6" style={{ position: 'relative' }}>
-                  {/* Spacer เมื่อ nav เป็น fixed */}
-                  {isNavSticky && <div style={{ height: '92px' }}></div>}
-                  
-                  <nav 
-                    id="dorm-navigation"
-                    aria-label="ข้อมูลที่พัก" 
-                    className={`bg-white border-2 rounded-lg shadow-sm transition-all duration-300 ease-out ${navAnimationClass} ${
-                      isNavSticky 
-                        ? 'fixed top-0 left-0 right-0 z-50 shadow-xl backdrop-blur-sm border-blue-500 mx-4' 
-                        : 'relative shadow-md border-gray-300'
-                    }`}
-                    style={{
-                      ...(isNavSticky ? { 
-                        maxWidth: 'calc(100vw - 32px)',
-                        borderRadius: '8px'
-                      } : {}),
-                    }}
-                  >
-                    <div className="flex items-center justify-between p-4">
-                      <div className="flex grow">
-                        <div className="w-full">
-                          <div className="grid grid-cols-5 gap-4 w-full">
-                            <div className="flex items-center justify-center">
-                              <button 
-                                type="button"
-                                className="w-full items-center cursor-pointer flex justify-center text-center px-3 py-2 rounded border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                              >
-                                <span className="text-sm font-medium">รายละเอียดที่พัก</span>
-                              </button>
-                            </div>
-                            <div className="flex items-center justify-center">
-                              <button 
-                                type="button"
-                                className="w-full items-center cursor-pointer flex justify-center text-center px-3 py-2 rounded border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                              >
-                                <span className="text-sm font-medium">ห้องพัก</span>
-                              </button>
-                            </div>
-                            <div className="flex items-center justify-center">
-                              <button 
-                                type="button"
-                                className="w-full items-center cursor-pointer flex justify-center text-center px-3 py-2 rounded border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                              >
-                                <span className="text-sm font-medium">สิ่งอำนวยความสะดวก</span>
-                              </button>
-                            </div>
-                            <div className="flex items-center justify-center">
-                              <button 
-                                type="button"
-                                className="w-full items-center cursor-pointer flex justify-center text-center px-3 py-2 rounded border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                              >
-                                <span className="text-sm font-medium">รีวิว</span>
-                              </button>
-                            </div>
-                            <div className="flex items-center justify-center">
-                              <button 
-                                type="button"
-                                className="w-full items-center cursor-pointer flex justify-center text-center px-3 py-2 rounded border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                              >
-                                <span className="text-sm font-medium">ตำแหน่งที่ตั้ง</span>
-                              </button>
-                            </div>
+                        ))}
+                        {selectedDorm.images.length > 6 && (
+                          <div className="flex-shrink-0 w-20 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600 text-xs border-2 border-gray-200">
+                            +{selectedDorm.images.length - 6} รูป
                           </div>
-                        </div>
+                        )}
                       </div>
-                      <div className="flex items-center shrink-0 ml-6">
-                        <div className="flex items-center">
-                          <span className="text-sm text-gray-600 mr-2">เริ่มต้นที่</span>
-                          <span className="text-lg font-bold text-gray-900">฿ {getPriorityPrice(selectedDorm).price.toLocaleString()}{getPriorityPrice(selectedDorm).label}</span>
-                        </div>
-                        
-                        <div className="table-cell align-middle">
-                          <button 
-                            type="button"
-                            className="bg-blue-600 text-white items-center cursor-pointer flex flex-col justify-center ml-4 px-4 py-2 rounded border-0 hover:bg-blue-700 transition-colors"
-                            style={{height: '36px'}}
-                          >
-                            <div className="flex items-center flex-row">
-                              <span className="text-sm font-medium">ดูห้องพัก</span>
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </nav>
-                </div>
-              </div>
+                    )}
 
-              {/* Main Content - Two Columns */}
-              <div className="flex flex-col lg:flex-row">
-                {/* Left Column - Map and Location */}
-                <div className="w-full lg:w-1/2 p-6">
-                  {/* Interactive Map Section */}
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <FaMapMarkerAlt className="w-4 h-4 text-red-500" />
-                      ตำแหน่งหอพัก
-                      <span className="bg-gradient-to-r from-blue-500 to-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">Interactive</span>
-                    </h3>
+                    {/* Quick Map Preview - Left Side */}
                     {(selectedDorm.coordinates && selectedDorm.coordinates.length > 0 && 
                       selectedDorm.coordinates[0].latitude && selectedDorm.coordinates[0].longitude &&
                       parseFloat(selectedDorm.coordinates[0].latitude) !== 0 && parseFloat(selectedDorm.coordinates[0].longitude) !== 0 &&
                       !isNaN(parseFloat(selectedDorm.coordinates[0].latitude)) && !isNaN(parseFloat(selectedDorm.coordinates[0].longitude))) ? (
-                      <InteractiveMap
-                        latitude={selectedDorm.coordinates[0].latitude}
-                        longitude={selectedDorm.coordinates[0].longitude}
-                        dormName={selectedDorm.name}
-                        nearbyPlaces={selectedDorm.coordinates.slice(1)}
-                      />
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <FaMapMarkerAlt className="w-4 h-4 text-red-500" />
+                          ตำแหน่งหอพัก
+                          <span className="bg-gradient-to-r from-blue-500 to-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">Preview</span>
+                        </h3>
+                        <InteractiveMap
+                          latitude={selectedDorm.coordinates[0].latitude}
+                          longitude={selectedDorm.coordinates[0].longitude}
+                          dormName={selectedDorm.name}
+                          nearbyPlaces={selectedDorm.coordinates.slice(1)}
+                        />
+                      </div>
                     ) : (
-                      <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden shadow-lg border border-gray-200 flex items-center justify-center">
-                        <div className="text-center text-gray-500">
-                          <FaMapMarkerAlt className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                          <p className="text-lg font-medium">ไม่มีข้อมูลตำแหน่ง</p>
-                          <p className="text-sm">หอพักนี้ยังไม่มีการระบุพิกัด</p>
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <FaMapMarkerAlt className="w-4 h-4 text-red-500" />
+                          ตำแหน่งหอพัก
+                          <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">Demo</span>
+                        </h3>
+                        <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-xs text-yellow-800">📍 แผนที่ตัวอย่าง - พื้นที่ใกล้เคียง</p>
                         </div>
+                        <InteractiveMap
+                          latitude="13.7684"
+                          longitude="100.6147"
+                          dormName={`${selectedDorm.name} (ตัวอย่าง)`}
+                          nearbyPlaces={[]}
+                        />
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Right Column - Details & Information */}
-                <div className="w-full lg:w-1/2 p-6">
-                  {/* Price Information */}
-                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <FaMoneyBillWave className="w-4 h-4 text-green-500" />
-                      ราคาห้องพัก
-                    </h3>
-                    <div className="space-y-2">
-                      {selectedDorm.price_daily && Number(selectedDorm.price_daily) > 0 && (
-                        <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
-                          <span className="text-sm font-medium text-green-800">รายวัน</span>
-                          <div className="text-right">
-                            <span className="text-lg font-bold text-green-600">฿{Number(selectedDorm.price_daily).toLocaleString()}</span>
-                            <span className="text-sm text-gray-500 ml-1">/วัน</span>
-                          </div>
-                        </div>
-                      )}
-                      {selectedDorm.price_monthly && Number(selectedDorm.price_monthly) > 0 && (
-                        <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
-                          <span className="text-sm font-medium text-blue-800">รายเดือน</span>
-                          <div className="text-right">
-                            <span className="text-lg font-bold text-blue-600">฿{Number(selectedDorm.price_monthly).toLocaleString()}</span>
-                            <span className="text-sm text-gray-500 ml-1">/เดือน</span>
-                          </div>
-                        </div>
-                      )}
-                      {selectedDorm.price_term && Number(selectedDorm.price_term) > 0 && (
-                        <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200">
-                          <span className="text-sm font-medium text-purple-800">รายเทอม</span>
-                          <div className="text-right">
-                            <span className="text-lg font-bold text-purple-600">฿{Number(selectedDorm.price_term).toLocaleString()}</span>
-                            <span className="text-sm text-gray-500 ml-1">/เทอม</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Additional Cost Info */}
-                    {(selectedDorm.water_cost || selectedDorm.electricity_cost || selectedDorm.deposit) && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
-                          {selectedDorm.water_cost && Number(selectedDorm.water_cost) > 0 && (
-                            <span className="flex items-center gap-1">
-                              <FaTint className="w-3 h-3 text-cyan-500" />
-                              น้ำ ฿{Number(selectedDorm.water_cost)}/หน่วย
-                            </span>
-                          )}
-                          {selectedDorm.electricity_cost && Number(selectedDorm.electricity_cost) > 0 && (
-                            <span className="flex items-center gap-1">
-                              <FaBolt className="w-3 h-3 text-yellow-500" />
-                              ไฟ ฿{Number(selectedDorm.electricity_cost)}/หน่วย
-                            </span>
-                          )}
-                          {selectedDorm.deposit && Number(selectedDorm.deposit) > 0 && (
-                            <span className="flex items-center gap-1">
-                              <FaMoneyBillWave className="w-3 h-3 text-green-500" />
-                              มัดจำ ฿{Number(selectedDorm.deposit).toLocaleString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Rating & Reviews Summary - Agoda Style */}
-                  <div className="mb-6">
-                    <div className="flex items-center gap-4 mb-4 p-3 bg-blue-50 rounded-lg">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600 mb-1">
-                          {reviewStats?.average_rating ? Number(reviewStats.average_rating).toFixed(1) : '5.0'}
-                        </div>
-                        <div className="text-xs text-gray-600">คะแนนรีวิว</div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-1 mb-1">
-                          {renderStars(Number(reviewStats?.average_rating) || 5)}
-                        </div>
-                        <div className="text-sm text-gray-600">{reviewStats?.total_reviews || 0} รีวิวจากผู้เข้าพัก</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Reviews Section */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                        <FaStar className="w-4 h-4 text-yellow-500" />
-                        รีวิวจากผู้เข้าพัก
+                {/* Right Side - Details & Information */}
+                <div className="w-full lg:w-1/2 bg-white">
+                  <div className="p-6">
+                    {/* Price Information */}
+                    <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <FaMoneyBillWave className="w-4 h-4 text-green-500" />
+                        ราคาห้องพัก
                       </h3>
-                      <button
-                        onClick={() => setShowReviewForm(!showReviewForm)}
-                        className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                      >
-                        เขียนรีวิว
-                      </button>
+                      <div className="space-y-2">
+                        {selectedDorm.price_daily && Number(selectedDorm.price_daily) > 0 && (
+                          <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
+                            <span className="text-sm font-medium text-green-800">รายวัน</span>
+                            <div className="text-right">
+                              <span className="text-lg font-bold text-green-600">฿{Number(selectedDorm.price_daily).toLocaleString()}</span>
+                              <span className="text-sm text-gray-500 ml-1">/วัน</span>
+                            </div>
+                          </div>
+                        )}
+                        {selectedDorm.price_monthly && Number(selectedDorm.price_monthly) > 0 && (
+                          <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
+                            <span className="text-sm font-medium text-blue-800">รายเดือน</span>
+                            <div className="text-right">
+                              <span className="text-lg font-bold text-blue-600">฿{Number(selectedDorm.price_monthly).toLocaleString()}</span>
+                              <span className="text-sm text-gray-500 ml-1">/เดือน</span>
+                            </div>
+                          </div>
+                        )}
+                        {selectedDorm.price_term && Number(selectedDorm.price_term) > 0 && (
+                          <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200">
+                            <span className="text-sm font-medium text-purple-800">รายเทอม</span>
+                            <div className="text-right">
+                              <span className="text-lg font-bold text-purple-600">฿{Number(selectedDorm.price_term).toLocaleString()}</span>
+                              <span className="text-sm text-gray-500 ml-1">/เทอม</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Additional Cost Info */}
+                      {(selectedDorm.water_cost || selectedDorm.electricity_cost || selectedDorm.deposit) && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                            {selectedDorm.water_cost && Number(selectedDorm.water_cost) > 0 && (
+                              <span className="flex items-center gap-1">
+                                <FaTint className="w-3 h-3 text-cyan-500" />
+                                น้ำ ฿{Number(selectedDorm.water_cost)}/หน่วย
+                              </span>
+                            )}
+                            {selectedDorm.electricity_cost && Number(selectedDorm.electricity_cost) > 0 && (
+                              <span className="flex items-center gap-1">
+                                <FaBolt className="w-3 h-3 text-yellow-500" />
+                                ไฟ ฿{Number(selectedDorm.electricity_cost)}/หน่วย
+                              </span>
+                            )}
+                            {selectedDorm.deposit && Number(selectedDorm.deposit) > 0 && (
+                              <span className="flex items-center gap-1">
+                                <FaMoneyBillWave className="w-3 h-3 text-green-500" />
+                                มัดจำ ฿{Number(selectedDorm.deposit).toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Review Form */}
-                    {showReviewForm && (
-                      <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-                        <h4 className="font-medium text-gray-900 mb-4">เขียนรีวิวของคุณ</h4>
-                        <form onSubmit={handleSubmitReview} className="space-y-4">
-                          {/* Overall Rating */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              คะแนนรวม
-                            </label>
-                            <div className="flex items-center gap-2">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <button
-                                  key={star}
-                                  type="button"
-                                  onClick={() => setReviewForm({...reviewForm, rating: star})}
-                                  className={`text-2xl ${star <= reviewForm.rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400 transition-colors`}
-                                >
-                                  ★
-                                </button>
-                              ))}
-                              <span className="ml-2 text-sm text-gray-600">({reviewForm.rating}/5)</span>
-                            </div>
+                    {/* Rating & Reviews Summary */}
+                    <div className="mb-6">
+                      <div className="flex items-center gap-4 mb-4 p-3 bg-blue-50 rounded-lg">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600 mb-1">
+                            {reviewStats?.average_rating ? Number(reviewStats.average_rating).toFixed(1) : '5.0'}
                           </div>
+                          <div className="text-xs text-gray-600">คะแนนรีวิว</div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1 mb-1">
+                            {renderStars(Number(reviewStats?.average_rating) || 5)}
+                          </div>
+                          <div className="text-sm text-gray-600">{reviewStats?.total_reviews || 0} รีวิวจากผู้เข้าพัก</div>
+                        </div>
+                      </div>
+                    </div>
 
-                          {/* Detailed Ratings */}
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                ความสะอาด
-                              </label>
-                              <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <button
-                                    key={star}
-                                    type="button"
-                                    onClick={() => setReviewForm({...reviewForm, cleanliness_rating: star})}
-                                    className={`text-lg ${star <= reviewForm.cleanliness_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400`}
-                                  >
-                                    ★
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                ทำเล/สถานที่
-                              </label>
-                              <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <button
-                                    key={star}
-                                    type="button"
-                                    onClick={() => setReviewForm({...reviewForm, location_rating: star})}
-                                    className={`text-lg ${star <= reviewForm.location_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400`}
-                                  >
-                                    ★
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                คุณภาพ/ราคา
-                              </label>
-                              <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <button
-                                    key={star}
-                                    type="button"
-                                    onClick={() => setReviewForm({...reviewForm, value_rating: star})}
-                                    className={`text-lg ${star <= reviewForm.value_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400`}
-                                  >
-                                    ★
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                บริการ
-                              </label>
-                              <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <button
-                                    key={star}
-                                    type="button"
-                                    onClick={() => setReviewForm({...reviewForm, service_rating: star})}
-                                    className={`text-lg ${star <= reviewForm.service_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400`}
-                                  >
-                                    ★
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Comment */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              ความคิดเห็น
-                            </label>
-                            <textarea
-                              value={reviewForm.comment}
-                              onChange={(e) => setReviewForm({...reviewForm, comment: e.target.value})}
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              rows="4"
-                              placeholder="แบ่งปันประสบการณ์ของคุณเกี่ยวกับหอพักนี้..."
-                              required
-                            />
-                          </div>
-
-                          {/* Submit Buttons */}
-                          <div className="flex gap-3">
-                            <button
-                              type="submit"
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                            >
-                              ส่งรีวิว
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setShowReviewForm(false)}
-                              className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                            >
-                              ยกเลิก
-                            </button>
-                          </div>
-                        </form>
+                    {/* Facilities & Amenities */}
+                    {selectedDorm.facilities && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <FaCouch className="w-4 h-4 text-green-500" />
+                          สิ่งอำนวยความสะดวก
+                        </h3>
+                        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                          <p className="text-gray-700 leading-relaxed">{selectedDorm.facilities}</p>
+                        </div>
                       </div>
                     )}
 
-                    {/* Reviews List */}
-                    <div className="space-y-4 max-h-96 overflow-y-auto">
-                      {loadingReviews ? (
-                        <div className="text-center py-8">
-                          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                          <p className="mt-2 text-gray-600">กำลังโหลดรีวิว...</p>
+                    {/* Nearby Places */}
+                    {selectedDorm.near_places && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <FaLandmark className="w-4 h-4 text-purple-500" />
+                          สถานที่ใกล้เคียง
+                        </h3>
+                        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                          <p className="text-gray-700 leading-relaxed">{selectedDorm.near_places}</p>
                         </div>
-                      ) : dormReviews.length > 0 ? (
-                        dormReviews.map((review, index) => (
-                          <div key={index} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <span className="text-blue-600 font-semibold text-sm">
-                                    {review.customer_name ? review.customer_name.charAt(0).toUpperCase() : 'A'}
-                                  </span>
-                                </div>
-                                <div>
-                                  <h5 className="font-medium text-gray-900">
-                                    {review.customer_name || 'ผู้ใช้งาน'}
-                                  </h5>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex text-yellow-400 text-sm">
-                                      {renderStars(review.rating)}
-                                    </div>
-                                    <span className="text-sm text-gray-600">
-                                      {new Date(review.created_at).toLocaleDateString('th-TH')}
+                      </div>
+                    )}
+
+                    {/* Contact Information */}
+                    {selectedDorm.contact_phone && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <FaPhoneAlt className="w-4 h-4 text-blue-500" />
+                          ข้อมูลติดต่อ
+                        </h3>
+                        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <FaPhoneAlt className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">เบอร์โทรศัพท์</p>
+                              <p className="text-blue-600 font-semibold">{selectedDorm.contact_phone}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reviews Section - More Compact */}
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <FaStar className="w-4 h-4 text-yellow-500" />
+                          รีวิวจากผู้เข้าพัก
+                        </h3>
+                        <button
+                          onClick={() => setShowReviewForm(!showReviewForm)}
+                          className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          เขียนรีวิว
+                        </button>
+                      </div>
+
+                      {/* Review Form */}
+                      {showReviewForm && (
+                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+                          <h4 className="font-medium text-gray-900 mb-4">เขียนรีวิวของคุณ</h4>
+                          <form onSubmit={handleSubmitReview} className="space-y-4">
+                            {/* Overall Rating */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                คะแนนรวม
+                              </label>
+                              <div className="flex items-center gap-2">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setReviewForm({...reviewForm, rating: star})}
+                                    className={`text-2xl ${star <= reviewForm.rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400 transition-colors`}
+                                  >
+                                    ★
+                                  </button>
+                                ))}
+                                <span className="ml-2 text-sm text-gray-600">({reviewForm.rating}/5)</span>
+                              </div>
+                            </div>
+
+                            {/* Comment */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                ความคิดเห็น
+                              </label>
+                              <textarea
+                                value={reviewForm.comment}
+                                onChange={(e) => setReviewForm({...reviewForm, comment: e.target.value})}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                rows="3"
+                                placeholder="แบ่งปันประสบการณ์ของคุณเกี่ยวกับหอพักนี้..."
+                                required
+                              />
+                            </div>
+
+                            {/* Submit Buttons */}
+                            <div className="flex gap-3">
+                              <button
+                                type="submit"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                              >
+                                ส่งรีวิว
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowReviewForm(false)}
+                                className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                              >
+                                ยกเลิก
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      )}
+
+                      {/* Reviews List - Compact */}
+                      <div className="space-y-3 max-h-60 overflow-y-auto">
+                        {loadingReviews ? (
+                          <div className="text-center py-4">
+                            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <p className="mt-2 text-sm text-gray-600">กำลังโหลดรีวิว...</p>
+                          </div>
+                        ) : dormReviews.length > 0 ? (
+                          dormReviews.slice(0, 3).map((review, index) => (
+                            <div key={index} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span className="text-blue-600 font-semibold text-xs">
+                                      {review.customer_name ? review.customer_name.charAt(0).toUpperCase() : 'A'}
                                     </span>
+                                  </div>
+                                  <div>
+                                    <h5 className="font-medium text-gray-900 text-sm">
+                                      {review.customer_name || 'ผู้ใช้งาน'}
+                                    </h5>
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex text-yellow-400 text-xs">
+                                        {renderStars(review.rating)}
+                                      </div>
+                                      <span className="text-xs text-gray-600">
+                                        {new Date(review.created_at).toLocaleDateString('th-TH')}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
+                              <p className="text-gray-700 text-sm leading-relaxed">{review.comment}</p>
                             </div>
-                            
-                            {/* Detailed Ratings */}
-                            <div className="grid grid-cols-2 gap-4 mb-3 text-xs">
-                              <div className="flex items-center justify-between">
-                                <span className="text-gray-600">ความสะอาด:</span>
-                                <div className="flex text-yellow-400">
-                                  {renderStars(review.cleanliness_rating)}
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-gray-600">ทำเล:</span>
-                                <div className="flex text-yellow-400">
-                                  {renderStars(review.location_rating)}
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-gray-600">คุณภาพ/ราคา:</span>
-                                <div className="flex text-yellow-400">
-                                  {renderStars(review.value_rating)}
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-gray-600">บริการ:</span>
-                                <div className="flex text-yellow-400">
-                                  {renderStars(review.service_rating)}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <p className="text-gray-700 text-sm leading-relaxed">{review.comment}</p>
+                          ))
+                        ) : (
+                          <div className="text-center py-4 text-gray-500">
+                            <FaStar className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm">ยังไม่มีรีวิวสำหรับหอพักนี้</p>
                           </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <FaStar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                          <p>ยังไม่มีรีวิวสำหรับหอพักนี้</p>
-                          <p className="text-sm">เป็นคนแรกที่เขียนรีวิว!</p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Facilities & Amenities - Agoda Style */}
-                  {(selectedDorm.facilities_wifi || selectedDorm.facilities_parking || selectedDorm.facilities_security || selectedDorm.facilities_washing_machine || selectedDorm.facilities_air_conditioner) && (
-                    <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">สิ่งอำนวยความสะดวก</h3>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        {selectedDorm.facilities_wifi === 'มี' && (
-                          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <FaWifi className="w-4 h-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-800">WiFi ฟรี</span>
-                            <FaCheck className="w-3 h-3 text-green-600 ml-auto" />
-                          </div>
-                        )}
-                        
-                        {selectedDorm.facilities_parking === 'มี' && (
-                          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <FaCar className="w-4 h-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-800">ที่จอดรถ</span>
-                            <FaCheck className="w-3 h-3 text-green-600 ml-auto" />
-                          </div>
-                        )}
-                        
-                        {selectedDorm.facilities_security === 'มี' && (
-                          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <FaShieldAlt className="w-4 h-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-800">รักษาความปลอดภัย</span>
-                            <FaCheck className="w-3 h-3 text-green-600 ml-auto" />
-                          </div>
-                        )}
-                        
-                        {selectedDorm.facilities_air_conditioner === 'มี' && (
-                          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <FaArrowUp className="w-4 h-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-800">แอร์</span>
-                            <FaCheck className="w-3 h-3 text-green-600 ml-auto" />
-                          </div>
-                        )}
-                        
-                        {selectedDorm.facilities_washing_machine === 'มี' && (
-                          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <FaCog className="w-4 h-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-800">เครื่องซักผ้า</span>
-                            <FaCheck className="w-3 h-3 text-green-600 ml-auto" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Nearby Places - Agoda Style */}
-                  {(selectedDorm.nearby_university || selectedDorm.nearby_school || selectedDorm.nearby_hospital || selectedDorm.nearby_market) && (
-                    <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">สถานที่ใกล้เคียง</h3>
-                      
-                      <div className="space-y-3">
-                        {selectedDorm.nearby_university && (
-                          <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                <FaGraduationCap className="w-4 h-4 text-blue-600" />
-                              </div>
-                              <span className="font-medium text-blue-900">{selectedDorm.nearby_university}</span>
-                            </div>
-                            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">มหาวิทยาลัย</span>
-                          </div>
-                        )}
-                        
-                        {selectedDorm.nearby_school && (
-                          <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                                <FaBook className="w-4 h-4 text-purple-600" />
-                              </div>
-                              <span className="font-medium text-purple-900">{selectedDorm.nearby_school}</span>
-                            </div>
-                            <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded-full">โรงเรียน</span>
-                          </div>
-                        )}
-                        
-                        {selectedDorm.nearby_hospital && (
-                          <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                                <FaHospital className="w-4 h-4 text-red-600" />
-                              </div>
-                              <span className="font-medium text-red-900">{selectedDorm.nearby_hospital}</span>
-                            </div>
-                            <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">โรงพยาบาล</span>
-                          </div>
-                        )}
-                        
-                        {selectedDorm.nearby_market && (
-                          <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                <FaShoppingCart className="w-4 h-4 text-green-600" />
-                              </div>
-                              <span className="font-medium text-green-900">{selectedDorm.nearby_market}</span>
-                            </div>
-                            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">ตลาด/ร้านค้า</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Facilities */}
-                  {selectedDorm.facilities && (
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
-                      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <FaWifi className="w-5 h-5 text-blue-600" />
-                        สิ่งอำนวยความสะดวก
-                      </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {selectedDorm.facilities.split(',').map((facility, index) => (
-                          <div 
-                            key={index}
-                            className="flex items-center gap-2 p-3 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow"
-                          >
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="text-sm font-medium text-gray-700">{facility.trim()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* AI-Enhanced Nearby Places with Smart Distance Calculation */}
-                  {selectedDorm.coordinates && selectedDorm.coordinates.length > 1 && (
-                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
-                      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <FaLandmark className="w-5 h-5 text-purple-600" />
-                        สถานที่ใกล้เคียง (AI Analysis)
-                        {calculatingDistances && (
-                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 ml-2"></div>
-                        )}
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {selectedDorm.coordinates.slice(1).map((coord, index) => {
-                          const aiKey = `${selectedDorm.id}-${index + 1}`;
-                          const aiResult = aiDistances[aiKey];
-                          
-                          // Fallback ไปใช้การคำนวณแบบธรรมดาถ้า AI ยังไม่เสร็จ
-                          let fallbackDistance = null;
-                          if (selectedDorm.coordinates[0] && selectedDorm.coordinates[0].latitude && selectedDorm.coordinates[0].longitude &&
-                              coord.latitude && coord.longitude) {
-                            fallbackDistance = calculateDistance(
-                              parseFloat(selectedDorm.coordinates[0].latitude),
-                              parseFloat(selectedDorm.coordinates[0].longitude),
-                              parseFloat(coord.latitude),
-                              parseFloat(coord.longitude)
-                            );
-                          }
-                          
-                          const displayDistance = aiResult ? aiResult.distance : fallbackDistance;
-                          const distanceColor = aiResult ? getDistanceColor(aiResult.distance) : 'bg-gray-100 text-gray-700 border-gray-200';
-                          
-                          return (
-                            <div 
-                              key={index}
-                              className="flex flex-col gap-2 p-3 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <FaMapMarkerAlt className="w-4 h-4 text-red-500 flex-shrink-0" />
-                                  <span className="text-sm font-medium text-gray-700">{coord.location_name}</span>
-                                </div>
-                                {displayDistance !== null && displayDistance > 0 && (
-                                  <span className={`text-xs px-2 py-1 rounded-full font-medium border ${distanceColor}`}>
-                                    {displayDistance} กม.
-                                  </span>
-                                )}
-                              </div>
-                              
-                              {/* AI Enhanced Information */}
-                              {aiResult && (
-                                <div className="flex flex-wrap gap-2 text-xs">
-                                  <span className="bg-green-50 text-green-700 px-2 py-1 rounded-full border border-green-200">
-                                    📍 {aiResult.category}
-                                  </span>
-                                  {aiResult.isWalkable && (
-                                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200">
-                                      🚶‍♂️ เดินได้ ({aiResult.walkingTime} นาที)
-                                    </span>
-                                  )}
-                                  <span className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded-full border border-yellow-200">
-                                    🚗 ขับรถ {aiResult.drivingTime} นาที
-                                  </span>
-                                </div>
-                              )}
-                              
-                              {/* Loading State */}
-                              {!aiResult && calculatingDistances && (
-                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                  <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400"></div>
-                                  <span>กำลังคำนวณด้วย AI...</span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Nearby Places from Legacy Data */}
-                  {selectedDorm.near_places && (
-                    <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-5 border border-green-100">
-                      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <FaLandmark className="w-5 h-5 text-green-600" />
-                        สถานที่ใกล้เคียงอื่นๆ
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {selectedDorm.near_places.split(',').map((place, index) => (
-                          <div 
-                            key={index}
-                            className="flex items-center gap-3 p-3 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow"
-                          >
-                            <FaMapMarkerAlt className="w-4 h-4 text-green-500 flex-shrink-0" />
-                            <span className="text-sm font-medium text-gray-700">{place.trim()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </div>
             </div>
           </div>
         </div>
@@ -2107,6 +1653,7 @@ function CustomerHomePage() {
           </div>
         </div>
       </footer>
+      
       {showChatbot && <ChatbotWidget onClose={() => setShowChatbot(false)} />}
     </div>
   );

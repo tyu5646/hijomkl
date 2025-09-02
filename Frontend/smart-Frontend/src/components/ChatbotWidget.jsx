@@ -2,12 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import './ChatbotWidget.css';
 
 const SUGGESTIONS = [
-  { text: 'ค้นหาหอพักราคาถูก', icon: '🏠', color: 'blue' },
-  { text: 'หอพักใกล้มหาวิทยาลัย', icon: '🎓', color: 'green' },
-  { text: 'รีวิวหอพัก', icon: '⭐', color: 'yellow' },
+  { text: 'หอพักราคาถูกที่สุด', icon: '🏠', color: 'blue' },
+  { text: 'หอพักใกล้มหาวิทยาลัยมหาสารคาม', icon: '🎓', color: 'green' },
+  { text: 'หอพักที่มี WiFi และแอร์', icon: '⭐', color: 'yellow' },
+  { text: 'เปรียบเทียบระยะทางหอพัก', icon: '📍', color: 'purple' },
 ];
 
-// รายการสถานที่สำหรับเปรียบเทียบระยะทาง
+// รายการสถานที่สำหรับเปรียบเทียบระยะทาง (ให้ AI ใช้)
 const PLACES_FOR_COMPARISON = [
   'ม.มหาสารคาม',
   'ม.ราชภัฏมหาสารคาม',
@@ -19,111 +20,6 @@ const PLACES_FOR_COMPARISON = [
   'สถานีขนส่งมหาสารคาม',
   'รพ.มหาสารคาม'
 ];
-
-// ฟังก์ชันเปรียบเทียบระยะทางระหว่างหอพักกับสถานที่
-const compareDistanceToPlace = (dorms, placeName) => {
-  const dormsWithDistance = dorms.map(dorm => {
-    let distance = 'ไม่ระบุ';
-    let priority = 999;
-    
-    if (dorm.near_places) {
-      const nearPlaces = dorm.near_places.toLowerCase();
-      const place = placeName.toLowerCase();
-      
-      if (nearPlaces.includes(place)) {
-        // ถ้าหอพักมีสถานที่นั้นในรายการใกล้เคียง
-        distance = 'ใกล้มาก';
-        priority = 1;
-      } else {
-        // ประมาณระยะทางตามความคล้ายคลึงของชื่อ
-        if (place.includes('ม.') || place.includes('มหาวิทยาลัย')) {
-          if (nearPlaces.includes('มหาวิทยาลัย') || nearPlaces.includes('ม.')) {
-            distance = 'ใกล้';
-            priority = 2;
-          } else {
-            distance = 'ปานกลาง';
-            priority = 3;
-          }
-        } else if (place.includes('โรงพยาบาล') || place.includes('รพ')) {
-          if (nearPlaces.includes('โรงพยาบาล') || nearPlaces.includes('รพ')) {
-            distance = 'ใกล้';
-            priority = 2;
-          } else {
-            distance = 'ไกล';
-            priority = 4;
-          }
-        } else {
-          distance = 'ไม่ทราบ';
-          priority = 5;
-        }
-      }
-    }
-    
-    return {
-      ...dorm,
-      distanceToPlace: distance,
-      distancePriority: priority
-    };
-  });
-  
-  // เรียงลำดับตามความใกล้
-  return dormsWithDistance.sort((a, b) => a.distancePriority - b.distancePriority);
-};
-
-// ฟังก์ชันสร้างข้อความเปรียบเทียบ
-const generateDistanceComparisonMessage = (dorms, placeName) => {
-  const sortedDorms = compareDistanceToPlace(dorms, placeName);
-  
-  if (sortedDorms.length === 0) {
-    return `ขออภัยค่ะ ไม่พบข้อมูลหอพักสำหรับเปรียบเทียบระยะทางกับ ${placeName}`;
-  }
-  
-  let message = `📏 **การเปรียบเทียบระยะทางกับ ${placeName}**\n\n`;
-  
-  const veryClose = sortedDorms.filter(d => d.distanceToPlace === 'ใกล้มาก');
-  const close = sortedDorms.filter(d => d.distanceToPlace === 'ใกล้');
-  const medium = sortedDorms.filter(d => d.distanceToPlace === 'ปานกลาง');
-  const far = sortedDorms.filter(d => d.distanceToPlace === 'ไกล');
-  
-  if (veryClose.length > 0) {
-    message += `🟢 **ใกล้มาก (แนะนำ)**\n`;
-    veryClose.slice(0, 3).forEach((dorm, index) => {
-      const price = dorm.price_monthly ? `฿${Number(dorm.price_monthly).toLocaleString()}/เดือน` : 'ไม่ระบุราคา';
-      message += `${index + 1}. ${dorm.name} - ${price}\n`;
-    });
-    message += '\n';
-  }
-  
-  if (close.length > 0) {
-    message += `🟡 **ใกล้**\n`;
-    close.slice(0, 3).forEach((dorm, index) => {
-      const price = dorm.price_monthly ? `฿${Number(dorm.price_monthly).toLocaleString()}/เดือน` : 'ไม่ระบุราคา';
-      message += `${index + 1}. ${dorm.name} - ${price}\n`;
-    });
-    message += '\n';
-  }
-  
-  if (medium.length > 0) {
-    message += `🟠 **ปานกลาง**\n`;
-    medium.slice(0, 2).forEach((dorm, index) => {
-      const price = dorm.price_monthly ? `฿${Number(dorm.price_monthly).toLocaleString()}/เดือน` : 'ไม่ระบุราคา';
-      message += `${index + 1}. ${dorm.name} - ${price}\n`;
-    });
-    message += '\n';
-  }
-  
-  if (far.length > 0) {
-    message += `🔴 **ไกล**\n`;
-    far.slice(0, 2).forEach((dorm, index) => {
-      const price = dorm.price_monthly ? `฿${Number(dorm.price_monthly).toLocaleString()}/เดือน` : 'ไม่ระบุราคา';
-      message += `${index + 1}. ${dorm.name} - ${price}\n`;
-    });
-  }
-  
-  message += `\n💡 **คำแนะนำ:** หอพักที่ใกล้ ${placeName} จะช่วยประหยัดเวลาและค่าเดินทาง`;
-  
-  return message;
-};
 
 // Load conversation history from localStorage
 const loadConversationHistory = () => {
@@ -212,59 +108,6 @@ function ChatbotWidget({ onClose }) {
     textarea.style.height = Math.min(textarea.scrollHeight, 80) + 'px';
   };
 
-  // ดึงข้อมูลหอพักสำหรับการเปรียบเทียบ
-  const fetchDormsForComparison = async () => {
-    try {
-      const res = await fetch('http://localhost:3001/dorms');
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch (error) {
-      console.error('Error fetching dorms:', error);
-    }
-    return [];
-  };
-
-  // จัดการข้อความเปรียบเทียบระยะทาง
-  const handleDistanceComparison = async (placeName) => {
-    setLoading(true);
-    
-    try {
-      const dorms = await fetchDormsForComparison();
-      const comparisonMessage = generateDistanceComparisonMessage(dorms, placeName);
-      
-      setMessages(msgs => [...msgs, { 
-        sender: 'bot', 
-        text: comparisonMessage,
-        timestamp: new Date(),
-        isDistanceComparison: true
-      }]);
-      
-      // เพิ่มข้อความเสนอสถานที่อื่น
-      setTimeout(() => {
-        const suggestOtherPlaces = `\n🔍 **เปรียบเทียบกับสถานที่อื่น?**\n\nคลิกเลือกสถานที่ที่ต้องการ:\n${PLACES_FOR_COMPARISON.filter(p => p !== placeName).slice(0, 4).map(place => `• ${place}`).join('\n')}`;
-        
-        setMessages(msgs => [...msgs, { 
-          sender: 'bot', 
-          text: suggestOtherPlaces,
-          timestamp: new Date(),
-          showPlaceButtons: true,
-          availablePlaces: PLACES_FOR_COMPARISON.filter(p => p !== placeName)
-        }]);
-      }, 1000);
-      
-    } catch (error) {
-      console.error('Error in distance comparison:', error);
-      setMessages(msgs => [...msgs, { 
-        sender: 'bot', 
-        text: 'ขออภัยค่ะ เกิดข้อผิดพลาดในการเปรียบเทียบระยะทาง กรุณาลองใหม่อีกครั้ง',
-        timestamp: new Date()
-      }]);
-    }
-    
-    setLoading(false);
-  };
-
   const sendMessage = async (text) => {
     if (!text.trim()) return;
     
@@ -278,36 +121,7 @@ function ChatbotWidget({ onClose }) {
     setInput('');
     setLoading(true);
 
-    // ตรวจสอบคำขอเปรียบเทียบระยะทาง
-    const distanceKeywords = ['เปรียบเทียบ', 'ระยะทาง', 'ใกล้', 'ไกล', 'ระยะ', 'ห่าง', 'เดินทาง'];
-    const isDistanceRequest = distanceKeywords.some(keyword => text.includes(keyword));
-    
-    if (isDistanceRequest) {
-      // หาสถานที่ที่ถูกกล่าวถึง
-      const mentionedPlace = PLACES_FOR_COMPARISON.find(place => 
-        text.includes(place) || text.includes(place.replace('ม.', 'มหาวิทยาลัย'))
-      );
-      
-      if (mentionedPlace) {
-        await handleDistanceComparison(mentionedPlace);
-        return;
-      } else {
-        // ถ้าไม่ระบุสถานที่ ให้แสดงตัวเลือก
-        const placeOptions = `📏 **เปรียบเทียบระยะทางหอพัก**\n\nกรุณาเลือกสถานที่ที่ต้องการเปรียบเทียบ:\n\n${PLACES_FOR_COMPARISON.map((place, index) => `${index + 1}. ${place}`).join('\n')}`;
-        
-        setMessages(msgs => [...msgs, { 
-          sender: 'bot', 
-          text: placeOptions,
-          timestamp: new Date(),
-          showPlaceButtons: true,
-          availablePlaces: PLACES_FOR_COMPARISON
-        }]);
-        setLoading(false);
-        return;
-      }
-    }
-
-    // Context handling
+    // Context handling สำหรับคำถามต่อเนื่อง
     let context = { ...chatContext };
     if (/อีก|เพิ่ม|กว่านี้|ไหม|ล่ะ|ด้วย|และ|หรือ|ขอ|แบบ|ไหน|อะไร|ยังไง|อีกบ้าง|อีกไหม|อีกมั้ย|อีกหรือเปล่า|อีกหรือ/i.test(text)) {
       const prevUserMsg = messages.slice().reverse().find(m => m.sender === 'user');
@@ -461,19 +275,6 @@ function ChatbotWidget({ onClose }) {
                   </div>
                 ))}
               </div>
-              {msg.showPlaceButtons && msg.availablePlaces && (
-                <div className="chatbot-place-buttons">
-                  {msg.availablePlaces.slice(0, 6).map((place, btnIndex) => (
-                    <button
-                      key={btnIndex}
-                      className="chatbot-place-btn"
-                      onClick={() => handleDistanceComparison(place)}
-                    >
-                      📍 {place}
-                    </button>
-                  ))}
-                </div>
-              )}
               <div className="chatbot-message-time">
                 {formatTime(msg.timestamp)}
               </div>
