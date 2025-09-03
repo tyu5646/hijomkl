@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { 
   FaTachometerAlt, 
   FaCheckCircle, 
@@ -11,8 +11,6 @@ import {
 import logo from '../assets/logo-H.jpg'; // Import รูปโลโก้
 
 function AdminSidebar() {
-  const navigate = useNavigate();
-
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
@@ -53,15 +51,19 @@ function AdminSidebar() {
               }`
             }
           >
-            <div className={`p-2 rounded-lg transition-colors ${
-              ({ isActive }) => isActive ? 'bg-white bg-opacity-20' : 'bg-blue-100 group-hover:bg-blue-200'
-            }`}>
-              <FaTachometerAlt className="text-lg" />
-            </div>
-            <div className="flex-1">
-              <span className="font-semibold">แดชบอร์ด</span>
-              <p className="text-xs opacity-75">ภาพรวมระบบ</p>
-            </div>
+            {({ isActive }) => (
+              <>
+                <div className={`p-2 rounded-lg transition-colors ${
+                  isActive ? 'bg-white bg-opacity-20' : 'bg-blue-100 group-hover:bg-blue-200'
+                }`}>
+                  <FaTachometerAlt className="text-lg" />
+                </div>
+                <div className="flex-1">
+                  <span className="font-semibold">แดชบอร์ด</span>
+                  <p className="text-xs opacity-75">ภาพรวมระบบ</p>
+                </div>
+              </>
+            )}
           </NavLink>
         </div>
 
@@ -79,16 +81,19 @@ function AdminSidebar() {
               }`
             }
           >
-            <div className={`p-2 rounded-lg transition-colors ${
-              ({ isActive }) => isActive ? 'bg-white bg-opacity-20' : 'bg-orange-100 group-hover:bg-orange-200'
-            }`}>
-              <FaCheckCircle className="text-lg" />
-            </div>
-            <div className="flex-1">
-              <span className="font-semibold">อนุมัติหอพัก</span>
-              <p className="text-xs opacity-75">ตรวจสอบและอนุมัติ</p>
-            </div>
-            
+            {({ isActive }) => (
+              <>
+                <div className={`p-2 rounded-lg transition-colors ${
+                  isActive ? 'bg-white bg-opacity-20' : 'bg-orange-100 group-hover:bg-orange-200'
+                }`}>
+                  <FaCheckCircle className="text-lg" />
+                </div>
+                <div className="flex-1">
+                  <span className="font-semibold">อนุมัติหอพัก</span>
+                  <p className="text-xs opacity-75">ตรวจสอบและอนุมัติ</p>
+                </div>
+              </>
+            )}
           </NavLink>
 
           <NavLink
@@ -101,18 +106,20 @@ function AdminSidebar() {
               }`
             }
           >
-            <div className={`p-2 rounded-lg transition-colors ${
-              ({ isActive }) => isActive ? 'bg-white bg-opacity-20' : 'bg-green-100 group-hover:bg-green-200'
-            }`}>
-              <FaUsers className="text-lg" />
-            </div>
-            <div className="flex-1">
-              <span className="font-semibold">จัดการผู้ใช้</span>
-              <p className="text-xs opacity-75">CRUD ผู้ใช้งาน</p>
-            </div>
+            {({ isActive }) => (
+              <>
+                <div className={`p-2 rounded-lg transition-colors ${
+                  isActive ? 'bg-white bg-opacity-20' : 'bg-green-100 group-hover:bg-green-200'
+                }`}>
+                  <FaUsers className="text-lg" />
+                </div>
+                <div className="flex-1">
+                  <span className="font-semibold">จัดการผู้ใช้</span>
+                  <p className="text-xs opacity-75">CRUD ผู้ใช้งาน</p>
+                </div>
+              </>
+            )}
           </NavLink>
-
-        
         </div>
       </nav>
 

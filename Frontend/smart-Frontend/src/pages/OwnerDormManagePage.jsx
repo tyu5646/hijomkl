@@ -579,7 +579,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
               {dorms.map((dorm, index) => (
                 <div
                   key={dorm.id}
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-orange-200 transform hover:-translate-y-1"
+                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-orange-200 transform hover:-translate-y-1 flex flex-col h-full"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   {/* Image Section */}
@@ -651,7 +651,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                   </div>
 
                   {/* Content Section */}
-                  <div className="p-6">
+                  <div className="p-6 flex flex-col flex-1">
                     {/* Header - ชื่อหอพักและที่อยู่ */}
                     <div className="mb-4">
                       <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
@@ -787,7 +787,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                     )}
 
                     {/* Action Buttons (Mobile) */}
-                    <div className="flex gap-2 pt-4 border-t border-gray-100">
+                    <div className="flex gap-2 pt-4 border-t border-gray-100 mt-auto">
                       <button
                         className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-2 px-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 text-sm"
                         onClick={() => navigate(`/owner/dorms/${dorm.id}/rooms`)}

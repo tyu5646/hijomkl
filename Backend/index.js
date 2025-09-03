@@ -1258,15 +1258,23 @@ app.get('/admin/users', verifyAdminToken, (req, res) => {
 app.get('/admin/dorms', verifyAdminToken, (req, res) => {
   const status = req.query.status;
   
-  let sql = 'SELECT * FROM dorms';
+  // ปรับ query ให้รวมรูปภาพจากตาราง dorm_images
+  let sql = `
+    SELECT 
+      dorms.*,
+      GROUP_CONCAT(dorm_images.image_path) AS images
+    FROM dorms 
+    LEFT JOIN dorm_images ON dorms.id = dorm_images.dorm_id
+  `;
+  
   let params = [];
   
   if (status && status !== 'all') {
-    sql += ' WHERE status = ?';
+    sql += ' WHERE dorms.status = ?';
     params = [status];
   }
   
-  sql += ' ORDER BY created_at DESC';
+  sql += ' GROUP BY dorms.id ORDER BY dorms.created_at DESC';
   
   pool.query(sql, params, (err, results) => {
     if (err) {
@@ -1274,7 +1282,15 @@ app.get('/admin/dorms', verifyAdminToken, (req, res) => {
       return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลหอพัก', details: err.message });
     }
     
-    res.json(results);
+    // แปลงรูปภาพจาก GROUP_CONCAT string เป็น array
+    const processedResults = results.map(dorm => ({
+      ...dorm,
+      images: dorm.images ? dorm.images.split(',') : []
+    }));
+    
+    console.log('📊 Admin dorms fetched:', processedResults.length, 'dorms with images');
+    
+    res.json(processedResults);
   });
 });
 
@@ -1856,6 +1872,164 @@ app.post('/dorms/:dormId/sync-room-count', authOwner, (req, res) => {
 
 // ==================== CHATBOT API ====================
 
+// Helper: แปลงตัวเลขไทย -> อารบิก (หยาบๆ)
+function normalizeThaiNumerals(str = '') {
+  const map = { '๐':'0','๑':'1','๒':'2','๓':'3','๔':'4','๕':'5','๖':'6','๗':'7','๘':'8','๙':'9' };
+  return str.replace(/[๐-๙]/g, d => map[d] || d);
+}
+
+// Helper: หา price (ตัวเลข) ในข้อความ
+function extractBudget(message) {
+  const norm = normalizeThaiNumerals(message).replace(/[, ]+/g,'');
+  const m = norm.match(/(\d{3,6})/); // ค่าเช่ามักอยู่ช่วงนี้
+  return m ? parseInt(m[1], 10) : null;
+}
+
+// Helper: กรองหอพักตามข้อความผู้ใช้ (อย่างง่าย ไม่ใช่เวกเตอร์)
+function filterDormsForQuery(message, dorms) {
+  const msg = message.toLowerCase();
+  const budget = extractBudget(msg);
+  let results = [...dorms];
+
+  // กรองตามงบ ถ้าระบุ
+  if (budget) {
+    results = results.filter(d => {
+      const prices = [d.price_monthly, d.price_daily, d.price_term]
+        .filter(p => p && !isNaN(p))
+        .map(Number);
+      if (prices.length === 0) return false;
+      return prices.some(p => p <= budget);
+    });
+  }
+
+  // คำสำคัญเกี่ยวกับสิ่งอำนวยความสะดวก
+  const facilityKeywords = ['wifi','ไวไฟ','internet','แอร์','air','เครื่องปรับอากาศ','เฟอร์นิเจอร์','ที่จอดรถ','parking','ลิฟต์','cctv'];
+  const matchedFacilities = facilityKeywords.filter(k => msg.includes(k));
+  if (matchedFacilities.length) {
+    results = results.filter(d => (d.facilities||'').toLowerCase().includes(
+      matchedFacilities[0] // ใช้อันแรกพอ
+    ));
+  }
+
+  // คำสำคัญสถานที่ใกล้เคียง (ถ้าระบุคำว่า ใกล้ / near)
+  if (/ใกล้|near|แถว|ละแวก/.test(msg)) {
+    // ดึงคำหลัง "ใกล้" หรือ "แถว" อย่างหยาบ
+    const placeMatch = msg.match(/(?:ใกล้|แถว|near)\s*([\u0E00-\u0E7Fa-zA-Z0-9]+)/);
+    if (placeMatch) {
+      const token = placeMatch[1];
+      results = results.filter(d => (d.near_places||'').toLowerCase().includes(token));
+    }
+  }
+
+  // จำกัดจำนวน context ไม่ให้ยาวเกิน (เช่น 15 แรก) เพื่อประหยัด token
+  return results.slice(0, 15);
+}
+
+// Helper: สร้าง context (สั้นลง) สำหรับโมเดล
+function buildDormContext(dorms) {
+  return dorms.map(dorm => {
+    const prices = [];
+    if (dorm.price_monthly) prices.push(`รายเดือน ${dorm.price_monthly}`);
+    if (dorm.price_daily) prices.push(`รายวัน ${dorm.price_daily}`);
+    if (dorm.price_term) prices.push(`รายเทอม ${dorm.price_term}`);
+    return `ชื่อ: ${dorm.name}\nราคา: ${prices.join(' | ') || 'ไม่ระบุ'}\nที่อยู่: ${dorm.address_detail || 'ไม่ระบุ'}\nใกล้: ${dorm.near_places || 'ไม่ระบุ'}\nสิ่งอำนวยความสะดวก: ${dorm.facilities || 'ไม่ระบุ'}\nน้ำ/ไฟ: ${dorm.water_cost || '-'} / ${dorm.electricity_cost || '-'}\nติดต่อ: ${dorm.contact_phone || 'ไม่ระบุ'}`;
+  }).join('\n\n');
+}
+
+// Helper: ตอบแบบ rule-based ทันทีถ้าเป็นคำถามง่าย ลดภาระโมเดล
+function answerSimpleQuery(message, dorms) {
+  const msg = message.toLowerCase();
+  // นับจำนวนทั้งหมด
+  if (/ทั้งหมดกี่|กี่หอ|กี่แห่ง|ทั้งหมด/.test(msg) && /หอ/.test(msg)) {
+    return `ตอนนี้มีหอพักที่เปิดอนุมัติทั้งหมด ${dorms.length} แห่งค่ะ 🏠`;
+  }
+
+  // คำถามทั่วไปไม่เกี่ยวกับหอพัก (บาง pattern) ปฏิเสธเบื้องต้น
+  if (!/หอ|ดอร์ม|dorm|ราคา|เช่า|ใกล้|แอร์|wifi|ไวไฟ|ห้อง|เปรียบเทียบ|ระยะทาง/.test(msg)) {
+    if (/สวัสดี|hello|hi|หวัดดี/.test(msg)) {
+      return 'สวัสดีค่ะ 😊 มีเรื่องหอพักอะไรให้ช่วยไหมคะ?';
+    }
+    return 'ขออภัยค่ะ ฉันสามารถช่วยเรื่องหอพักเท่านั้น 🏠 มีอะไรเกี่ยวกับหอพักให้ช่วยไหมคะ?';
+  }
+  return null; // ให้ AI ตอบต่อ
+}
+
+// ฟังก์ชันเรียกใช้ Groq AI
+async function callGroqAI(userMessage, dormContext) {
+  const API_KEY = process.env.GROQ_API_KEY;
+  
+  if (!API_KEY) {
+    throw new Error('GROQ_API_KEY not found');
+  }
+
+  const systemPrompt = `คุณเป็นผู้ช่วยอัจฉริยะสำหรับระบบหอพัก Smart Dorm ที่ชื่อ "Smart Assistant" 🤖
+
+**หน้าที่ของคุณ:**
+- ตอบคำถามเฉพาะเรื่องหอพักเท่านั้น โดยใช้ข้อมูลจากฐานข้อมูลที่ให้มา
+- แนะนำหอพักที่เหมาะสมตามความต้องการ พร้อมเหตุผลชัดเจน
+- ให้ข้อมูลราคา สิ่งอำนวยความสะดวก ที่อยู่ เบอร์ติดต่อ อย่างครบถ้วน
+- เปรียบเทียบระยะทางและแนะนำตามสถานที่ที่ผู้ใช้สนใจ
+- ตอบเป็นภาษาไทยอย่างเป็นกันเองและเป็นมิตร ใช้ emoji ให้เหมาะสม
+
+**สถานที่สำคัญในมหาสารคาม:**
+- มหาวิทยาลัยมหาสารคาม (ม.มหาสารคาม) - มหาวิทยาลัยหลัก
+- มหาวิทยาลัยราชภัฏมหาสารคาม - สถาบันการศึกษา
+- เสริมไทย คอมเพล็กซ์, เสริมไทย พลาซ่า - ห้างสรรพสินค้า
+- วิทยาลัยเทคนิคมหาสารคาม, วิทยาลัยพยาบาลศรีมหาสารคาม - สถาบันการศึกษา
+- แม็คโครมหาสารคาม - ห้างสรรพสินค้า
+- สถานีขนส่งมหาสารคาม - ขนส่งสาธารณะ
+- โรงพยาบาลมหาสารคาม (รพ.มหาสารคาม) - บริการสุขภาพ
+
+**ข้อมูลหอพักปัจจุบัน:**
+${dormContext}
+
+**การตอบคำถาม:**
+- หากถามเรื่องราคา: แสดงราคาทุกประเภทที่มี (รายเดือน รายวัน รายเทอม) พร้อมค่าน้ำ ค่าไฟ
+- หากถามเรื่องสถานที่/ระยะทาง: วิเคราะห์ near_places และจัดอันดับความใกล้ พร้อมแนะนำ
+- หากถามเรื่องสิ่งอำนวยความสะดวก: อธิบายรายละเอียดจาก facilities
+- หากถามเปรียบเทียบ: แสดงตารางเปรียบเทียบหลายหอพัก
+- หากถามเรื่องที่ไม่เกี่ยวกับหอพัก: ตอบว่า "ขออภัยค่ะ ฉันสามารถช่วยเรื่องหอพักเท่านั้น 🏠 มีอะไรเกี่ยวกับหอพักให้ช่วยไหมคะ?"
+
+**รูปแบบการตอบ:**
+- ใช้ emoji และจัดรูปแบบให้อ่านง่าย
+- แสดงราคาพร้อมสกุลเงิน เช่น "฿3,500/เดือน"
+- ระบุเหตุผลการแนะนำ เช่น "ใกล้มหาวิทยาลัย" "ราคาเหมาะสม"
+- ถ้ามีหลายตัวเลือก ให้จัดอันดับ 1-3 พร้อมเหตุผล
+
+ตอบอย่างละเอียดและมีประโยชน์ จากข้อมูลที่มีเท่านั้น`;
+
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        model: 'llama-3.1-8b-instant',
+        max_tokens: 500,
+        temperature: 0.7
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } else {
+      const errorText = await response.text();
+      console.error('Groq API Error:', response.status, errorText);
+      return null;
+    }
+  } catch (error) {
+    console.error('Groq API Network Error:', error);
+    return null;
+  }
+}
+
 // Chatbot API endpoint
 app.post('/chatbot', async (req, res) => {
   try {
@@ -1870,7 +2044,7 @@ app.post('/chatbot', async (req, res) => {
       SELECT id, name, price_daily, price_monthly, price_term, 
              address_detail, facilities, near_places, 
              water_cost, electricity_cost, contact_phone
-      FROM dorms WHERE status = 'approved' ORDER BY id
+      FROM dorms WHERE status = 'approved' ORDER BY name
     `;
 
     const dorms = await new Promise((resolve, reject) => {
@@ -1880,194 +2054,53 @@ app.post('/chatbot', async (req, res) => {
       });
     });
 
-    // สร้าง context ข้อมูลหอพักสำหรับ AI
-    const dormContext = dorms.map(dorm => {
-      return `หอพัก: ${dorm.name}
-      - ราคา: ${dorm.price_monthly ? `รายเดือน ${dorm.price_monthly} บาท` : ''}${dorm.price_daily ? ` รายวัน ${dorm.price_daily} บาท` : ''}${dorm.price_term ? ` รายเทอม ${dorm.price_term} บาท` : ''}
-      - ที่อยู่: ${dorm.address_detail || 'ไม่ระบุ'}
-      - สิ่งอำนวยความสะดวก: ${dorm.facilities || 'ไม่ระบุ'}
-      - สถานที่ใกล้เคียง: ${dorm.near_places || 'ไม่ระบุ'}
-      - ค่าน้ำ: ${dorm.water_cost || '6'} บาท/หน่วย
-      - ค่าไฟ: ${dorm.electricity_cost || '8'} บาท/หน่วย
-      - เบอร์ติดต่อ: ${dorm.contact_phone || 'ไม่ระบุ'}`;
-    }).join('\n\n');
-
-    // สร้างการตอบกลับของ chatbot
-    let response = '';
-
-    // ตรวจสอบคำถามและสร้างคำตอบ
-    const lowerMessage = message.toLowerCase();
-    
-    if (lowerMessage.includes('สวัสดี') || lowerMessage.includes('หวัดดี') || lowerMessage.includes('hello')) {
-      response = `สวัสดีค่ะ! ยินดีต้อนรับสู่ Smart Dorm Chatbot 🏠✨
-
-ฉันเป็นผู้ช่วยอัจฉริยะที่จะช่วยคุณหาหอพักที่ใช่! 🤖
-
-🔍 **ฉันสามารถช่วยคุณ:**
-• ค้นหาหอพักตามงงบประมาณ
-• แนะนำหอพักใกล้มหาวิทยาลัย
-• เปรียบเทียบราคาและสิ่งอำนวยความสะดวก
-• ให้ข้อมูลติดต่อเจ้าของหอพัก
-
-💬 **คุณสามารถถาม:**
-"หาหอพักราคา 3000 บาท" หรือ "หอพักใกล้มช." หรือ "หอพักมี WiFi"
-
-มีหอพักทั้งหมด ${dorms.length} แห่งให้เลือกค่ะ! ลองถามฉันดูสิ 😊`;
-
-    } else if (lowerMessage.includes('ราคา') || lowerMessage.includes('งบ') || lowerMessage.includes('บาท')) {
-      // ดึงตัวเลขราคาจากข้อความ
-      const priceMatch = message.match(/(\d+)/);
-      const budget = priceMatch ? parseInt(priceMatch[1]) : null;
-
-      if (budget) {
-        const affordableDorms = dorms.filter(dorm => 
-          (dorm.price_monthly && dorm.price_monthly <= budget) ||
-          (dorm.price_daily && dorm.price_daily <= budget) ||
-          (dorm.price_term && dorm.price_term <= budget)
-        );
-
-        if (affordableDorms.length > 0) {
-          response = `🏠 **พบหอพักในงบประมาณ ${budget.toLocaleString()} บาท จำนวน ${affordableDorms.length} แห่ง:**\n\n`;
-          
-          affordableDorms.slice(0, 5).forEach((dorm, index) => {
-            response += `**${index + 1}. ${dorm.name}**\n`;
-            if (dorm.price_monthly <= budget) response += `💰 รายเดือน: ${dorm.price_monthly.toLocaleString()} บาท\n`;
-            if (dorm.price_daily <= budget) response += `💰 รายวัน: ${dorm.price_daily.toLocaleString()} บาท\n`;
-            response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n`;
-            response += `📞 ${dorm.contact_phone || 'ไม่มีเบอร์ติดต่อ'}\n\n`;
-          });
-
-          if (affordableDorms.length > 5) {
-            response += `...และอีก ${affordableDorms.length - 5} แห่ง\n\n`;
-          }
-          
-          response += `✨ **ต้องการข้อมูลเพิ่มเติม?** ลองถาม "แสดงรายละเอียด [ชื่อหอพัก]" ได้เลยค่ะ!`;
-        } else {
-          response = `😅 ขออภัยค่ะ ไม่พบหอพักในงบประมาณ ${budget.toLocaleString()} บาท\n\n💡 **คำแนะนำ:**\n- ลองเพิ่มงบประมาณขึ้นอีกนิดค่ะ\n- หรือดูหอพักรายวันที่อาจถูกกว่า\n\n💰 **ช่วงราคาที่มี:** ${Math.min(...dorms.map(d => d.price_monthly || 999999)).toLocaleString()} - ${Math.max(...dorms.map(d => d.price_monthly || 0)).toLocaleString()} บาท/เดือน`;
-        }
-      } else {
-        response = `💰 **ข้อมูลราคาหอพัก:**\n\n`;
-        const priceRanges = {
-          'งบน้อย (ต่ำกว่า 3,000)': dorms.filter(d => d.price_monthly && d.price_monthly < 3000).length,
-          'งบปานกลาง (3,000-5,000)': dorms.filter(d => d.price_monthly && d.price_monthly >= 3000 && d.price_monthly <= 5000).length,
-          'งบสูง (มากกว่า 5,000)': dorms.filter(d => d.price_monthly && d.price_monthly > 5000).length
-        };
-
-        for (const [range, count] of Object.entries(priceRanges)) {
-          response += `${range}: ${count} แห่ง\n`;
-        }
-
-        response += `\n🔍 **วิธีใช้:** พิมพ์ "หาหอพักราคา 4000 บาท" เพื่อดูหอพักในงบที่ต้องการค่ะ!`;
-      }
-
-    } else if (lowerMessage.includes('ใกล้') || lowerMessage.includes('มช') || lowerMessage.includes('เชียงใหม่') || lowerMessage.includes('มหาวิทยาลัย')) {
-      const universityDorms = dorms.filter(dorm => 
-        (dorm.address_detail && dorm.address_detail.includes('เชียงใหม่')) ||
-        (dorm.near_places && dorm.near_places.toLowerCase().includes('มช')) ||
-        (dorm.near_places && dorm.near_places.includes('มหาวิทยาลัย')) ||
-        (dorm.address_detail && dorm.address_detail.toLowerCase().includes('มช'))
-      );
-
-      response = `🎓 **หอพักใกล้มหาวิทยาลัย จำนวน ${universityDorms.length} แห่ง:**\n\n`;
-      
-      universityDorms.slice(0, 3).forEach((dorm, index) => {
-        response += `**${index + 1}. ${dorm.name}**\n`;
-        response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n`;
-        response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n`;
-        if (dorm.near_places && dorm.near_places.includes('มหาวิทยาลัย')) response += `🏫 ใกล้: ${dorm.near_places}\n`;
-        response += `📞 ${dorm.contact_phone || 'ติดต่อผ่านเว็บไซต์'}\n\n`;
+    // ตอบแบบ simple rule-based ถ้าเข้าเงื่อนไข
+    const simple = answerSimpleQuery(message, dorms);
+    if (simple) {
+      return res.json({
+        message: simple,
+        conversationId: conversationId || Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        source: 'rule'
       });
-
-      response += `✨ ต้องการดูหอพักทั้งหมด? พิมพ์ "แสดงหอพักทั้งหมด" ได้เลยค่ะ!`;
-
-    } else if (lowerMessage.includes('wifi') || lowerMessage.includes('ไวไฟ') || lowerMessage.includes('อินเทอร์เน็ต')) {
-      const wifiDorms = dorms.filter(dorm => 
-        (dorm.facilities && dorm.facilities.toLowerCase().includes('wifi'))
-      );
-
-      response = `📶 **หอพักที่มี WiFi จำนวน ${wifiDorms.length} แห่ง:**\n\n`;
-      
-      wifiDorms.slice(0, 4).forEach((dorm, index) => {
-        response += `**${index + 1}. ${dorm.name}**\n`;
-        response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n`;
-        response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n\n`;
-      });
-
-      response += `💡 **เกือบทุกหอพักมี WiFi ฟรี!** ลองถาม "หาหอพักราคา XXXX บาท" เพื่อดูในงบที่ต้องการค่ะ`;
-
-    } else if (lowerMessage.includes('แนะนำ') || lowerMessage.includes('ดีที่สุด') || lowerMessage.includes('ยอดนิยม')) {
-      const topDorms = dorms.slice(0, 3); // เอา 3 อันแรก
-
-      response = `⭐ **หอพักแนะนำยอดนิยม TOP 3:**\n\n`;
-      
-      topDorms.forEach((dorm, index) => {
-        response += `**🏆 ${index + 1}. ${dorm.name}**\n`;
-        response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n`;
-        response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n`;
-        response += `✨ ${dorm.facilities ? dorm.facilities.split(',').slice(0, 3).join(', ') : 'สิ่งอำนวยความสะดวกครบครัน'}\n`;
-        response += `📞 ${dorm.contact_phone || 'ติดต่อผ่านเว็บไซต์'}\n\n`;
-      });
-
-      response += `🔥 **ทำไมถึงแนะนำ?**\n• ราคาดี คุ้มค่า\n• สิ่งอำนวยความสะดวกครบครัน\n• ใกล้แหล่งสะดวกสบาย`;
-
-    } else if (lowerMessage.includes('จอดรถ') || lowerMessage.includes('รถ') || lowerMessage.includes('parking')) {
-      const parkingDorms = dorms.filter(dorm => 
-        (dorm.facilities && dorm.facilities.toLowerCase().includes('จอด'))
-      );
-
-      response = `🚗 **หอพักที่มีที่จอดรถ จำนวน ${parkingDorms.length} แห่ง:**\n\n`;
-      
-      parkingDorms.slice(0, 4).forEach((dorm, index) => {
-        response += `**${index + 1}. ${dorm.name}**\n`;
-        response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n`;
-        response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n\n`;
-      });
-
-    } else if (lowerMessage.includes('แสดงทั้งหมด') || lowerMessage.includes('ทั้งหมด')) {
-      response = `🏠 **รายการหอพักทั้งหมด ${dorms.length} แห่ง:**\n\n`;
-      
-      dorms.forEach((dorm, index) => {
-        if (index < 10) { // แสดงแค่ 10 อันแรก
-          response += `**${index + 1}. ${dorm.name}**\n`;
-          response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n\n`;
-        }
-      });
-
-      if (dorms.length > 10) {
-        response += `...และอีก ${dorms.length - 10} แห่ง\n\n`;
-      }
-
-      response += `💡 **เคล็ดลับ:** ลองใช้คำค้นหาเฉพาะเจาะจง เช่น "หาหอพักราคา 4000" หรือ "หอพักใกล้มช" จะได้ผลลัพธ์ที่ตรงใจมากกว่าค่ะ!`;
-
-    } else {
-      // ค้นหาทั่วไป
-      const searchTerms = message.toLowerCase();
-      const matchedDorms = dorms.filter(dorm => 
-        (dorm.name && dorm.name.toLowerCase().includes(searchTerms)) ||
-        (dorm.address_detail && dorm.address_detail.toLowerCase().includes(searchTerms)) ||
-        (dorm.facilities && dorm.facilities.toLowerCase().includes(searchTerms)) ||
-        (dorm.near_places && dorm.near_places.toLowerCase().includes(searchTerms))
-      );
-
-      if (matchedDorms.length > 0) {
-        response = `🔍 **พบผลการค้นหา "${message}" จำนวน ${matchedDorms.length} แห่ง:**\n\n`;
-        
-        matchedDorms.slice(0, 3).forEach((dorm, index) => {
-          response += `**${index + 1}. ${dorm.name}**\n`;
-          response += `💰 ${dorm.price_monthly ? `${dorm.price_monthly.toLocaleString()} บาท/เดือน` : 'ราคาติดต่อสอบถาม'}\n`;
-          response += `📍 ${dorm.address_detail || 'ไม่ระบุที่อยู่'}\n`;
-          response += `📞 ${dorm.contact_phone || 'ติดต่อผ่านเว็บไซต์'}\n\n`;
-        });
-      } else {
-        response = `🤖 ขออภัยค่ะ ฉันไม่เข้าใจคำถาม "${message}" เท่าที่ควร\n\n💡 **คำถามที่ฉันตอบได้ดี:**\n• "หาหอพักราคา 3000 บาท"\n• "หอพักใกล้มหาวิทยาลัย"\n• "หอพักที่มี WiFi"\n• "แนะนำหอพักดีๆ"\n• "หอพักที่มีที่จอดรถ"\n\n🏠 **หรือจะดูหอพักทั้งหมด ${dorms.length} แห่ง?** พิมพ์ "แสดงทั้งหมด" ได้เลยค่ะ!`;
-      }
     }
 
-    res.json({
-      message: response,
-      conversationId: conversationId || Date.now().toString(),
-      timestamp: new Date().toISOString()
-    });
+    // กรองเฉพาะหอที่เกี่ยวข้องกับคำถามเพื่อย่อ context
+    const filteredDorms = filterDormsForQuery(message, dorms);
+    const dormContext = buildDormContext(filteredDorms);
+
+    // เรียกใช้ Groq AI พร้อม context ที่ย่อแล้ว
+    const aiResponse = await callGroqAI(message.trim(), dormContext);
+
+    if (aiResponse) {
+      // ใช้คำตอบจาก AI
+      res.json({
+        message: aiResponse,
+        conversationId: conversationId || Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        source: 'groq-ai'
+      });
+    } else {
+      // Fallback ถ้า AI ไม่สามารถตอบได้
+      const fallbackMessage = `🤖 ขออภัยค่ะ ระบบ AI มีปัญหาชั่วคราว
+
+แต่ฉันยังช่วยคุณได้! มีหอพักทั้งหมด ${dorms.length} แห่ง
+
+💡 **ลองถามแบบนี้ดูค่ะ:**
+• "หอพักราคาถูกที่สุด"
+• "หอพักใกล้มหาวิทยาลัย" 
+• "หอพักที่มี WiFi"
+• "แนะนำหอพักดีๆ"
+
+🏠 หรือดูรายการหอพักทั้งหมดในหน้าหลักได้เลยค่ะ!`;
+
+      res.json({
+        message: fallbackMessage,
+        conversationId: conversationId || Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        source: 'fallback'
+      });
+    }
 
   } catch (error) {
     console.error('Chatbot API error:', error);

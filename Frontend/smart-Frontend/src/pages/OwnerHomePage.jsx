@@ -170,6 +170,7 @@ function OwnerHomePage() {
   const [modalClosing, setModalClosing] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [showAddDormModal, setShowAddDormModal] = useState(false);
+  const [uploadingDorm, setUploadingDorm] = useState(false);
   const [addDormForm, setAddDormForm] = useState({
     name: '',
     address_detail: '',
@@ -304,14 +305,22 @@ function OwnerHomePage() {
 
   const handleCloseAddDormModal = () => {
     setShowAddDormModal(false);
+    setUploadingDorm(false);
     setAddDormForm({
       name: '',
-      location: '',
+      address_detail: '',
       price_daily: '',
       price_monthly: '',
       price_term: '',
+      water_rate: '',
+      electricity_rate: '',
+      deposit: '',
+      contact_phone: '',
       facilities: '',
-      near_places: ''
+      near_places: '',
+      latitude: '',
+      longitude: '',
+      images: []
     });
   };
 
@@ -319,17 +328,76 @@ function OwnerHomePage() {
     e.preventDefault();
     const token = sessionStorage.getItem('token');
     
+    // ตรวจสอบข้อมูลพื้นฐาน
+    if (!addDormForm.name.trim()) {
+      alert('กรุณาใส่ชื่อหอพัก');
+      return;
+    }
+    
+    if (!addDormForm.address_detail.trim()) {
+      alert('กรุณาใส่ที่อยู่หอพัก');
+      return;
+    }
+
+    // ตรวจสอบว่ามีราคาอย่างน้อยหนึ่งประเภท
+    const hasPrice = addDormForm.price_daily || addDormForm.price_monthly || addDormForm.price_term;
+    if (!hasPrice) {
+      alert('กรุณาใส่ราคาค่าเช่าอย่างน้อยหนึ่งประเภท');
+      return;
+    }
+    
+    setUploadingDorm(true);
+    
     try {
+      // สร้าง FormData สำหรับส่งไฟล์รูปภาพ
+      const formData = new FormData();
+      
+      // เพิ่มข้อมูลพื้นฐาน
+      formData.append('name', addDormForm.name.trim());
+      formData.append('address_detail', addDormForm.address_detail.trim());
+      formData.append('price_daily', addDormForm.price_daily || '0');
+      formData.append('price_monthly', addDormForm.price_monthly || '0');
+      formData.append('price_term', addDormForm.price_term || '0');
+      formData.append('water_rate', addDormForm.water_rate || '0');
+      formData.append('electricity_rate', addDormForm.electricity_rate || '0');
+      formData.append('deposit', addDormForm.deposit || '0');
+      formData.append('contact_phone', addDormForm.contact_phone.trim() || '');
+      formData.append('facilities', addDormForm.facilities.trim() || '');
+      formData.append('near_places', addDormForm.near_places.trim() || '');
+      formData.append('latitude', addDormForm.latitude || '');
+      formData.append('longitude', addDormForm.longitude || '');
+      
+      // เพิ่มรูปภาพ
+      if (addDormForm.images && addDormForm.images.length > 0) {
+        console.log(`📤 Uploading ${addDormForm.images.length} images...`);
+        for (let i = 0; i < addDormForm.images.length; i++) {
+          formData.append('images', addDormForm.images[i]);
+        }
+      } else {
+        console.log('📤 No images to upload');
+      }
+
+      console.log('📤 Sending dorm data:', {
+        name: addDormForm.name,
+        images: addDormForm.images ? addDormForm.images.length : 0,
+        address: addDormForm.address_detail,
+        hasPrice: hasPrice
+      });
+
       const response = await fetch('http://localhost:3001/owner/dorms', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
+          // ไม่ต้องใส่ Content-Type เพราะ FormData จะจัดการเอง
         },
-        body: JSON.stringify(addDormForm)
+        body: formData
       });
 
+      const result = await response.json();
+
       if (response.ok) {
+        console.log('✅ Dorm created successfully:', result);
+        
         // Refresh dorms list
         const updatedDorms = await fetch('http://localhost:3001/owner/dorms', {
           headers: { Authorization: `Bearer ${token}` }
@@ -337,13 +405,16 @@ function OwnerHomePage() {
         
         setDorms(updatedDorms);
         handleCloseAddDormModal();
-        alert('เพิ่มหอพักสำเร็จ!');
+        alert('🎉 เพิ่มหอพักสำเร็จแล้ว!\n\nหอพักของคุณจะต้องผ่านการอนุมัติจากแอดมินก่อนจึงจะแสดงในระบบ');
       } else {
-        alert('เกิดข้อผิดพลาดในการเพิ่มหอพัก');
+        console.error('❌ Failed to create dorm:', result);
+        alert(result.error || 'เกิดข้อผิดพลาดในการเพิ่มหอพัก');
       }
     } catch (error) {
-      console.error('Error adding dorm:', error);
-      alert('เกิดข้อผิดพลาดในการเพิ่มหอพัก');
+      console.error('❌ Error adding dorm:', error);
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    } finally {
+      setUploadingDorm(false);
     }
   };
 
@@ -448,7 +519,7 @@ function OwnerHomePage() {
                   {dorms.map((dorm, index) => (
                     <div
                       key={dorm.id}
-                      className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200 group cursor-pointer transform hover:-translate-y-1"
+                      className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200 group cursor-pointer transform hover:-translate-y-1 flex flex-col h-full"
                       style={{ animationDelay: `${index * 100}ms` }}
                       onClick={() => handleOpenDorm(dorm)}
                     >
@@ -513,7 +584,7 @@ function OwnerHomePage() {
                       </div>
 
                       {/* Content Section */}
-                      <div className="p-5">
+                      <div className="p-5 flex flex-col flex-1">
                         {/* Title */}
                         <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
                           {dorm.name}
@@ -695,16 +766,18 @@ function OwnerHomePage() {
                         )}
 
                         {/* View Details Button */}
-                        <button 
-                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-xl font-semibold transition-all duration-200 text-sm shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDorm(dorm);
-                          }}
-                        >
-                          <FaSearch className="w-4 h-4" />
-                          ดูรายละเอียด
-                        </button>
+                        <div className="mt-auto pt-4">
+                          <button 
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-xl font-semibold transition-all duration-200 text-sm shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDorm(dorm);
+                            }}
+                          >
+                            <FaSearch className="w-4 h-4" />
+                            ดูรายละเอียด
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1041,22 +1114,24 @@ function OwnerHomePage() {
         {/* Add Dorm Modal */}
         {showAddDormModal && (
           <div className="fixed inset-0 bg-black/60 z-[2100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl relative overflow-hidden max-h-[90vh] overflow-y-auto">
               {/* Header */}
-              <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 rounded-t-3xl">
+              <div className="bg-gradient-to-r from-green-500 to-green-600 p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
-                      <FaBed className="text-white w-6 h-6" />
+                    <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2">
+                      <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 512 512" className="text-white w-6 h-6" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm144 276c0 6.6-5.4 12-12 12h-92v92c0 6.6-5.4 12-12 12h-56c-6.6 0-12-5.4-12-12v-92h-92c-6.6 0-12-5.4-12-12v-56c0-6.6 5.4-12 12-12h92v-92c0-6.6 5.4-12 12-12h56c6.6 0 12 5.4 12 12v92h92c6.6 0 12 5.4 12 12v56z"></path>
+                      </svg>
                     </div>
-                    <h2 className="text-2xl font-bold text-white">เพิ่มหอพักใหม่</h2>
+                    <h3 className="text-2xl font-bold text-white">เพิ่มหอพักใหม่</h3>
                   </div>
                   <button
-                    className="bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-all backdrop-blur-sm"
+                    className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white p-2 rounded-lg transition-all duration-200"
                     onClick={handleCloseAddDormModal}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                      <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M18 6 6 18M6 6l12 12"/>
+                    <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 512 512" className="w-5 h-5" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm121.6 313.1c4.7 4.7 4.7 12.3 0 17L338 377.6c-4.7 4.7-12.3 4.7-17 0L256 312l-65.1 65.6c-4.7 4.7-12.3 4.7-17 0L134.4 338c-4.7-4.7-4.7-12.3 0-17l65.6-65-65.6-65.1c-4.7-4.7-4.7-12.3 0-17l39.6-39.6c4.7-4.7 12.3-4.7 17 0l65 65.7 65.1-65.6c4.7-4.7 12.3-4.7 17 0l39.6 39.6c4.7 4.7 4.7 12.3 0 17L312 256l65.6 65.1z"></path>
                     </svg>
                   </button>
                 </div>
@@ -1064,50 +1139,250 @@ function OwnerHomePage() {
 
               {/* Form */}
               <form onSubmit={handleAddDormSubmit} className="p-6 space-y-6">
+                {/* Image Upload Section */}
+                <div>
+                  <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
+                    <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 576 512" className="text-green-500" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M480 416v16c0 26.51-21.49 48-48 48H48c-26.51 0-48-21.49-48-48V176c0-26.51 21.49-48 48-48h16v208c0 44.112 35.888 80 80 80h336zm96-80V80c0-26.51-21.49-48-48-48H144c-26.51 0-48 21.49-48 48v256c0 26.51 21.49 48 48 48h384c26.51 0 48-21.49 48-48zM256 128c0 26.51-21.49 48-48 48s-48-21.49-48-48 21.49-48 48-48 48 21.49 48 48zm-96 144l55.515-55.515c4.686-4.686 12.284-4.686 16.971 0L272 256l135.515-135.515c4.686-4.686 12.284-4.686 16.971 0L512 208v112H160v-48z"></path>
+                    </svg>
+                    รูปภาพหอพัก
+                    {addDormForm.images && addDormForm.images.length > 0 && (
+                      <span className="text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                        {addDormForm.images.length} รูป
+                      </span>
+                    )}
+                  </label>
+                  
+                  <div className="flex gap-3 flex-wrap items-start">
+                    {/* Add Image Button */}
+                    <div className="w-24 h-20 flex flex-col items-center justify-center border-2 border-dashed border-green-300 rounded-lg cursor-pointer bg-green-50 hover:bg-green-100 transition-colors relative">
+                      <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 512 512" className="text-green-400 text-xl mb-1" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm144 276c0 6.6-5.4 12-12 12h-92v92c0 6.6-5.4 12-12 12h-56c-6.6 0-12-5.4-12-12v-92h-92c-6.6 0-12-5.4-12-12v-56c0-6.6 5.4-12 12-12h92v-92c0-6.6 5.4-12 12-12h56c6.6 0 12 5.4 12 12v92h92c6.6 0 12 5.4 12 12v56z"></path>
+                      </svg>
+                      <span className="text-xs text-green-600">เพิ่มรูป</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        onChange={e => {
+                          const files = Array.from(e.target.files);
+                          
+                          // ตรวจสอบไฟล์
+                          const validFiles = [];
+                          const errors = [];
+                          
+                          files.forEach(file => {
+                            // ตรวจสอบประเภทไฟล์
+                            if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+                              errors.push(`${file.name}: ประเภทไฟล์ไม่รองรับ (รองรับเฉพาะ JPG, PNG, WEBP)`);
+                              return;
+                            }
+                            
+                            // ตรวจสอบขนาดไฟล์ (5MB = 5 * 1024 * 1024 bytes)
+                            if (file.size > 5 * 1024 * 1024) {
+                              errors.push(`${file.name}: ขนาดไฟล์เกิน 5MB (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+                              return;
+                            }
+                            
+                            validFiles.push(file);
+                          });
+                          
+                          // แสดงข้อผิดพลาด (ถ้ามี)
+                          if (errors.length > 0) {
+                            alert('ข้อผิดพลาดในการอัปโหลดไฟล์:\n\n' + errors.join('\n'));
+                          }
+                          
+                          // เพิ่มไฟล์ที่ถูกต้อง
+                          if (validFiles.length > 0) {
+                            const currentImages = addDormForm.images || [];
+                            const totalImages = currentImages.length + validFiles.length;
+                            
+                            // จำกัดจำนวนรูปสูงสุด 10 รูป
+                            if (totalImages > 10) {
+                              alert(`สามารถอัปโหลดได้สูงสุด 10 รูป (ปัจจุบันมี ${currentImages.length} รูป)`);
+                              const allowedCount = 10 - currentImages.length;
+                              if (allowedCount > 0) {
+                                setAddDormForm({...addDormForm, images: [...currentImages, ...validFiles.slice(0, allowedCount)]});
+                              }
+                            } else {
+                              setAddDormForm({...addDormForm, images: [...currentImages, ...validFiles]});
+                            }
+                          }
+                          
+                          // รีเซ็ต input
+                          e.target.value = '';
+                        }}
+                      />
+                    </div>
+
+                    {/* Preview Images */}
+                    {addDormForm.images && addDormForm.images.length > 0 && (
+                      addDormForm.images.map((file, index) => (
+                        <div key={index} className="relative w-24 h-20 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`รูปที่ ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onLoad={(e) => {
+                              // เพิ่มเอฟเฟกต์ให้รูปดูคมชัด
+                              e.target.style.filter = 'contrast(1.1) brightness(1.05) saturate(1.1)';
+                            }}
+                          />
+                          
+                          {/* Remove Button */}
+                          <button
+                            type="button"
+                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-lg transition-colors"
+                            onClick={() => {
+                              const newImages = addDormForm.images.filter((_, i) => i !== index);
+                              setAddDormForm({...addDormForm, images: newImages});
+                            }}
+                            title="ลบรูปนี้"
+                          >
+                            ×
+                          </button>
+                          
+                          {/* Image Number */}
+                          <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
+                            {index + 1}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  {/* Upload Progress */}
+                  {uploadingDorm && addDormForm.images && addDormForm.images.length > 0 && (
+                    <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-500"></div>
+                        <span className="text-green-700 font-medium">กำลังอัปโหลดรูปภาพ...</span>
+                      </div>
+                      <div className="w-full bg-green-200 rounded-full h-2">
+                        <div className="bg-green-500 h-2 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+                      </div>
+                      <p className="text-sm text-green-600 mt-2">
+                        กำลังอัปโหลด {addDormForm.images.length} รูป กรุณารอสักครู่...
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Image Upload Instructions */}
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <svg className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      <div className="text-sm text-blue-700">
+                        <p className="font-medium mb-1">คำแนะนำการอัปโหลดรูป:</p>
+                        <ul className="text-xs space-y-1">
+                          <li>• รองรับไฟล์: JPG, PNG, WEBP</li>
+                          <li>• ขนาดไฟล์ไม่เกิน 5MB ต่อรูป</li>
+                          <li>• แนะนำอัปโหลด 3-8 รูป เพื่อดึงดูดผู้เช่า</li>
+                          <li>• รูปแรกจะเป็นรูปหลักที่แสดงในรายการ</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Basic Info */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block mb-2 text-sm font-semibold text-gray-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2">
+                    <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
+                      <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 576 512" className="text-green-500" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M280.37 148.26L96 300.11V464a16 16 0 0 0 16 16l112.06-.29a16 16 0 0 0 15.92-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.64a16 16 0 0 0 16 16.05L464 480a16 16 0 0 0 16-16V300L295.67 148.26a12.19 12.19 0 0 0-15.3 0zM571.6 251.47L488 182.56V44.05a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.61L318.47 43a48 48 0 0 0-61 0L4.34 251.47a12 12 0 0 0-1.6 16.9l25.5 31A12 12 0 0 0 45.15 301l235.22-193.74a12.19 12.19 0 0 1 15.3 0L530.9 301a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.7-16.93z"></path>
+                      </svg>
                       ชื่อหอพัก *
                     </label>
                     <input
-                      type="text"
-                      required
                       className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                      placeholder="เช่น หอพักดารารัตน์"
+                      placeholder="กรุณาใส่ชื่อหอพัก"
+                      required
                       value={addDormForm.name}
                       onChange={e => setAddDormForm({...addDormForm, name: e.target.value})}
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-2 text-sm font-semibold text-gray-700">
-                      ที่อยู่/สถานที่ตั้ง
+                    <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
+                      <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 384 512" className="text-green-500" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0zM192 272c44.183 0 80-35.817 80-80s-35.817-80-80-80-80 35.817-80 80 35.817 80 80 80z"></path>
+                      </svg>
+                      ที่อยู่/ทำเล *
                     </label>
-                    <textarea
-                      rows="3"
+                    <input
                       className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                      placeholder="เช่น 123 ถนนรามคำแหง แขวงหัวหมาก เขตบางกะปิ กรุงเทพฯ 10240"
-                      value={addDormForm.location}
-                      onChange={e => setAddDormForm({...addDormForm, location: e.target.value})}
+                      placeholder="ที่อยู่หรือทำเลที่ตั้ง"
+                      required
+                      value={addDormForm.address_detail}
+                      onChange={e => setAddDormForm({...addDormForm, address_detail: e.target.value})}
                     />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
+                        <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 384 512" className="text-blue-500" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0zM192 272c44.183 0 80-35.817 80-80s-35.817-80-80-80-80 35.817-80 80 35.817 80 80 80z"></path>
+                        </svg>
+                        ละติจูด (Latitude)
+                      </label>
+                      <input
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        placeholder="16.246825"
+                        type="number"
+                        step="any"
+                        value={addDormForm.latitude}
+                        onChange={e => setAddDormForm({...addDormForm, latitude: e.target.value})}
+                      />
+                      <span className="text-xs text-gray-500 mt-1">ตัวอย่าง: 16.246825</span>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
+                        <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 384 512" className="text-green-500" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0zM192 272c44.183 0 80-35.817 80-80s-35.817-80-80-80-80 35.817-80 80 35.817 80 80 80z"></path>
+                        </svg>
+                        ลองติจูด (Longitude)
+                      </label>
+                      <input
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                        placeholder="103.255025"
+                        type="number"
+                        step="any"
+                        value={addDormForm.longitude}
+                        onChange={e => setAddDormForm({...addDormForm, longitude: e.target.value})}
+                      />
+                      <span className="text-xs text-gray-500 mt-1">ตัวอย่าง: 103.255025</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg">
+                    <div className="flex">
+                      <div className="ml-3">
+                        <p className="text-sm text-blue-800">
+                          <strong>วิธีหาพิกัด GPS:</strong> เปิด Google Maps → คลิกขวาที่ตำแหน่ง → คัดลอกพิกัด → วางในช่องด้านบน
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {/* Prices */}
-                <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <div>
+                  <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
                     <FaMoneyBillWave className="text-green-500" />
-                    ราคาเช่า
-                  </h3>
+                    ราคาค่าเช่า
+                  </label>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">ราคารายวัน (บาท)</label>
                       <input
-                        type="number"
-                        min="0"
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                         placeholder="0"
+                        min="0"
+                        type="number"
                         value={addDormForm.price_daily}
                         onChange={e => setAddDormForm({...addDormForm, price_daily: e.target.value})}
                       />
@@ -1115,10 +1390,10 @@ function OwnerHomePage() {
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">ราคารายเดือน (บาท)</label>
                       <input
-                        type="number"
-                        min="0"
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                         placeholder="0"
+                        min="0"
+                        type="number"
                         value={addDormForm.price_monthly}
                         onChange={e => setAddDormForm({...addDormForm, price_monthly: e.target.value})}
                       />
@@ -1126,10 +1401,10 @@ function OwnerHomePage() {
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">ราคารายเทอม (บาท)</label>
                       <input
-                        type="number"
-                        min="0"
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                         placeholder="0"
+                        min="0"
+                        type="number"
                         value={addDormForm.price_term}
                         onChange={e => setAddDormForm({...addDormForm, price_term: e.target.value})}
                       />
@@ -1137,48 +1412,177 @@ function OwnerHomePage() {
                   </div>
                 </div>
 
-                {/* Facilities */}
+                {/* Utilities */}
                 <div>
-                  <label className="block mb-2 text-sm font-semibold text-gray-700">
-                    สิ่งอำนวยความสะดวก
+                  <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
+                    <FaMoneyBillWave className="text-green-500" />
+                    อัตราค่าสาธารณูปโภค
                   </label>
-                  <textarea
-                    rows="3"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                    placeholder="เช่น Wi-Fi ฟรี, แอร์, ตู้เย็น, เครื่องซักผ้า, ที่จอดรถ"
-                    value={addDormForm.facilities}
-                    onChange={e => setAddDormForm({...addDormForm, facilities: e.target.value})}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">อัตราค่าน้ำ (บาท/หน่วย)</label>
+                      <input
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                        step="0.01"
+                        placeholder="เช่น 18.00"
+                        type="number"
+                        value={addDormForm.water_rate}
+                        onChange={e => setAddDormForm({...addDormForm, water_rate: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">อัตราค่าไฟ (บาท/หน่วย)</label>
+                      <input
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                        step="0.01"
+                        placeholder="เช่น 7.50"
+                        type="number"
+                        value={addDormForm.electricity_rate}
+                        onChange={e => setAddDormForm({...addDormForm, electricity_rate: e.target.value})}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Nearby Places */}
+                {/* Additional Info */}
                 <div>
-                  <label className="block mb-2 text-sm font-semibold text-gray-700">
+                  <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
+                    <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 640 512" className="text-green-500" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M160 224v64h320v-64c0-35.3 28.7-64 64-64h32c0-53-43-96-96-96H160c-53 0-96 43-96 96h32c35.3 0 64 28.7 64 64zm416-32h-32c-17.7 0-32 14.3-32 32v96H128v-96c0-17.7-14.3-32-32-32H64c-35.3 0-64 28.7-64 64 0 23.6 13 44 32 55.1V432c0 8.8 7.2 16 16 16h64c8.8 0 16-7.2 16-16v-16h384v16c0 8.8 7.2 16 16 16h64c8.8 0 16-7.2 16-16V311.1c19-11.1 32-31.5 32-55.1 0-35.3-28.7-64-64-64z"></path>
+                    </svg>
+                    สิ่งอำนวยความสะดวก
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="block mb-2 text-sm text-gray-600">เงินมัดจำ (บาท)</label>
+                      <input
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                        placeholder="เช่น 5000"
+                        min="0"
+                        type="number"
+                        value={addDormForm.deposit}
+                        onChange={e => setAddDormForm({...addDormForm, deposit: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-2 text-sm text-gray-600">เบอร์โทรติดต่อ</label>
+                      <input
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                        placeholder="เช่น 02-123-4567"
+                        type="tel"
+                        value={addDormForm.contact_phone}
+                        onChange={e => setAddDormForm({...addDormForm, contact_phone: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Facilities Checkboxes */}
+                <div>
+                  <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
+                    <FaWifi className="text-green-500" />
+                    สิ่งอำนวยความสะดวก
+                  </label>
+                  <div className="border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto bg-gray-50">
+                    <div className="grid grid-cols-2 gap-3">
+                      {['เครื่องปรับอากาศ', 'ที่จอดรถ', 'เฟอร์นิเจอร์', 'บริการเครื่องซักผ้า', 'เครื่องทำน้ำอุ่น', 'ลิฟต์', 'พัดลม', 'สระว่ายน้ำ', 'โรงยิม', 'ตู้เย็น', 'ระบบรักษาความปลอดภัย', 'กล้องวงจรปิด', 'รปภ.', 'อินเตอร์เน็ต', 'อนุญาตให้เลี้ยงสัตว์'].map((facility) => (
+                        <label key={facility} className="flex items-center gap-2 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors">
+                          <input
+                            className="rounded border-gray-300 text-green-500 focus:ring-green-500"
+                            type="checkbox"
+                            checked={addDormForm.facilities.includes(facility)}
+                            onChange={e => {
+                              const currentFacilities = addDormForm.facilities.split(',').filter(f => f.trim());
+                              if (e.target.checked) {
+                                setAddDormForm({...addDormForm, facilities: [...currentFacilities, facility].join(', ')});
+                              } else {
+                                setAddDormForm({...addDormForm, facilities: currentFacilities.filter(f => f !== facility).join(', ')});
+                              }
+                            }}
+                          />
+                          <span className="text-sm text-gray-700">{facility}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nearby Places Checkboxes */}
+                <div>
+                  <label className="flex items-center gap-2 mb-3 text-lg font-semibold text-gray-700">
+                    <FaLandmark className="text-green-500" />
                     สถานที่ใกล้เคียง
                   </label>
-                  <textarea
-                    rows="3"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                    placeholder="เช่น มหาวิทยาลัยรามคำแหง, เซเว่น, ตลาดโต้รุ่ง, สถานีรถไฟฟ้า"
-                    value={addDormForm.near_places}
-                    onChange={e => setAddDormForm({...addDormForm, near_places: e.target.value})}
-                  />
+                  <div className="border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto bg-gray-50">
+                    <div className="grid grid-cols-1 gap-3">
+                      {['ม.มหาสารคาม', 'ม.มหาสารคาม(ม.เก่า)', 'ม.ราชภัฏมหาสารคาม', 'เสริมไทย คอมเพล็กซ์', 'เสริมไทย พลาซ่า', 'วิทยาลัยเทคนิคมหาสารคาม', 'วิทยาลัยพยาบาลศรีมหาสารคาม', 'แม็คโครมหาสารคาม', 'โรงพยาบาลสุทธาเวช', 'โรงพยาบาลมหาสารคาม', 'สถานีขนส่งมหาสารคาม', 'สถานีตำรวจภูธรเมืองมหาสารคาม'].map((place) => (
+                        <label key={place} className="flex items-center gap-2 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors">
+                          <input
+                            className="rounded border-gray-300 text-green-500 focus:ring-green-500"
+                            type="checkbox"
+                            checked={addDormForm.near_places.includes(place)}
+                            onChange={e => {
+                              const currentPlaces = addDormForm.near_places.split(',').filter(p => p.trim());
+                              if (e.target.checked) {
+                                setAddDormForm({...addDormForm, near_places: [...currentPlaces, place].join(', ')});
+                              } else {
+                                setAddDormForm({...addDormForm, near_places: currentPlaces.filter(p => p !== place).join(', ')});
+                              }
+                            }}
+                          />
+                          <span className="text-sm text-gray-700">{place}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-sm text-gray-600 mb-2">หรือเพิ่มสถานที่อื่น ๆ (คั่นด้วยเครื่องหมายจุลภาค)</label>
+                    <textarea
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      placeholder="เช่น ห้างเดอะมอลล์, ตลาดนัด, BTS"
+                      rows="2"
+                      onChange={e => {
+                        const additionalPlaces = e.target.value;
+                        const checkboxPlaces = ['ม.มหาสารคาม', 'ม.มหาสารคาม(ม.เก่า)', 'ม.ราชภัฏมหาสารคาม', 'เสริมไทย คอมเพล็กซ์', 'เสริมไทย พลาซ่า', 'วิทยาลัยเทคนิคมหาสารคาม', 'วิทยาลัยพยาบาลศรีมหาสารคาม', 'แม็คโครมหาสารคาม', 'โรงพยาบาลสุทธาเวช', 'โรงพยาบาลมหาสารคาม', 'สถานีขนส่งมหาสารคาม', 'สถานีตำรวจภูธรเมืองมหาสารคาม']
+                          .filter(place => addDormForm.near_places.includes(place));
+                        const allPlaces = [...checkboxPlaces];
+                        if (additionalPlaces.trim()) {
+                          allPlaces.push(...additionalPlaces.split(',').map(p => p.trim()).filter(p => p));
+                        }
+                        setAddDormForm({...addDormForm, near_places: allPlaces.join(', ')});
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Submit Buttons */}
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
                   <button
                     type="button"
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold transition-all duration-200"
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleCloseAddDormModal}
+                    disabled={uploadingDorm}
                   >
                     ยกเลิก
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 px-6 rounded-lg font-semibold shadow-lg transition-all duration-200"
+                    className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 px-6 rounded-lg font-semibold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    disabled={uploadingDorm}
                   >
-                    เพิ่มหอพัก
+                    {uploadingDorm ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>กำลังบันทึก...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>บันทึกข้อมูล</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
