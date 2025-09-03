@@ -348,8 +348,8 @@ function getDistanceCategory(distance) {
   return 'ไกล';
 }
 
-// ฟังก์ชันรับสีตามระยะทาง
-function getDistanceColor(distance) {
+// ฟังก์ชันรับสีตามระยะทาง (สำรองไว้ใช้ในอนาคต)
+function _getDistanceColor(distance) {
   if (distance <= 0.5) return 'bg-green-100 text-green-700 border-green-200';
   if (distance <= 1.5) return 'bg-blue-100 text-blue-700 border-blue-200';
   if (distance <= 5) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
@@ -402,7 +402,7 @@ function CustomerHomePage() {
   const [isNavSticky, setIsNavSticky] = useState(false);
   const [navOffset, setNavOffset] = useState(0);
   const [scrollY, setScrollY] = useState(0);
-  const [navAnimationClass, setNavAnimationClass] = useState('');
+  const [_navAnimationClass, setNavAnimationClass] = useState('');
 
   // useEffect สำหรับจัดการ sticky navigation
   useEffect(() => {
@@ -474,7 +474,7 @@ function CustomerHomePage() {
 
   // State สำหรับ AI Distance Calculation
   const [aiDistances, setAiDistances] = useState({});
-  const [calculatingDistances, setCalculatingDistances] = useState(false);
+  const [_calculatingDistances, setCalculatingDistances] = useState(false);
 
   // ฟังก์ชันดึงข้อมูลรีวิวสำหรับหอพักแต่ละแห่ง
   const fetchDormReviewStats = async (dormId) => {
