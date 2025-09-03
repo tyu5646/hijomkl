@@ -1551,6 +1551,101 @@ function CustomerHomePage() {
                               </div>
                             </div>
 
+                            {/* Detailed Ratings */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* ความสะอาด */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-blue-500">🧼</span>
+                                    ความสะอาด
+                                  </span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      onClick={() => setReviewForm({...reviewForm, cleanliness_rating: star})}
+                                      className={`text-lg ${star <= reviewForm.cleanliness_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400 transition-colors`}
+                                    >
+                                      ★
+                                    </button>
+                                  ))}
+                                  <span className="ml-2 text-xs text-gray-600">({reviewForm.cleanliness_rating}/5)</span>
+                                </div>
+                              </div>
+
+                              {/* ทำเลที่ตั้ง */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-red-500">📍</span>
+                                    ทำเลที่ตั้ง
+                                  </span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      onClick={() => setReviewForm({...reviewForm, location_rating: star})}
+                                      className={`text-lg ${star <= reviewForm.location_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400 transition-colors`}
+                                    >
+                                      ★
+                                    </button>
+                                  ))}
+                                  <span className="ml-2 text-xs text-gray-600">({reviewForm.location_rating}/5)</span>
+                                </div>
+                              </div>
+
+                              {/* คุณค่าต่อราคา */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-green-500">💰</span>
+                                    คุณค่าต่อราคา
+                                  </span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      onClick={() => setReviewForm({...reviewForm, value_rating: star})}
+                                      className={`text-lg ${star <= reviewForm.value_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400 transition-colors`}
+                                    >
+                                      ★
+                                    </button>
+                                  ))}
+                                  <span className="ml-2 text-xs text-gray-600">({reviewForm.value_rating}/5)</span>
+                                </div>
+                              </div>
+
+                              {/* การบริการ */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-purple-500">🤝</span>
+                                    การบริการ
+                                  </span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      onClick={() => setReviewForm({...reviewForm, service_rating: star})}
+                                      className={`text-lg ${star <= reviewForm.service_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400 transition-colors`}
+                                    >
+                                      ★
+                                    </button>
+                                  ))}
+                                  <span className="ml-2 text-xs text-gray-600">({reviewForm.service_rating}/5)</span>
+                                </div>
+                              </div>
+                            </div>
+
                             {/* Comment */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1618,6 +1713,57 @@ function CustomerHomePage() {
                                   </div>
                                 </div>
                               </div>
+
+                              {/* Detailed ratings */}
+                              {(review.cleanliness_rating || review.location_rating || review.value_rating || review.service_rating) && (
+                                <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                                  {review.cleanliness_rating && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-blue-500">🧼</span>
+                                      <span className="text-gray-600">ความสะอาด:</span>
+                                      <div className="flex text-yellow-400">
+                                        {[...Array(5)].map((_, i) => (
+                                          <span key={i} className={i < review.cleanliness_rating ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {review.location_rating && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-red-500">📍</span>
+                                      <span className="text-gray-600">ทำเล:</span>
+                                      <div className="flex text-yellow-400">
+                                        {[...Array(5)].map((_, i) => (
+                                          <span key={i} className={i < review.location_rating ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {review.value_rating && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-green-500">💰</span>
+                                      <span className="text-gray-600">คุณค่า:</span>
+                                      <div className="flex text-yellow-400">
+                                        {[...Array(5)].map((_, i) => (
+                                          <span key={i} className={i < review.value_rating ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {review.service_rating && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-purple-500">🤝</span>
+                                      <span className="text-gray-600">บริการ:</span>
+                                      <div className="flex text-yellow-400">
+                                        {[...Array(5)].map((_, i) => (
+                                          <span key={i} className={i < review.service_rating ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                               <p className="text-gray-700 text-sm leading-relaxed">{review.comment}</p>
                             </div>
                           ))
