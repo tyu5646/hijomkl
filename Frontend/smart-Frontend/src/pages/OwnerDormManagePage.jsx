@@ -705,7 +705,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                             <span className="text-xs text-gray-600">รายวัน</span>
                           </div>
                           <div className="font-bold text-green-600 text-sm">
-                            {dorm.price_daily ? `฿${parseInt(dorm.price_daily).toLocaleString()}` : '-'}
+                            {dorm.price_daily ? `฿${dorm.price_daily}` : '-'}
                           </div>
                         </div>
                         <div className="text-center">
@@ -714,7 +714,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                             <span className="text-xs text-gray-600">รายเดือน</span>
                           </div>
                           <div className="font-bold text-blue-600 text-sm">
-                            {dorm.price_monthly ? `฿${parseInt(dorm.price_monthly).toLocaleString()}` : '-'}
+                            {dorm.price_monthly ? `฿${dorm.price_monthly}` : '-'}
                           </div>
                         </div>
                         <div className="text-center">
@@ -723,7 +723,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                             <span className="text-xs text-gray-600">รายเทอม</span>
                           </div>
                           <div className="font-bold text-purple-600 text-sm">
-                            {dorm.price_term ? `฿${parseInt(dorm.price_term).toLocaleString()}` : '-'}
+                            {dorm.price_term ? `฿${dorm.price_term}` : '-'}
                           </div>
                         </div>
                       </div>
@@ -972,39 +972,44 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                     <FaMoneyBillWave className="text-orange-500" />
                     ราคาค่าเช่า
                   </label>
+                  <div className="mb-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                    <p className="text-sm text-orange-800">
+                      <strong>คำแนะนำ:</strong> สามารถใส่ราคาเป็นช่วงได้ เช่น 4000-4200, 3500-4000 หรือใส่ราคาเดียว เช่น 4000
+                    </p>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">ราคารายวัน (บาท)</label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-                        placeholder="0"
-                        type="number"
-                        min="0"
+                        placeholder="เช่น 300-400 หรือ 350"
+                        type="text"
                         value={form.price_daily}
                         onChange={e => setForm({ ...form, price_daily: e.target.value })}
                       />
+                      <div className="text-xs text-gray-500 mt-1">ใส่ได้ทั้งราคาเดียวหรือช่วงราคา</div>
                     </div>
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">ราคารายเดือน (บาท)</label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-                        placeholder="0"
-                        type="number"
-                        min="0"
+                        placeholder="เช่น 4000-4500 หรือ 4200"
+                        type="text"
                         value={form.price_monthly}
                         onChange={e => setForm({ ...form, price_monthly: e.target.value })}
                       />
+                      <div className="text-xs text-gray-500 mt-1">ใส่ได้ทั้งราคาเดียวหรือช่วงราคา</div>
                     </div>
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">ราคารายเทอม (บาท)</label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-                        placeholder="0"
-                        type="number"
-                        min="0"
+                        placeholder="เช่น 18000-20000 หรือ 19000"
+                        type="text"
                         value={form.price_term}
                         onChange={e => setForm({ ...form, price_term: e.target.value })}
                       />
+                      <div className="text-xs text-gray-500 mt-1">ใส่ได้ทั้งราคาเดียวหรือช่วงราคา</div>
                     </div>
                   </div>
                 </div>
@@ -1411,39 +1416,44 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                     <FaMoneyBillWave className="text-blue-500" />
                     ราคาค่าเช่า
                   </label>
+                  <div className="mb-3 p-3 bg-blue-100 border border-blue-300 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>คำแนะนำ:</strong> สามารถใส่ราคาเป็นช่วงได้ เช่น 4000-4200, 3500-4000 หรือใส่ราคาเดียว เช่น 4000
+                    </p>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">ราคารายวัน (บาท)</label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        placeholder="0"
-                        type="number"
-                        min="0"
+                        placeholder="เช่น 300-400 หรือ 350"
+                        type="text"
                         value={form.price_daily}
                         onChange={e => setForm({ ...form, price_daily: e.target.value })}
                       />
+                      <div className="text-xs text-gray-500 mt-1">ใส่ได้ทั้งราคาเดียวหรือช่วงราคา</div>
                     </div>
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">ราคารายเดือน (บาท)</label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        placeholder="0"
-                        type="number"
-                        min="0"
+                        placeholder="เช่น 4000-4500 หรือ 4200"
+                        type="text"
                         value={form.price_monthly}
                         onChange={e => setForm({ ...form, price_monthly: e.target.value })}
                       />
+                      <div className="text-xs text-gray-500 mt-1">ใส่ได้ทั้งราคาเดียวหรือช่วงราคา</div>
                     </div>
                     <div>
                       <label className="block mb-2 text-sm text-gray-600">ราคารายเทอม (บาท)</label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        placeholder="0"
-                        type="number"
-                        min="0"
+                        placeholder="เช่น 18000-20000 หรือ 19000"
+                        type="text"
                         value={form.price_term}
                         onChange={e => setForm({ ...form, price_term: e.target.value })}
                       />
+                      <div className="text-xs text-gray-500 mt-1">ใส่ได้ทั้งราคาเดียวหรือช่วงราคา</div>
                     </div>
                   </div>
                 </div>

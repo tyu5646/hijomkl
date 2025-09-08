@@ -22,7 +22,17 @@ const http = require('http');
 const socketio = require('socket.io');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
-require('dotenv').config();
+const { answerCheapestDormQuery } = require('./cheapest-dorm-helper');
+
+// โหลด .env file ด้วย absolute path เพื่อให้แน่ใจ
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+
+// Debug: ตรวจสอบ GROQ_API_KEY
+console.log('🔑 GROQ_API_KEY loaded:', process.env.GROQ_API_KEY ? 'YES ✅' : 'NO ❌');
+if (process.env.GROQ_API_KEY) {
+  console.log('🔑 API Key length:', process.env.GROQ_API_KEY.length);
+  console.log('🔑 API Key preview:', process.env.GROQ_API_KEY.substring(0, 10) + '...');
+}
 
 // ฟังก์ชันคำนวณระยะทางระหว่างสองจุด (Haversine formula)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -184,6 +194,53 @@ const profileStorage = multer.diskStorage({
  */
 const uploadProfile = multer({ 
   storage: profileStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB file size limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Only allow image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('อนุญาตเฉพาะไฟล์รูปภาพเท่านั้น'), false);
+    }
+  }
+});
+
+/**
+ * Multer storage configuration for owner profile pictures
+ * Handles file uploads to the uploads directory
+ */
+const ownerProfileStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // Store in uploads folder
+  },
+  filename: function (req, file, cb) {
+    // Generate filename using owner info from database
+    pool.query('SELECT firstName, lastName FROM owners WHERE id = ?', [req.user.id], (err, results) => {
+      if (err || results.length === 0) {
+        // If error occurs, use id and timestamp
+        const timestamp = Date.now();
+        const ext = path.extname(file.originalname);
+        cb(null, `owner_${req.user.id}_${timestamp}${ext}`);
+      } else {
+        const owner = results[0];
+        const timestamp = Date.now();
+        const ext = path.extname(file.originalname);
+        // Use owner's real name
+        const filename = `${owner.firstName}_${owner.lastName}_${timestamp}${ext}`;
+        cb(null, filename);
+      }
+    });
+  }
+});
+
+/**
+ * Multer upload middleware for owner profile pictures
+ * Includes file size and type validation
+ */
+const uploadOwnerProfile = multer({ 
+  storage: ownerProfileStorage,
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB file size limit
   },
@@ -366,6 +423,36 @@ function initializeDatabase() {
       });
     } else {
       console.log('✅ zip_code column already exists in owners table');
+    }
+  });
+
+  // ตรวจสอบและเพิ่ม profile_image column ใน owners table
+  const checkOwnerProfileImageSql = `
+    SELECT COLUMN_NAME 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_NAME = 'owners' 
+    AND COLUMN_NAME = 'profile_image'
+    AND TABLE_SCHEMA = ?
+  `;
+  
+  pool.query(checkOwnerProfileImageSql, [process.env.DB_DATABASE], (err, results) => {
+    if (err) {
+      console.error('Error checking profile_image column in owners:', err);
+      return;
+    }
+    
+    if (results.length === 0) {
+      const addProfileImageSql = `ALTER TABLE owners ADD COLUMN profile_image VARCHAR(255) DEFAULT NULL`;
+      
+      pool.query(addProfileImageSql, (err) => {
+        if (err) {
+          console.error('Error adding profile_image column to owners:', err);
+        } else {
+          console.log('✅ Added profile_image column to owners table');
+        }
+      });
+    } else {
+      console.log('✅ profile_image column already exists in owners table');
     }
   });
 
@@ -1606,20 +1693,20 @@ app.put('/owner/profile', authOwner, (req, res) => {
   const ownerId = req.user.id;
   const { 
     dormName, firstName, lastName, age, dob, houseNo, moo, soi, road, 
-    subdistrict, district, province, email, phone, zip_code 
+    subdistrict, district, province, email, phone, zip_code, profile_image 
   } = req.body;
   
   const sql = `
     UPDATE owners 
     SET dormName = ?, firstName = ?, lastName = ?, age = ?, dob = ?, 
         houseNo = ?, moo = ?, soi = ?, road = ?, subdistrict = ?, 
-        district = ?, province = ?, email = ?, phone = ?, zip_code = ?
+        district = ?, province = ?, email = ?, phone = ?, zip_code = ?, profile_image = ?
     WHERE id = ?
   `;
   
   pool.query(sql, [
     dormName, firstName, lastName, age, dob, houseNo, moo, soi, road,
-    subdistrict, district, province, email, phone, zip_code, ownerId
+    subdistrict, district, province, email, phone, zip_code, profile_image, ownerId
   ], (err, result) => {
     if (err) {
       console.error('Error updating owner profile:', err);
@@ -1635,6 +1722,53 @@ app.put('/owner/profile', authOwner, (req, res) => {
     
     res.json({ success: true, message: 'อัพเดทข้อมูลสำเร็จ' });
   });
+});
+
+// อัปโหลดรูปโปรไฟล์เจ้าของหอพัก
+app.post('/owner/upload-profile-image', authOwner, uploadOwnerProfile.single('profileImage'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'ไม่พบไฟล์รูปภาพที่อัปโหลด' 
+      });
+    }
+
+    // สร้าง URL สำหรับเข้าถึงรูปภาพ
+    const imageUrl = `/uploads/${req.file.filename}`;
+    
+    // อัปเดตฐานข้อมูลด้วย URL รูปภาพใหม่
+    const sql = 'UPDATE owners SET profile_image = ? WHERE id = ?';
+    pool.query(sql, [imageUrl, req.user.id], (err, result) => {
+      if (err) {
+        console.error('Error updating profile image in database:', err);
+        // ลบไฟล์ที่อัปโหลดแล้วถ้าเกิดข้อผิดพลาดในการบันทึกฐานข้อมูล
+        try {
+          fs.unlinkSync(path.join(__dirname, 'uploads', req.file.filename));
+        } catch (unlinkErr) {
+          console.error('Error deleting uploaded file:', unlinkErr);
+        }
+        return res.status(500).json({ 
+          success: false, 
+          error: 'เกิดข้อผิดพลาดในการบันทึกข้อมูลรูปภาพ' 
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'อัปโหลดรูปโปรไฟล์สำเร็จ',
+        imageUrl: imageUrl,
+        filename: req.file.filename
+      });
+    });
+
+  } catch (error) {
+    console.error('Error in profile image upload:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ' 
+    });
+  }
 });
 
 // === REVIEWS API ENDPOINTS ===
@@ -1927,7 +2061,19 @@ function filterDormsForQuery(message, dorms) {
 
 // Helper: สร้าง context (สั้นลง) สำหรับโมเดล
 function buildDormContext(dorms) {
-  return dorms.map(dorm => {
+  // เรียงลำดับหอพักตามราคาจากถูกไปแพงก่อนส่งให้ AI
+  const sortedDorms = [...dorms].sort((a, b) => {
+    // หาราคาต่ำสุดของแต่ละหอ
+    const pricesA = [a.price_monthly, a.price_daily, a.price_term].filter(p => p && Number(p) > 0).map(Number);
+    const pricesB = [b.price_monthly, b.price_daily, b.price_term].filter(p => p && Number(p) > 0).map(Number);
+    
+    const minPriceA = pricesA.length > 0 ? Math.min(...pricesA) : Infinity;
+    const minPriceB = pricesB.length > 0 ? Math.min(...pricesB) : Infinity;
+    
+    return minPriceA - minPriceB;
+  });
+
+  return sortedDorms.map(dorm => {
     const prices = [];
     if (dorm.price_monthly) prices.push(`รายเดือน ${dorm.price_monthly}`);
     if (dorm.price_daily) prices.push(`รายวัน ${dorm.price_daily}`);
@@ -1939,9 +2085,16 @@ function buildDormContext(dorms) {
 // Helper: ตอบแบบ rule-based ทันทีถ้าเป็นคำถามง่าย ลดภาระโมเดล
 function answerSimpleQuery(message, dorms) {
   const msg = message.toLowerCase();
+  
   // นับจำนวนทั้งหมด
   if (/ทั้งหมดกี่|กี่หอ|กี่แห่ง|ทั้งหมด/.test(msg) && /หอ/.test(msg)) {
     return `ตอนนี้มีหอพักที่เปิดอนุมัติทั้งหมด ${dorms.length} แห่งค่ะ 🏠`;
+  }
+
+  // ตรวจสอบคำถามหาหอพักราคาถูกที่สุด
+  const cheapestResponse = answerCheapestDormQuery(message, dorms);
+  if (cheapestResponse) {
+    return cheapestResponse;
   }
 
   // คำถามทั่วไปไม่เกี่ยวกับหอพัก (บาง pattern) ปฏิเสธเบื้องต้น
@@ -1959,7 +2112,8 @@ async function callGroqAI(userMessage, dormContext) {
   const API_KEY = process.env.GROQ_API_KEY;
   
   if (!API_KEY) {
-    throw new Error('GROQ_API_KEY not found');
+    console.warn('⚠️ GROQ_API_KEY not configured - using fallback response');
+    return null; // ส่งกลับ null แทนการ throw error
   }
 
   const systemPrompt = `คุณเป็นผู้ช่วยอัจฉริยะสำหรับระบบหอพัก Smart Dorm ที่ชื่อ "Smart Assistant" 🤖
@@ -1999,6 +2153,9 @@ ${dormContext}
 ตอบอย่างละเอียดและมีประโยชน์ จากข้อมูลที่มีเท่านั้น`;
 
   try {
+    // เพิ่มการจัดการ TLS สำหรับ Certificate Error
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+    
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -3054,7 +3211,19 @@ function filterDormsForQuery(message, dorms) {
 
 // Helper: สร้าง context (สั้นลง) สำหรับโมเดล
 function buildDormContext(dorms) {
-  return dorms.map(dorm => {
+  // เรียงลำดับหอพักตามราคาจากถูกไปแพงก่อนส่งให้ AI
+  const sortedDorms = [...dorms].sort((a, b) => {
+    // หาราคาต่ำสุดของแต่ละหอ
+    const pricesA = [a.price_monthly, a.price_daily, a.price_term].filter(p => p && Number(p) > 0).map(Number);
+    const pricesB = [b.price_monthly, b.price_daily, b.price_term].filter(p => p && Number(p) > 0).map(Number);
+    
+    const minPriceA = pricesA.length > 0 ? Math.min(...pricesA) : Infinity;
+    const minPriceB = pricesB.length > 0 ? Math.min(...pricesB) : Infinity;
+    
+    return minPriceA - minPriceB;
+  });
+
+  return sortedDorms.map(dorm => {
     const prices = [];
     if (dorm.price_monthly) prices.push(`รายเดือน ${dorm.price_monthly}`);
     if (dorm.price_daily) prices.push(`รายวัน ${dorm.price_daily}`);
@@ -3066,9 +3235,16 @@ function buildDormContext(dorms) {
 // Helper: ตอบแบบ rule-based ทันทีถ้าเป็นคำถามง่าย ลดภาระโมเดล
 function answerSimpleQuery(message, dorms) {
   const msg = message.toLowerCase();
+  
   // นับจำนวนทั้งหมด
   if (/ทั้งหมดกี่|กี่หอ|กี่แห่ง|ทั้งหมด/.test(msg) && /หอ/.test(msg)) {
     return `ตอนนี้มีหอพักที่เปิดอนุมัติทั้งหมด ${dorms.length} แห่งค่ะ 🏠`;
+  }
+
+  // ตรวจสอบคำถามหาหอพักราคาถูกที่สุด
+  const cheapestResponse = answerCheapestDormQuery(message, dorms);
+  if (cheapestResponse) {
+    return cheapestResponse;
   }
 
   // คำทักทาย
@@ -3128,7 +3304,8 @@ async function callGroqAI(userMessage, dormContext) {
   const API_KEY = process.env.GROQ_API_KEY;
   
   if (!API_KEY) {
-    throw new Error('GROQ_API_KEY not found');
+    console.warn('⚠️ GROQ_API_KEY not configured - using fallback response');
+    return null; // ส่งกลับ null แทนการ throw error
   }
 
   const systemPrompt = `คุณเป็นผู้ช่วยแนะนำหอพักสำหรับระบบ Smart Dorm 🏠
@@ -3160,6 +3337,9 @@ ${dormContext}
 ตอบเป็นภาษาไทยเป็นกันเอง ใช้เฉพาะข้อมูลที่มีจริงเท่านั้น ห้ามสร้างเพิ่ม`;
 
   try {
+    // เพิ่มการจัดการ TLS สำหรับ Certificate Error
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+    
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -3296,6 +3476,69 @@ app.post('/chatbot', async (req, res) => {
     res.status(500).json({ 
       error: 'ขออภัย เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง',
       message: '🤖 ขออภัยค่ะ ระบบมีปัญหาชั่วคราว กรุณาลองถามใหม่อีกครั้งหรือใช้ฟอร์มค้นหาด้านบนแทนค่ะ 😊'
+    });
+  }
+});
+
+// ==================== GEOAPIFY STATIC MAP API ====================
+// API endpoint สำหรับสร้าง Static Map URL
+app.get('/api/static-map', (req, res) => {
+  try {
+    const { lat, lng, width = 300, height = 200, zoom = 15, style = 'osm-bright' } = req.query;
+    
+    // ตรวจสอบ parameters
+    if (!lat || !lng) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters: lat, lng' 
+      });
+    }
+    
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    
+    // ตรวจสอบความถูกต้องของพิกัด
+    if (isNaN(latitude) || isNaN(longitude) || 
+        latitude < -90 || latitude > 90 || 
+        longitude < -180 || longitude > 180) {
+      return res.status(400).json({ 
+        error: 'Invalid coordinates' 
+      });
+    }
+    
+    // ตรวจสอบ Geoapify API Key
+    const GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY;
+    if (!GEOAPIFY_API_KEY) {
+      return res.status(500).json({ 
+        error: 'Geoapify API key not configured' 
+      });
+    }
+    
+    // สร้าง Static Map URL
+    const baseUrl = 'https://maps.geoapify.com/v1/staticmap';
+    const params = new URLSearchParams({
+      style: style,
+      width: parseInt(width),
+      height: parseInt(height),
+      center: `lonlat:${longitude},${latitude}`,
+      zoom: parseInt(zoom),
+      marker: `lonlat:${longitude},${latitude};type:material;color:%23ff0000;size:large`,
+      apiKey: GEOAPIFY_API_KEY
+    });
+    
+    const staticMapUrl = `${baseUrl}?${params.toString()}`;
+    
+    res.json({
+      success: true,
+      url: staticMapUrl,
+      coordinates: { latitude, longitude },
+      parameters: { width: parseInt(width), height: parseInt(height), zoom: parseInt(zoom), style }
+    });
+    
+  } catch (error) {
+    console.error('Static Map API Error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
     });
   }
 });
