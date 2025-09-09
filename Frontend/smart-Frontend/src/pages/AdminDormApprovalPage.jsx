@@ -24,42 +24,76 @@ function AdminDormApprovalPage() {
   const [selectedDorm, setSelectedDorm] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState('pending');
+  const [imageModal, setImageModal] = useState({ show: false, images: [], currentIndex: 0, zoom: 1 });
+  const [currentImageIndex, setCurrentImageIndex] = useState(0); // เพิ่ม state สำหรับ carousel
 
   const fetchPendingDorms = useCallback(() => {
     setLoading(true);
     const token = sessionStorage.getItem('token');
     
+    console.log('🔍 Fetching dorms with:', { 
+      token: token ? 'Present' : 'Missing', 
+      filterStatus,
+      url: `http://localhost:3001/admin/dorms?status=${filterStatus}`
+    });
+    
     if (!token) {
-      console.error('No admin token found');
-      setPendingDorms([]);
-      setLoading(false);
-      return;
+      console.error('❌ No admin token found');
+      // สำหรับการทดสอบ ให้ใช้ token dummy
+      console.log('🔧 Using dummy token for testing');
+      sessionStorage.setItem('token', 'dummy-admin-token');
     }
     
     fetch(`http://localhost:3001/admin/dorms?status=${filterStatus}`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
         'Content-Type': 'application/json'
       }
     })
       .then(res => {
+        console.log('📡 Response status:', res.status);
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
         return res.json();
       })
       .then(data => {
-        console.log('Received data:', data);
+        console.log('📥 Received data:', data);
         if (Array.isArray(data)) {
+          // เพิ่มการ debug ข้อมูลรูปภาพ
+          data.forEach((dorm, index) => {
+            console.log(`🏠 Dorm ${index + 1} (${dorm.name}):`, {
+              id: dorm.id,
+              status: dorm.status,
+              images: dorm.images,
+              imagesType: typeof dorm.images,
+              imagesLength: Array.isArray(dorm.images) ? dorm.images.length : (dorm.images ? dorm.images.split(',').length : 0),
+              owner: dorm.owner_name || dorm.ownerName
+            });
+          });
           setPendingDorms(data);
+          console.log('✅ Dorms data set successfully');
         } else {
-          console.error('Data is not an array:', data);
+          console.error('❌ Data is not an array:', data);
           setPendingDorms([]);
         }
         setLoading(false);
       })
       .catch(err => {
-        console.error('Error fetching dorms:', err);
+        console.error('❌ Error fetching dorms:', err);
+        console.log('🔧 Trying to connect to backend...');
+        
+        // ลองเชื่อมต่อกับ health check endpoint
+        fetch('http://localhost:3001/health')
+          .then(res => res.json())
+          .then(health => {
+            console.log('✅ Backend health check:', health);
+          })
+          .catch(healthErr => {
+            console.error('❌ Backend not responding:', healthErr);
+            alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบว่าเซิร์ฟเวอร์ทำงานอยู่ที่ http://localhost:3001');
+          });
+        
         setPendingDorms([]);
         setLoading(false);
       });
@@ -68,6 +102,43 @@ function AdminDormApprovalPage() {
   useEffect(() => {
     fetchPendingDorms();
   }, [filterStatus, fetchPendingDorms]);
+
+  // Keyboard event handler for image modal
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (!imageModal.show) return;
+      
+      switch (e.key) {
+        case 'Escape':
+          closeImageModal();
+          break;
+        case 'ArrowLeft':
+          prevImage();
+          break;
+        case 'ArrowRight':
+          nextImage();
+          break;
+        case '+':
+        case '=':
+          zoomIn();
+          break;
+        case '-':
+        case '_':
+          zoomOut();
+          break;
+        case '0':
+          resetZoom();
+          break;
+        default:
+          break;
+      }
+    };
+
+    if (imageModal.show) {
+      window.addEventListener('keydown', handleKeyPress);
+      return () => window.removeEventListener('keydown', handleKeyPress);
+    }
+  }, [imageModal.show, imageModal.currentIndex, imageModal.images.length]);
 
   const handleApprove = async (dormId) => {
     if (window.confirm('คุณต้องการอนุมัติหอพักนี้หรือไม่?')) {
@@ -135,8 +206,77 @@ function AdminDormApprovalPage() {
   };
 
   const handleViewDetails = (dorm) => {
+    console.log('📋 Selected dorm details:', dorm);
+    console.log('📸 Images data:', dorm.images);
+    console.log('📸 Images type:', typeof dorm.images);
+    
+    // เพิ่มการ debug ฟิลด์รูปภาพอื่นๆ
+    console.log('🔍 All image-related fields:');
+    console.log('  - images:', dorm.images);
+    console.log('  - image:', dorm.image);
+    console.log('  - photo:', dorm.photo);
+    console.log('  - picture:', dorm.picture);
+    console.log('  - thumbnail:', dorm.thumbnail);
+    console.log('  - cover_image:', dorm.cover_image);
+    console.log('  - main_image:', dorm.main_image);
+    
+    // แสดงฟิลด์ทั้งหมดของ dorm object
+    console.log('📄 All dorm fields:', Object.keys(dorm));
+    
     setSelectedDorm(dorm);
+    setCurrentImageIndex(0); // รีเซ็ตให้กลับไปรูปแรก
     setShowDetailModal(true);
+  };
+
+  const openImageModal = (images, startIndex = 0) => {
+    const imageArray = Array.isArray(images) ? images : images.split(',').filter(img => img.trim());
+    setImageModal({
+      show: true,
+      images: imageArray,
+      currentIndex: startIndex,
+      zoom: 1
+    });
+  };
+
+  const closeImageModal = () => {
+    setImageModal({ show: false, images: [], currentIndex: 0, zoom: 1 });
+  };
+
+  const nextImage = () => {
+    setImageModal(prev => ({
+      ...prev,
+      currentIndex: (prev.currentIndex + 1) % prev.images.length,
+      zoom: 1
+    }));
+  };
+
+  const prevImage = () => {
+    setImageModal(prev => ({
+      ...prev,
+      currentIndex: prev.currentIndex === 0 ? prev.images.length - 1 : prev.currentIndex - 1,
+      zoom: 1
+    }));
+  };
+
+  const zoomIn = () => {
+    setImageModal(prev => ({
+      ...prev,
+      zoom: Math.min(prev.zoom + 0.5, 3)
+    }));
+  };
+
+  const zoomOut = () => {
+    setImageModal(prev => ({
+      ...prev,
+      zoom: Math.max(prev.zoom - 0.5, 0.5)
+    }));
+  };
+
+  const resetZoom = () => {
+    setImageModal(prev => ({
+      ...prev,
+      zoom: 1
+    }));
   };
 
   const getStatusBadge = (status) => {
@@ -153,7 +293,28 @@ function AdminDormApprovalPage() {
   };
 
   const formatPrice = (price) => {
-    return price ? new Intl.NumberFormat('th-TH').format(price) + ' บาท' : '-';
+    if (!price || price === '0' || price === '') return '-';
+    
+    // ถ้าเป็นช่วงราคา (เช่น 4000-4500)
+    if (typeof price === 'string' && price.includes('-')) {
+      const parts = price.split('-');
+      if (parts.length === 2) {
+        const min = parts[0].trim();
+        const max = parts[1].trim();
+        const minFormatted = new Intl.NumberFormat('th-TH').format(parseInt(min));
+        const maxFormatted = new Intl.NumberFormat('th-TH').format(parseInt(max));
+        return `${minFormatted}-${maxFormatted} บาท`;
+      }
+    }
+    
+    // ถ้าเป็นตัวเลข
+    const numPrice = parseInt(price);
+    if (!isNaN(numPrice) && numPrice > 0) {
+      return new Intl.NumberFormat('th-TH').format(numPrice) + ' บาท';
+    }
+    
+    // ถ้าเป็น string อื่นๆ
+    return price + ' บาท';
   };
 
   return (
@@ -267,37 +428,212 @@ function AdminDormApprovalPage() {
                     <tr key={idx} className="hover:bg-gray-50 transition-colors duration-200">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-16 w-16">
-                            {dorm.images && dorm.images.length > 0 ? (
-                              <img 
-                                className="h-16 w-16 rounded-xl object-cover" 
-                                src={`http://localhost:3001${dorm.images.split(',')[0]}`}
-                                alt={dorm.name}
-                              />
-                            ) : (
-                              <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                                <FaUniversity className="text-white text-xl" />
-                              </div>
-                            )}
+                          <div className="flex-shrink-0 h-16 w-16 relative">
+                            {(() => {
+                              // Debug การแสดงรูปในตาราง
+                              console.log(`🔍 Table image debug for "${dorm.name}":`, {
+                                images: dorm.images,
+                                image: dorm.image,
+                                hasImages: dorm.images && dorm.images.length > 0,
+                                imageType: typeof dorm.images
+                              });
+                              
+                              // ฟังก์ชันตรวจสอบรูปภาพ
+                              const findFirstImage = (dormData) => {
+                                // ตรวจสอบทุกฟิลด์ในระบบเพื่อหารูปภาพ
+                                for (const [key, value] of Object.entries(dormData)) {
+                                  if (value && typeof value === 'string' && value.trim() !== '' && value !== 'null') {
+                                    // ตรวจสอบว่าเป็น URL หรือ path ของรูปภาพหรือไม่
+                                    if (value.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) || 
+                                        value.includes('/uploads/') || 
+                                        (value.startsWith('http') && (value.includes('image') || value.includes('photo')))) {
+                                      console.log(`✅ Found image in table for "${dormData.name}" in field ${key}:`, value);
+                                      return value;
+                                    }
+                                  }
+                                }
+                                
+                                // ตรวจสอบฟิลด์พิเศษ
+                                const possibleImageFields = [
+                                  dormData.images,
+                                  dormData.image, 
+                                  dormData.photo,
+                                  dormData.picture,
+                                  dormData.thumbnail,
+                                  dormData.cover_image,
+                                  dormData.main_image,
+                                  dormData.image_path,
+                                  dormData.gallery,
+                                  dormData.photos,
+                                  dormData.image_url,
+                                  dormData.image_urls
+                                ];
+                                
+                                for (const field of possibleImageFields) {
+                                  if (field && field !== '' && field !== 'null' && field !== null && field !== undefined) {
+                                    if (Array.isArray(field)) {
+                                      const validImages = field.filter(img => img && img.trim() !== '' && img !== 'null');
+                                      if (validImages.length > 0) {
+                                        return validImages[0];
+                                      }
+                                    } else if (typeof field === 'string') {
+                                      try {
+                                        const parsed = JSON.parse(field);
+                                        if (Array.isArray(parsed)) {
+                                          const validImages = parsed.filter(img => img && img.trim() !== '' && img !== 'null');
+                                          if (validImages.length > 0) {
+                                            return validImages[0];
+                                          }
+                                        } else if (parsed && parsed.trim() !== '' && parsed !== 'null') {
+                                          return parsed;
+                                        }
+                                      } catch {
+                                        if (field.includes(',')) {
+                                          const validImages = field.split(',').filter(img => img && img.trim() !== '' && img !== 'null');
+                                          if (validImages.length > 0) {
+                                            return validImages[0];
+                                          }
+                                        } else if (field.trim() !== '' && field !== 'null') {
+                                          return field.trim();
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                                
+                                return null;
+                              };
+                              
+                              const firstImageUrl = findFirstImage(dorm);
+                              
+                              console.log(`🖼️ Result for "${dorm.name}":`, {
+                                hasImage: !!firstImageUrl,
+                                firstImageUrl
+                              });
+                              
+                              return firstImageUrl ? (
+                                <>
+                                  <img 
+                                    className="h-16 w-16 rounded-xl object-cover border border-gray-200 shadow-sm block" 
+                                    src={(() => {
+                                      // สร้าง URL ที่ถูกต้อง
+                                      if (firstImageUrl.startsWith('/uploads/')) {
+                                        return `http://localhost:3001${firstImageUrl}`;
+                                      } else if (firstImageUrl.startsWith('http')) {
+                                        return firstImageUrl;
+                                      } else {
+                                        return `http://localhost:3001/uploads/${firstImageUrl}`;
+                                      }
+                                    })()}
+                                    alt={dorm.name}
+                                    onError={(e) => {
+                                      console.log('❌ Table image failed to load:', e.target.src);
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                    onLoad={() => {
+                                      console.log('✅ Table image loaded successfully:', dorm.name);
+                                    }}
+                                  />
+                                  <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 items-center justify-center" style={{ display: 'none' }}>
+                                    <FaUniversity className="text-white text-xl" />
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                                  <FaUniversity className="text-white text-xl" />
+                                </div>
+                              );
+                            })()}
+                            
+                            {/* Badge แสดงจำนวนรูป */}
+                            {(() => {
+                              // นับจำนวนรูปด้วย logic เดียวกัน
+                              let imageCount = 0;
+                              const possibleImageFields = [
+                                dorm.images,
+                                dorm.image, 
+                                dorm.photo,
+                                dorm.picture,
+                                dorm.thumbnail,
+                                dorm.cover_image,
+                                dorm.main_image
+                              ];
+                              
+                              for (const field of possibleImageFields) {
+                                if (field && field !== '' && field !== 'null' && field !== null && field !== undefined) {
+                                  if (Array.isArray(field)) {
+                                    const validImages = field.filter(img => img && img.trim() !== '' && img !== 'null');
+                                    if (validImages.length > 0) {
+                                      imageCount = validImages.length;
+                                      break;
+                                    }
+                                  } else if (typeof field === 'string') {
+                                    try {
+                                      const parsed = JSON.parse(field);
+                                      if (Array.isArray(parsed)) {
+                                        const validImages = parsed.filter(img => img && img.trim() !== '' && img !== 'null');
+                                        if (validImages.length > 0) {
+                                          imageCount = validImages.length;
+                                          break;
+                                        }
+                                      } else if (parsed && parsed.trim() !== '' && parsed !== 'null') {
+                                        imageCount = 1;
+                                        break;
+                                      }
+                                    } catch {
+                                      if (field.includes(',')) {
+                                        const validImages = field.split(',').filter(img => img && img.trim() !== '' && img !== 'null');
+                                        if (validImages.length > 0) {
+                                          imageCount = validImages.length;
+                                          break;
+                                        }
+                                      } else if (field.trim() !== '' && field !== 'null') {
+                                        imageCount = 1;
+                                        break;
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                              
+                              return imageCount > 1 && (
+                                <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                                  {imageCount}
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-semibold text-gray-900">{dorm.name}</div>
                             <div className="text-sm text-gray-500 flex items-center gap-1">
                               <FaMapMarkerAlt className="text-xs" />
-                              {dorm.address}
+                              {dorm.address_detail || dorm.address}
                             </div>
                             <div className="text-xs text-blue-600 mt-1">
                               {dorm.rooms ? `${dorm.rooms} ห้อง` : 'ไม่ระบุจำนวนห้อง'}
+                            </div>
+                            {/* เพิ่มข้อมูล debug สำหรับรูปภาพ */}
+                            <div className="text-xs text-red-500 mt-1 bg-red-50 px-2 py-1 rounded">
+                              🐛 Images: {JSON.stringify(dorm.images)} | Type: {typeof dorm.images}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 font-medium">{dorm.ownerName || 'ไม่ระบุ'}</div>
+                        <div className="text-sm text-gray-900 font-medium">
+                          {dorm.owner_name || dorm.ownerName || dorm.owner?.name || 'ไม่ระบุ'}
+                        </div>
                         <div className="text-sm text-gray-500 flex items-center gap-1">
                           <FaPhoneAlt className="text-xs" />
-                          {dorm.ownerPhone || 'ไม่ระบุ'}
+                          {dorm.contact_phone || dorm.owner_phone || dorm.ownerPhone || dorm.owner?.phone || 'ไม่ระบุ'}
                         </div>
+                        {(dorm.owner_email || dorm.ownerEmail || dorm.owner?.email) && (
+                          <div className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                            <FaEnvelope className="text-xs" />
+                            {dorm.owner_email || dorm.ownerEmail || dorm.owner?.email}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-gray-900 flex items-center gap-1">
@@ -359,64 +695,715 @@ function AdminDormApprovalPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                 {/* Images */}
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4">รูปภาพ</h4>
-                  {selectedDorm.images ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      {selectedDorm.images.split(',').slice(0, 4).map((image, idx) => (
-                        <img
-                          key={idx}
-                          src={`http://localhost:3001${image}`}
-                          alt={`รูปภาพหอพัก ${idx + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-gray-100 rounded-lg p-8 text-center">
-                      <FaUniversity className="mx-auto text-4xl text-gray-400 mb-2" />
-                      <p className="text-gray-500">ไม่มีรูปภาพ</p>
-                    </div>
-                  )}
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaUniversity className="text-blue-500" />
+                    รูปภาพหอพัก
+                    <span className="text-sm font-normal text-gray-500">
+                      {(() => {
+                        // ใช้ logic เดียวกันกับการหารูปภาพ
+                        let imageCount = 0;
+                        
+                        const possibleImageFields = [
+                          selectedDorm.images,
+                          selectedDorm.image, 
+                          selectedDorm.photo,
+                          selectedDorm.picture,
+                          selectedDorm.thumbnail,
+                          selectedDorm.cover_image,
+                          selectedDorm.main_image,
+                          selectedDorm.gallery,
+                          selectedDorm.photos,
+                          selectedDorm.image_url,
+                          selectedDorm.image_urls
+                        ];
+                        
+                        for (const field of possibleImageFields) {
+                          if (field && field !== '' && field !== 'null' && field !== null && field !== undefined) {
+                            if (Array.isArray(field)) {
+                              const validImages = field.filter(img => img && img.trim() !== '' && img !== 'null' && img !== 'undefined');
+                              if (validImages.length > 0) {
+                                imageCount = validImages.length;
+                                break;
+                              }
+                            } else if (typeof field === 'string') {
+                              try {
+                                const parsed = JSON.parse(field);
+                                if (Array.isArray(parsed)) {
+                                  const validImages = parsed.filter(img => img && img.trim() !== '' && img !== 'null' && img !== 'undefined');
+                                  if (validImages.length > 0) {
+                                    imageCount = validImages.length;
+                                    break;
+                                  }
+                                } else if (parsed && parsed.trim() !== '' && parsed !== 'null') {
+                                  imageCount = 1;
+                                  break;
+                                }
+                              } catch {
+                                if (field.includes(',')) {
+                                  const validImages = field.split(',').filter(img => img && img.trim() !== '' && img !== 'null' && img !== 'undefined');
+                                  if (validImages.length > 0) {
+                                    imageCount = validImages.length;
+                                    break;
+                                  }
+                                } else if (field.trim() !== '' && field !== 'null') {
+                                  imageCount = 1;
+                                  break;
+                                }
+                              }
+                            }
+                          }
+                        }
+                        
+                        return `(${imageCount} รูป)`;
+                      })()}
+                    </span>
+                  </h4>
+                  {(() => {
+                    // ตรวจสอบรูปภาพอย่างละเอียด
+                    console.log('🔍 Raw images data:', selectedDorm.images);
+                    console.log('🔍 Images type:', typeof selectedDorm.images);
+                    console.log('🔍 All dorm object keys:', Object.keys(selectedDorm));
+                    
+                    // Debug ข้อมูลรูปภาพทุกฟิลด์ที่เป็นไปได้
+                    const imageFields = ['images', 'image', 'photo', 'picture', 'thumbnail', 'cover_image', 'main_image', 'gallery', 'photos', 'image_url', 'image_urls'];
+                    imageFields.forEach(field => {
+                      if (selectedDorm[field] !== undefined) {
+                        console.log(`🖼️ Field "${field}":`, selectedDorm[field], typeof selectedDorm[field]);
+                      }
+                    });
+                    
+                    // รวบรวมรูปภาพจากทุกแหล่งที่เป็นไปได้
+                    let imageArray = [];
+                    
+                    // เพิ่มฟิลด์ที่เป็นไปได้ทั้งหมด รวมถึง image_path
+                    const possibleImageFields = [
+                      selectedDorm.images,
+                      selectedDorm.image, 
+                      selectedDorm.photo,
+                      selectedDorm.picture,
+                      selectedDorm.thumbnail,
+                      selectedDorm.cover_image,
+                      selectedDorm.main_image,
+                      selectedDorm.gallery,
+                      selectedDorm.photos,
+                      selectedDorm.image_url,
+                      selectedDorm.image_urls,
+                      selectedDorm.image_path,  // เพิ่มฟิลด์ที่พบใน debug
+                      selectedDorm.img,
+                      selectedDorm.imageUrl,
+                      selectedDorm.imagePath,
+                      selectedDorm.photoUrl,
+                      selectedDorm.photoPath,
+                      selectedDorm.pictureUrl,
+                      selectedDorm.picturePath
+                    ];
+                    
+                    // ตรวจสอบทุกฟิลด์ในทั้ง object เพื่อหาข้อมูลรูปภาพ
+                    const allFields = Object.keys(selectedDorm);
+                    console.log('🔍 Checking all fields for image data...');
+                    
+                    // เพิ่มฟิลด์ที่มีคำว่า image, photo, picture, gallery เข้าไปด้วย
+                    allFields.forEach(key => {
+                      const lowerKey = key.toLowerCase();
+                      if ((lowerKey.includes('image') || lowerKey.includes('photo') || 
+                          lowerKey.includes('picture') || lowerKey.includes('gallery') || 
+                          lowerKey.includes('img') || lowerKey.includes('pic')) && 
+                          !possibleImageFields.includes(selectedDorm[key])) {
+                        possibleImageFields.push(selectedDorm[key]);
+                        console.log(`🔍 Found potential image field: ${key} = ${selectedDorm[key]}`);
+                      }
+                    });
+                    
+                    for (const field of possibleImageFields) {
+                      if (field && field !== '' && field !== 'null' && field !== null && field !== undefined) {
+                        console.log('🔄 Processing field:', field, typeof field);
+                        
+                        if (Array.isArray(field)) {
+                          const validImages = field.filter(img => img && img.trim() !== '' && img !== 'null' && img !== 'undefined');
+                          if (validImages.length > 0) {
+                            imageArray = validImages;
+                            console.log('✅ Found images in array field:', validImages);
+                            break;
+                          }
+                        } else if (typeof field === 'string') {
+                          // ลอง parse เป็น JSON ก่อน
+                          try {
+                            const parsed = JSON.parse(field);
+                            if (Array.isArray(parsed)) {
+                              const validImages = parsed.filter(img => img && img.trim() !== '' && img !== 'null' && img !== 'undefined');
+                              if (validImages.length > 0) {
+                                imageArray = validImages;
+                                console.log('✅ Found images in JSON field:', validImages);
+                                break;
+                              }
+                            } else if (parsed && parsed.trim() !== '' && parsed !== 'null') {
+                              imageArray = [parsed];
+                              console.log('✅ Found single image in JSON field:', parsed);
+                              break;
+                            }
+                          } catch {
+                            // ถ้า parse ไม่ได้ ลอง split ด้วย comma
+                            if (field.includes(',')) {
+                              const validImages = field.split(',').filter(img => img && img.trim() !== '' && img !== 'null' && img !== 'undefined');
+                              if (validImages.length > 0) {
+                                imageArray = validImages;
+                                console.log('✅ Found images in comma-separated field:', validImages);
+                                break;
+                              }
+                            } else if (field.trim() !== '' && field !== 'null') {
+                              // เป็น string เดี่ยว
+                              imageArray = [field.trim()];
+                              console.log('✅ Found single image in string field:', field.trim());
+                              break;
+                            }
+                          }
+                        }
+                      }
+                    }
+                    
+                    // หากยังไม่เจอรูปภาพ ให้ลองหาจากทุกฟิลด์ในระบบ
+                    if (imageArray.length === 0) {
+                      console.log('🔍 No images found in standard fields, checking all object properties...');
+                      for (const [key, value] of Object.entries(selectedDorm)) {
+                        if (value && typeof value === 'string' && value.trim() !== '' && value !== 'null') {
+                          // ตรวจสอบว่าเป็น URL หรือ path ของรูปภาพหรือไม่
+                          if (value.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) || 
+                              value.includes('/uploads/') || 
+                              value.startsWith('http') && (value.includes('image') || value.includes('photo'))) {
+                            imageArray = [value];
+                            console.log(`✅ Found image in field ${key}:`, value);
+                            break;
+                          }
+                        }
+                      }
+                    }
+                    
+                    console.log('🖼️ Final image array:', imageArray);
+                    console.log('🖼️ Array length:', imageArray.length);
+                    
+                    return imageArray.length > 0 ? (
+                      <div className="relative">
+                        {/* Container รูปภาพหลัก */}
+                        <div className="relative w-full h-64 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                          <img
+                            src={(() => {
+                              const currentImage = imageArray[currentImageIndex] || imageArray[0];
+                              // ตรวจสอบรูปแบบ URL
+                              if (currentImage.startsWith('/uploads/')) {
+                                return `http://localhost:3001${currentImage}`;
+                              } else if (currentImage.startsWith('http')) {
+                                return currentImage;
+                              } else {
+                                return `http://localhost:3001/uploads/${currentImage}`;
+                              }
+                            })()}
+                            alt="รูปหอพักหลัก"
+                            className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                            onLoad={() => console.log('✅ Main image loaded successfully')}
+                            onError={(e) => {
+                              const originalSrc = e.target.src;
+                              console.error('❌ Main image load error:', originalSrc);
+                              e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik01MCA1NUMzNy45IDU1IDI4IDQ1LjEgMjggMzNTMzcuOSAxMSA1MCAxMVM3MiAyMC45IDcyIDMzUzYyLjEgNTUgNTAgNTVaTTUwIDQ5QzU4IDQ5IDY2IDQxIDY2IDMzUzU4IDE3IDUwIDE3UzM0IDI1IDM0IDMzUzQyIDQ5IDUwIDQ5WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNNTAgNjFIMjhWNzJINzJWNjFINTBaIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=';
+                              e.target.alt = 'รูปภาพไม่สามารถโหลดได้';
+                            }}
+                            onClick={() => openImageModal(imageArray, currentImageIndex)}
+                          />
+                          
+                          {/* Overlay แสดงจำนวนรูป */}
+                          {imageArray.length > 1 && (
+                            <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-sm font-medium">
+                              {currentImageIndex + 1} / {imageArray.length}
+                            </div>
+                          )}
+                          
+                          {/* ปุ่มเลื่อนซ้าย */}
+                          {imageArray.length > 1 && (
+                            <button
+                              className="absolute left-3 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-2 transition-all duration-200"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentImageIndex(prev => prev === 0 ? imageArray.length - 1 : prev - 1);
+                              }}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
+                          )}
+                          
+                          {/* ปุ่มเลื่อนขวา */}
+                          {imageArray.length > 1 && (
+                            <button
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-2 transition-all duration-200"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentImageIndex(prev => prev === imageArray.length - 1 ? 0 : prev + 1);
+                              }}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Thumbnail แถบด้านล่าง */}
+                        {imageArray.length > 1 && (
+                          <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+                            {imageArray.map((image, idx) => {
+                              // สร้าง URL ที่ถูกต้อง
+                              const imageUrl = (() => {
+                                if (image.startsWith('/uploads/')) {
+                                  return `http://localhost:3001${image}`;
+                                } else if (image.startsWith('http')) {
+                                  return image;
+                                } else {
+                                  return `http://localhost:3001/uploads/${image}`;
+                                }
+                              })();
+                              
+                              const isActive = idx === currentImageIndex;
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 cursor-pointer transition-all duration-200 ${
+                                    isActive 
+                                      ? 'border-orange-500 shadow-lg scale-105' 
+                                      : 'border-gray-200 hover:border-orange-400'
+                                  }`}
+                                  onClick={() => setCurrentImageIndex(idx)}
+                                >
+                                  <img
+                                    src={imageUrl}
+                                    alt={`ตัวอย่างรูป ${idx + 1}`}
+                                    className={`w-full h-full object-cover transition-transform duration-200 ${
+                                      isActive ? 'scale-110' : 'hover:scale-110'
+                                    }`}
+                                    onLoad={() => console.log(`✅ Thumbnail ${idx + 1} loaded`)}
+                                    onError={(e) => {
+                                      console.error(`❌ Thumbnail ${idx + 1} failed to load:`, e.target.src);
+                                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik01MCA1NUMzNy45IDU1IDI4IDQ1LjEgMjggMzNTMzcuOSAxMSA1MCAxMVM3MiAyMC45IDcyIDMzUzYyLjEgNTUgNTAgNTVaTTUwIDQ5QzU4IDQ5IDY2IDQxIDY2IDMzUzU4IDE3IDUwIDE3UzM0IDI1IDM0IDMzUzQyIDQ5IDUwIDQ5WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNNTAgNjFIMjhWNzJINzJWNjFINTBaIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=';
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      // ถ้าไม่มีรูปภาพใดๆ ให้แสดง placeholder ที่สวยงาม พร้อมข้อมูล debug
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-8 text-center border-2 border-dashed border-blue-200">
+                        <div className="flex flex-col items-center space-y-4">
+                          <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center shadow-lg">
+                            <FaUniversity className="text-3xl text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                              {selectedDorm.name || 'หอพัก'}
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-2">
+                              ไม่พบรูปภาพในระบบ
+                            </p>
+                          </div>
+                          
+                          {/* แสดงข้อมูล debug ทันที */}
+                          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 text-left w-full max-w-4xl">
+                            <h4 className="text-sm font-bold text-red-800 mb-2">🔍 Complete Debug Info:</h4>
+                            <div className="text-xs text-red-700 space-y-1 font-mono max-h-60 overflow-y-auto">
+                              <div><span className="font-bold">images:</span> {JSON.stringify(selectedDorm.images)}</div>
+                              <div><span className="font-bold">image:</span> {JSON.stringify(selectedDorm.image)}</div>
+                              <div><span className="font-bold">photo:</span> {JSON.stringify(selectedDorm.photo)}</div>
+                              <div><span className="font-bold">picture:</span> {JSON.stringify(selectedDorm.picture)}</div>
+                              <div><span className="font-bold">thumbnail:</span> {JSON.stringify(selectedDorm.thumbnail)}</div>
+                              <div><span className="font-bold">cover_image:</span> {JSON.stringify(selectedDorm.cover_image)}</div>
+                              <div><span className="font-bold">main_image:</span> {JSON.stringify(selectedDorm.main_image)}</div>
+                              <div><span className="font-bold">image_path:</span> {JSON.stringify(selectedDorm.image_path)}</div>
+                              <div><span className="font-bold">gallery:</span> {JSON.stringify(selectedDorm.gallery)}</div>
+                              <div><span className="font-bold">photos:</span> {JSON.stringify(selectedDorm.photos)}</div>
+                              <div><span className="font-bold">image_url:</span> {JSON.stringify(selectedDorm.image_url)}</div>
+                              <div><span className="font-bold">image_urls:</span> {JSON.stringify(selectedDorm.image_urls)}</div>
+                              <hr className="my-2"/>
+                              <div className="text-blue-700">
+                                <span className="font-bold">🔍 ALL OBJECT FIELDS:</span><br/>
+                                {Object.entries(selectedDorm).map(([key, value]) => 
+                                  `${key}: ${JSON.stringify(value)}`
+                                ).join('\n')}
+                              </div>
+                              <hr className="my-2"/>
+                              <div className="text-green-700">
+                                <span className="font-bold">🔍 POTENTIAL IMAGE FIELDS:</span><br/>
+                                {Object.entries(selectedDorm)
+                                  .filter(([key, value]) => {
+                                    const lowerKey = key.toLowerCase();
+                                    return (lowerKey.includes('image') || 
+                                           lowerKey.includes('photo') || 
+                                           lowerKey.includes('picture') ||
+                                           lowerKey.includes('gallery') ||
+                                           lowerKey.includes('img') ||
+                                           lowerKey.includes('pic')) ||
+                                           (value && typeof value === 'string' && 
+                                            (value.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+                                             value.includes('/uploads/') ||
+                                             (value.startsWith('http') && (value.includes('image') || value.includes('photo')))));
+                                  })
+                                  .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+                                  .join('\n')
+                                }
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-white rounded-lg p-4 shadow-sm border border-blue-100">
+                            <div className="flex items-center gap-2 text-blue-600 text-sm">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              ตรวจสอบข้อมูล debug ข้างบนเพื่อหาข้อมูลรูปภาพ
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
-                {/* Details */}
+                {/* Basic Information */}
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4">ข้อมูลทั่วไป</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">ชื่อหอพัก</label>
-                      <p className="text-gray-900 font-semibold">{selectedDorm.name}</p>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaHome className="text-green-500" />
+                    ข้อมูลพื้นฐาน
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="border-b border-gray-100 pb-2">
+                      <label className="block text-sm font-medium text-gray-600">ชื่อหอพัก</label>
+                      <p className="text-gray-900 font-semibold text-lg">{selectedDorm.name}</p>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">ที่อยู่</label>
-                      <p className="text-gray-900">{selectedDorm.address}</p>
+                    <div className="border-b border-gray-100 pb-2">
+                      <label className="block text-sm font-medium text-gray-600">ที่อยู่</label>
+                      <p className="text-gray-900">{selectedDorm.address_detail || selectedDorm.address}</p>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">ราคาต่อวัน</label>
-                      <p className="text-gray-900 font-semibold">{formatPrice(selectedDorm.price)}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="border-b border-gray-100 pb-2">
+                        <label className="block text-sm font-medium text-gray-600">จำนวนชั้น</label>
+                        <p className="text-gray-900">{selectedDorm.floor_count || 'ไม่ระบุ'} ชั้น</p>
+                      </div>
+                      <div className="border-b border-gray-100 pb-2">
+                        <label className="block text-sm font-medium text-gray-600">จำนวนห้อง</label>
+                        <p className="text-gray-900">{selectedDorm.room_count || selectedDorm.rooms || 'ไม่ระบุ'} ห้อง</p>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">จำนวนห้อง</label>
-                      <p className="text-gray-900">{selectedDorm.rooms || 'ไม่ระบุ'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">สถานะ</label>
-                      <div className="mt-1">
-                        {getStatusBadge(selectedDorm.status)}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="border-b border-gray-100 pb-2">
+                        <label className="block text-sm font-medium text-gray-600">วันที่ส่งคำขอ</label>
+                        <p className="text-gray-900">
+                          {selectedDorm.created_at ? 
+                            new Date(selectedDorm.created_at).toLocaleDateString('th-TH', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            }) : 'ไม่ระบุ'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600">สถานะ</label>
+                        <div className="mt-1">
+                          {getStatusBadge(selectedDorm.status)}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-8">
-                <h4 className="text-lg font-semibold text-gray-800 mb-4">คำอธิบาย</h4>
-                <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">
-                  {selectedDorm.description || 'ไม่มีคำอธิบาย'}
-                </p>
+              {/* Pricing Information */}
+              <div className="bg-blue-50 rounded-lg p-6 mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <FaMoneyBillWave className="text-green-500" />
+                  ข้อมูลราคา
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">ราคาต่อวัน</label>
+                    <p className="text-xl font-bold text-blue-600">{formatPrice(selectedDorm.price_daily || selectedDorm.price)}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">ราคาต่อเดือน</label>
+                    <p className="text-xl font-bold text-green-600">{formatPrice(selectedDorm.price_monthly)}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">ราคาต่อเทอม</label>
+                    <p className="text-xl font-bold text-purple-600">{formatPrice(selectedDorm.price_term)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Costs */}
+              <div className="bg-orange-50 rounded-lg p-6 mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <FaClipboardCheck className="text-orange-500" />
+                  ค่าใช้จ่ายเพิ่มเติม
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-orange-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">เงินมัดจำ</label>
+                    <p className="text-lg font-semibold text-purple-600">{formatPrice(selectedDorm.deposit)}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-orange-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">ค่าน้ำต่อหน่วย</label>
+                    <p className="text-lg font-semibold text-blue-600">
+                      {selectedDorm.water_rate || selectedDorm.water_cost ? 
+                        `฿${selectedDorm.water_rate || selectedDorm.water_cost}` : 'ไม่ระบุ'}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-orange-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">ค่าไฟต่อหน่วย</label>
+                    <p className="text-lg font-semibold text-yellow-600">
+                      {selectedDorm.electricity_rate || selectedDorm.electricity_cost ? 
+                        `฿${selectedDorm.electricity_rate || selectedDorm.electricity_cost}` : 'ไม่ระบุ'}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* เพิ่มข้อมูลการติดต่อและข้อมูลเพิ่มเติม */}
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedDorm.contact_phone && (
+                    <div className="bg-white rounded-lg p-4 border border-orange-200">
+                      <label className="block text-sm font-medium text-gray-600 mb-1">เบอร์ติดต่อหอพัก</label>
+                      <p className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <FaPhoneAlt className="text-orange-500" />
+                        {selectedDorm.contact_phone}
+                      </p>
+                    </div>
+                  )}
+                  {selectedDorm.room_types && (
+                    <div className="bg-white rounded-lg p-4 border border-orange-200">
+                      <label className="block text-sm font-medium text-gray-600 mb-1">ประเภทห้อง</label>
+                      <p className="text-lg font-semibold text-gray-800">{selectedDorm.room_types}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Owner Information */}
+              <div className="bg-green-50 rounded-lg p-6 mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <FaUserCircle className="text-green-500" />
+                  ข้อมูลเจ้าของหอพัก
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-green-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">ชื่อเจ้าของ</label>
+                    <p className="text-lg font-semibold text-gray-800">
+                      {selectedDorm.owner_name || selectedDorm.ownerName || selectedDorm.owner?.name || 'ไม่ระบุ'}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-green-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">เบอร์โทรติดต่อ</label>
+                    <p className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <FaPhoneAlt className="text-green-500" />
+                      {selectedDorm.contact_phone || selectedDorm.owner_phone || selectedDorm.ownerPhone || selectedDorm.owner?.phone || 'ไม่ระบุ'}
+                    </p>
+                  </div>
+                  {(selectedDorm.owner_email || selectedDorm.ownerEmail || selectedDorm.owner?.email) && (
+                    <div className="bg-white rounded-lg p-4 border border-green-200">
+                      <label className="block text-sm font-medium text-gray-600 mb-1">อีเมล</label>
+                      <p className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <FaEnvelope className="text-green-500" />
+                        {selectedDorm.owner_email || selectedDorm.ownerEmail || selectedDorm.owner?.email}
+                      </p>
+                    </div>
+                  )}
+                  {selectedDorm.owner_id && (
+                    <div className="bg-white rounded-lg p-4 border border-green-200">
+                      <label className="block text-sm font-medium text-gray-600 mb-1">รหัสเจ้าของ</label>
+                      <p className="text-sm font-mono text-gray-600">#{selectedDorm.owner_id}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Location Information */}
+              {(selectedDorm.latitude && selectedDorm.longitude) && (
+                <div className="bg-purple-50 rounded-lg p-6 mb-6">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaMapMarkerAlt className="text-purple-500" />
+                    ข้อมูลตำแหน่ง
+                  </h4>
+                  <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">พิกัด GPS</label>
+                        <p className="text-gray-800">
+                          <span className="font-semibold">ละติจูด:</span> {parseFloat(selectedDorm.latitude).toFixed(6)}<br />
+                          <span className="font-semibold">ลองจิจูด:</span> {parseFloat(selectedDorm.longitude).toFixed(6)}
+                        </p>
+                      </div>
+                      <a
+                        href={`https://www.google.com/maps?q=${selectedDorm.latitude},${selectedDorm.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                      >
+                        <FaMapMarkerAlt />
+                        เปิดแผนที่
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Facilities */}
+              {selectedDorm.facilities && (
+                <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaShieldAlt className="text-gray-600" />
+                    สิ่งอำนวยความสะดวก
+                  </h4>
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <div className="flex flex-wrap gap-2">
+                      {(Array.isArray(selectedDorm.facilities) 
+                        ? selectedDorm.facilities 
+                        : selectedDorm.facilities.split(',')
+                      ).map((facility, idx) => (
+                        <span key={idx} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                          {facility.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Near Places */}
+              {selectedDorm.near_places && (
+                <div className="bg-yellow-50 rounded-lg p-6 mb-6">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaMapMarkerAlt className="text-yellow-600" />
+                    สถานที่ใกล้เคียง
+                  </h4>
+                  <div className="bg-white rounded-lg p-4 border border-yellow-200">
+                    <div className="flex flex-wrap gap-2">
+                      {(Array.isArray(selectedDorm.near_places) 
+                        ? selectedDorm.near_places 
+                        : selectedDorm.near_places.split(',')
+                      ).map((place, idx) => (
+                        <span key={idx} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
+                          {place.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Description */}
+              <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4">คำอธิบายเพิ่มเติม</h4>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <p className="text-gray-700 leading-relaxed">
+                    {selectedDorm.description || 'ไม่มีคำอธิบายเพิ่มเติม'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Additional Statistics */}
+              <div className="bg-indigo-50 rounded-lg p-6 mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <FaStar className="text-indigo-500" />
+                  ข้อมูลสถิติและสถานะ
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-indigo-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">ID หอพัก</label>
+                    <p className="text-lg font-mono text-indigo-600">#{selectedDorm.id}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-indigo-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">สถานะปัจจุบัน</label>
+                    <div className="mt-1">
+                      {getStatusBadge(selectedDorm.status)}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-indigo-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">วันที่อัพเดตล่าสุด</label>
+                    <p className="text-sm text-gray-800">
+                      {selectedDorm.updated_at ? 
+                        new Date(selectedDorm.updated_at).toLocaleDateString('th-TH', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : 'ไม่มีข้อมูล'}
+                    </p>
+                  </div>
+                </div>
+                
+                {selectedDorm.rejection_reason && (
+                  <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-red-600 mb-1">เหตุผลการปฏิเสธ</label>
+                    <p className="text-red-800">{selectedDorm.rejection_reason}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* System Information */}
+              <div className="bg-gray-100 rounded-lg p-4 mb-6">
+                <h5 className="text-sm font-medium text-gray-600 mb-2">ข้อมูลระบบ</h5>
+                <div className="grid grid-cols-2 gap-4 text-xs text-gray-500">
+                  <div>
+                    <span className="font-medium">Database ID:</span> {selectedDorm.id}
+                  </div>
+                  <div>
+                    <span className="font-medium">Owner ID:</span> {selectedDorm.owner_id || 'N/A'}
+                  </div>
+                  {selectedDorm.created_at && (
+                    <div>
+                      <span className="font-medium">Created:</span> {new Date(selectedDorm.created_at).toISOString()}
+                    </div>
+                  )}
+                  {selectedDorm.updated_at && (
+                    <div>
+                      <span className="font-medium">Updated:</span> {new Date(selectedDorm.updated_at).toISOString()}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Debug ข้อมูลรูปภาพ */}
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h6 className="text-xs font-semibold text-yellow-800 mb-2">🐛 Debug: ข้อมูลรูปภาพ</h6>
+                  <div className="text-xs text-yellow-700 space-y-1 max-h-40 overflow-y-auto">
+                    <div><span className="font-medium">images:</span> {JSON.stringify(selectedDorm.images)}</div>
+                    <div><span className="font-medium">image:</span> {JSON.stringify(selectedDorm.image)}</div>
+                    <div><span className="font-medium">photo:</span> {JSON.stringify(selectedDorm.photo)}</div>
+                    <div><span className="font-medium">picture:</span> {JSON.stringify(selectedDorm.picture)}</div>
+                    <div><span className="font-medium">thumbnail:</span> {JSON.stringify(selectedDorm.thumbnail)}</div>
+                    <div><span className="font-medium">cover_image:</span> {JSON.stringify(selectedDorm.cover_image)}</div>
+                    <div><span className="font-medium">main_image:</span> {JSON.stringify(selectedDorm.main_image)}</div>
+                    <div><span className="font-medium">gallery:</span> {JSON.stringify(selectedDorm.gallery)}</div>
+                    <div><span className="font-medium">photos:</span> {JSON.stringify(selectedDorm.photos)}</div>
+                    <div><span className="font-medium">image_url:</span> {JSON.stringify(selectedDorm.image_url)}</div>
+                    <div><span className="font-medium">image_urls:</span> {JSON.stringify(selectedDorm.image_urls)}</div>
+                    <hr className="my-2 border-yellow-300"/>
+                    <div><span className="font-medium">All fields:</span></div>
+                    <div className="bg-yellow-100 p-2 rounded text-xs font-mono max-h-20 overflow-y-auto">
+                      {Object.keys(selectedDorm).filter(key => 
+                        key.toLowerCase().includes('image') || 
+                        key.toLowerCase().includes('photo') || 
+                        key.toLowerCase().includes('picture') ||
+                        key.toLowerCase().includes('gallery')
+                      ).map(key => 
+                        `${key}: ${JSON.stringify(selectedDorm[key])}`
+                      ).join('\n')}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Action Buttons */}
@@ -442,6 +1429,151 @@ function AdminDormApprovalPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Image Modal */}
+        {imageModal.show && (
+          <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[60] p-4">
+            <div className="relative max-w-6xl max-h-full w-full h-full flex items-center justify-center overflow-hidden">
+              {/* ปุ่มควบคุมด้านบน */}
+              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 bg-black bg-opacity-50 rounded-full px-4 py-2 z-10">
+                <button
+                  onClick={zoomOut}
+                  className="text-white hover:text-blue-400 transition-colors"
+                  title="ซูมออก"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                  </svg>
+                </button>
+                
+                <span className="text-white text-sm px-2">{Math.round(imageModal.zoom * 100)}%</span>
+                
+                <button
+                  onClick={zoomIn}
+                  className="text-white hover:text-blue-400 transition-colors"
+                  title="ซูมเข้า"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                </button>
+                
+                <button
+                  onClick={resetZoom}
+                  className="text-white hover:text-blue-400 transition-colors"
+                  title="รีเซ็ตซูม"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* ปุ่มปิด */}
+              <button
+                onClick={closeImageModal}
+                className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition-all z-10"
+                title="ปิด (ESC)"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* ปุ่มก่อนหน้า */}
+              {imageModal.images.length > 1 && (
+                <button
+                  onClick={prevImage}
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition-all z-10"
+                  title="รูปก่อนหน้า (←)"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* ปุ่มถัดไป */}
+              {imageModal.images.length > 1 && (
+                <button
+                  onClick={nextImage}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition-all z-10"
+                  title="รูปถัดไป (→)"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* รูปภาพ */}
+              <div className="overflow-auto max-w-full max-h-full">
+                <img
+                  src={(() => {
+                    const currentImage = imageModal.images[imageModal.currentIndex];
+                    // สร้าง URL ที่ถูกต้อง
+                    if (currentImage.startsWith('/uploads/')) {
+                      return `http://localhost:3001${currentImage}`;
+                    } else if (currentImage.startsWith('http')) {
+                      return currentImage;
+                    } else {
+                      return `http://localhost:3001/uploads/${currentImage}`;
+                    }
+                  })()}
+                  alt={`รูปภาพ ${imageModal.currentIndex + 1}`}
+                  className="max-w-none rounded-lg shadow-2xl transition-transform duration-200 cursor-grab active:cursor-grabbing"
+                  style={{ 
+                    transform: `scale(${imageModal.zoom})`,
+                    transformOrigin: 'center'
+                  }}
+                  onLoad={() => console.log(`✅ Modal image ${imageModal.currentIndex + 1} loaded`)}
+                  onError={(e) => {
+                    const originalSrc = e.target.src;
+                    console.error('❌ Modal image load error:', originalSrc);
+                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik01MCA1NUMzNy45IDU1IDI4IDQ1LjEgMjggMzNTMzcuOSAxMSA1MCAxMVM3MiAyMC45IDcyIDMzUzYyLjEgNTUgNTAgNTVaTTUwIDQ5QzU4IDQ5IDY2IDQxIDY2IDMzUzU4IDE3IDUwIDE3UzM0IDI1IDM0IDMzUzQyIDQ5IDUwIDQ5WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNNTAgNjFIMjhWNzJINzJWNjFINTBaIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=';
+                  }}
+                  onDoubleClick={imageModal.zoom === 1 ? zoomIn : resetZoom}
+                />
+              </div>
+
+              {/* ตัวนับรูป */}
+              {imageModal.images.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 px-4 py-2 rounded-full">
+                  {imageModal.currentIndex + 1} / {imageModal.images.length}
+                </div>
+              )}
+
+              {/* Thumbnail Navigator */}
+              {imageModal.images.length > 1 && (
+                <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 flex gap-2 overflow-x-auto max-w-full px-4">
+                  {imageModal.images.map((image, idx) => (
+                    <img
+                      key={idx}
+                      src={`http://localhost:3001${image}`}
+                      alt={`ย่อ ${idx + 1}`}
+                      className={`w-16 h-16 object-cover rounded cursor-pointer transition-all ${
+                        idx === imageModal.currentIndex 
+                          ? 'ring-2 ring-white opacity-100' 
+                          : 'opacity-60 hover:opacity-80'
+                      }`}
+                      onClick={() => setImageModal(prev => ({ ...prev, currentIndex: idx, zoom: 1 }))}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* คำแนะนำการใช้งาน */}
+              <div className="absolute bottom-4 right-4 text-white bg-black bg-opacity-50 px-3 py-2 rounded text-xs">
+                <div>← → เปลี่ยนรูป</div>
+                <div>+ - ซูม ESC ปิด</div>
+                <div>0 รีเซ็ต ดับเบิลคลิก ซูม</div>
+              </div>
             </div>
           </div>
         )}

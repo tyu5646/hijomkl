@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FaUser, FaEnvelope, FaPhone, FaEdit, FaTrashAlt, FaSearch, FaUserPlus } from 'react-icons/fa';
+import { 
+  FaUser, FaEnvelope, FaPhone, FaEdit, FaTrashAlt, FaSearch, FaUserPlus,
+  FaCalendarAlt, FaMapMarkerAlt, FaIdCard, FaKey, FaTimes, FaCheck,
+  FaUserShield, FaUserTie, FaUserFriends, FaSave
+} from 'react-icons/fa';
 import AdminSidebar from '../components/AdminSidebar';
 
 const AdminUserManager = () => {
@@ -397,226 +401,447 @@ const AdminUserManager = () => {
 
         {/* Add User Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">เพิ่มผู้ใช้ใหม่</h3>
-              <form onSubmit={handleAddUser} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">สถานะ</label>
-                    <select
-                      name="role"
-                      value={form.role}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="customer">ลูกค้า</option>
-                      <option value="owner">เจ้าของหอพัก</option>
-                      <option value="admin">ผู้ดูแลระบบ</option>
-                    </select>
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-8 py-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-white bg-opacity-20 p-3 rounded-full">
+                      <FaUserPlus className="text-2xl" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold">เพิ่มผู้ใช้ใหม่</h3>
+                      <p className="text-green-100 mt-1">สร้างบัญชีผู้ใช้ใหม่ในระบบ</p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อ</label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={form.firstName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">นามสกุล</label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={form.lastName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">อีเมล</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={form.email}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">รหัสผ่าน</label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={form.password}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">เบอร์โทร</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={form.phone}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                {form.role === 'owner' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อหอพัก</label>
-                    <input
-                      type="text"
-                      name="dormName"
-                      value={form.dormName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-
-                <div className="flex justify-end space-x-4 pt-6">
                   <button
-                    type="button"
                     onClick={() => {
                       setShowAddModal(false);
                       resetForm();
                     }}
-                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+                    className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-full transition-all duration-200"
                   >
-                    ยกเลิก
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-colors"
-                  >
-                    เพิ่มผู้ใช้
+                    <FaTimes className="text-xl" />
                   </button>
                 </div>
-              </form>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-8 max-h-[calc(90vh-140px)] overflow-y-auto">
+                <form onSubmit={handleAddUser} className="space-y-8">
+                  {/* Account Information Section */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="bg-blue-100 p-2 rounded-lg">
+                        <FaUserShield className="text-blue-600 text-lg" />
+                      </div>
+                      <h4 className="text-xl font-semibold text-gray-800">ข้อมูลบัญชี</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaUserTie className="text-gray-500" />
+                          <span>สถานะผู้ใช้</span>
+                        </label>
+                        <select
+                          name="role"
+                          value={form.role}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+                          required
+                        >
+                          <option value="customer">👤 ลูกค้า</option>
+                          <option value="owner">🏢 เจ้าของหอพัก</option>
+                          <option value="admin">👑 ผู้ดูแลระบบ</option>
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaEnvelope className="text-gray-500" />
+                          <span>อีเมล</span>
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={form.email}
+                          onChange={handleInputChange}
+                          placeholder="example@email.com"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
+                        <FaKey className="text-gray-500" />
+                        <span>รหัสผ่าน</span>
+                      </label>
+                      <input
+                        type="password"
+                        name="password"
+                        value={form.password}
+                        onChange={handleInputChange}
+                        placeholder="••••••••"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Personal Information Section */}
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="bg-purple-100 p-2 rounded-lg">
+                        <FaIdCard className="text-purple-600 text-lg" />
+                      </div>
+                      <h4 className="text-xl font-semibold text-gray-800">ข้อมูลส่วนตัว</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaUser className="text-gray-500" />
+                          <span>ชื่อ</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="firstName"
+                          value={form.firstName}
+                          onChange={handleInputChange}
+                          placeholder="ชื่อจริง"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white shadow-sm"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaUser className="text-gray-500" />
+                          <span>นามสกุล</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="lastName"
+                          value={form.lastName}
+                          onChange={handleInputChange}
+                          placeholder="นามสกุล"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white shadow-sm"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaPhone className="text-gray-500" />
+                          <span>เบอร์โทรศัพท์</span>
+                        </label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={form.phone}
+                          onChange={handleInputChange}
+                          placeholder="0XX-XXX-XXXX"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white shadow-sm"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaCalendarAlt className="text-gray-500" />
+                          <span>อายุ</span>
+                        </label>
+                        <input
+                          type="number"
+                          name="age"
+                          value={form.age}
+                          onChange={handleInputChange}
+                          min="1"
+                          max="120"
+                          placeholder="25"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white shadow-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Owner-specific Information */}
+                  {form.role === 'owner' && (
+                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-6">
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="bg-orange-100 p-2 rounded-lg">
+                          <FaMapMarkerAlt className="text-orange-600 text-lg" />
+                        </div>
+                        <h4 className="text-xl font-semibold text-gray-800">ข้อมูลหอพัก</h4>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaMapMarkerAlt className="text-gray-500" />
+                          <span>ชื่อหอพัก</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="dormName"
+                          value={form.dormName}
+                          onChange={handleInputChange}
+                          placeholder="ชื่อหอพักที่จะดูแล"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white shadow-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddModal(false);
+                        resetForm();
+                      }}
+                      className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium flex items-center space-x-2"
+                    >
+                      <FaTimes className="text-lg" />
+                      <span>ยกเลิก</span>
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl transition-all duration-200 font-medium flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      <FaCheck className="text-lg" />
+                      <span>สร้างผู้ใช้</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         )}
 
         {/* Edit User Modal */}
         {showEditModal && selectedUser && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">แก้ไขข้อมูลผู้ใช้</h3>
-              <form onSubmit={handleEditUser} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">สถานะ</label>
-                    <select
-                      name="role"
-                      value={form.role}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="customer">ลูกค้า</option>
-                      <option value="owner">เจ้าของหอพัก</option>
-                      <option value="admin">ผู้ดูแลระบบ</option>
-                    </select>
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-white bg-opacity-20 p-3 rounded-full">
+                      <FaEdit className="text-2xl" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold">แก้ไขข้อมูลผู้ใช้</h3>
+                      <p className="text-blue-100 mt-1">
+                        แก้ไขข้อมูล {selectedUser.firstName} {selectedUser.lastName}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อ</label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={form.firstName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">นามสกุล</label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={form.lastName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">อีเมล</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={form.email}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">รหัสผ่านใหม่ (เว้นว่างหากไม่ต้องการเปลี่ยน)</label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={form.password}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">เบอร์โทร</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={form.phone}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                {form.role === 'owner' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อหอพัก</label>
-                    <input
-                      type="text"
-                      name="dormName"
-                      value={form.dormName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-
-                <div className="flex justify-end space-x-4 pt-6">
                   <button
-                    type="button"
                     onClick={() => {
                       setShowEditModal(false);
                       setSelectedUser(null);
                       resetForm();
                     }}
-                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+                    className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-full transition-all duration-200"
                   >
-                    ยกเลิก
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-colors"
-                  >
-                    บันทึกการเปลี่ยนแปลง
+                    <FaTimes className="text-xl" />
                   </button>
                 </div>
-              </form>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-8 max-h-[calc(90vh-140px)] overflow-y-auto">
+                <form onSubmit={handleEditUser} className="space-y-8">
+                  {/* Account Information Section */}
+                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="bg-blue-100 p-2 rounded-lg">
+                        <FaUserShield className="text-blue-600 text-lg" />
+                      </div>
+                      <h4 className="text-xl font-semibold text-gray-800">ข้อมูลบัญชี</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaUserTie className="text-gray-500" />
+                          <span>สถานะผู้ใช้</span>
+                        </label>
+                        <select
+                          name="role"
+                          value={form.role}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+                          required
+                        >
+                          <option value="customer">👤 ลูกค้า</option>
+                          <option value="owner">🏢 เจ้าของหอพัก</option>
+                          <option value="admin">👑 ผู้ดูแลระบบ</option>
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaEnvelope className="text-gray-500" />
+                          <span>อีเมล</span>
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={form.email}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
+                        <FaKey className="text-gray-500" />
+                        <span>รหัสผ่านใหม่</span>
+                        <span className="text-xs text-gray-500">(เว้นว่างหากไม่ต้องการเปลี่ยน)</span>
+                      </label>
+                      <input
+                        type="password"
+                        name="password"
+                        value={form.password}
+                        onChange={handleInputChange}
+                        placeholder="••••••••"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Personal Information Section */}
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="bg-green-100 p-2 rounded-lg">
+                        <FaIdCard className="text-green-600 text-lg" />
+                      </div>
+                      <h4 className="text-xl font-semibold text-gray-800">ข้อมูลส่วนตัว</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaUser className="text-gray-500" />
+                          <span>ชื่อ</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="firstName"
+                          value={form.firstName}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white shadow-sm"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaUser className="text-gray-500" />
+                          <span>นามสกุล</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="lastName"
+                          value={form.lastName}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white shadow-sm"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaPhone className="text-gray-500" />
+                          <span>เบอร์โทรศัพท์</span>
+                        </label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={form.phone}
+                          onChange={handleInputChange}
+                          placeholder="0XX-XXX-XXXX"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white shadow-sm"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaCalendarAlt className="text-gray-500" />
+                          <span>อายุ</span>
+                        </label>
+                        <input
+                          type="number"
+                          name="age"
+                          value={form.age}
+                          onChange={handleInputChange}
+                          min="1"
+                          max="120"
+                          placeholder="25"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white shadow-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Owner-specific Information */}
+                  {form.role === 'owner' && (
+                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-6">
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="bg-orange-100 p-2 rounded-lg">
+                          <FaMapMarkerAlt className="text-orange-600 text-lg" />
+                        </div>
+                        <h4 className="text-xl font-semibold text-gray-800">ข้อมูลหอพัก</h4>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <FaMapMarkerAlt className="text-gray-500" />
+                          <span>ชื่อหอพัก</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="dormName"
+                          value={form.dormName}
+                          onChange={handleInputChange}
+                          placeholder="ชื่อหอพักที่ดูแล"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white shadow-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEditModal(false);
+                        setSelectedUser(null);
+                        resetForm();
+                      }}
+                      className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium flex items-center space-x-2"
+                    >
+                      <FaTimes className="text-lg" />
+                      <span>ยกเลิก</span>
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-8 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all duration-200 font-medium flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      <FaSave className="text-lg" />
+                      <span>บันทึกการเปลี่ยนแปลง</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         )}

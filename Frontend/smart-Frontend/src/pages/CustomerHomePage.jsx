@@ -473,7 +473,7 @@ function CustomerHomePage() {
   }, [scrollY, navOffset, isNavSticky, selectedDorm, modalVisible]);
 
   // State สำหรับ AI Distance Calculation
-  const [aiDistances, setAiDistances] = useState({});
+  const [_aiDistances, setAiDistances] = useState({});
   const [_calculatingDistances, setCalculatingDistances] = useState(false);
 
   // ฟังก์ชันดึงข้อมูลรีวิวสำหรับหอพักแต่ละแห่ง
@@ -577,25 +577,62 @@ function CustomerHomePage() {
     e.preventDefault();
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     
+    console.log('🔐 Token check:', token ? 'Token found' : 'No token');
+    console.log('📝 Review form data:', reviewForm);
+    console.log('🏠 Selected dorm ID:', selectedDorm?.id);
+    
     if (!token) {
       alert('กรุณาเข้าสู่ระบบเพื่อเขียนรีวิว');
       return;
     }
 
+    // ตรวจสอบข้อมูลที่จำเป็น
+    if (!reviewForm.rating || !reviewForm.comment.trim()) {
+      alert('กรุณาให้คะแนนและเขียนความคิดเห็น');
+      return;
+    }
+
+    if (!reviewForm.cleanliness_rating || !reviewForm.location_rating || !reviewForm.value_rating || !reviewForm.service_rating) {
+      alert('กรุณาให้คะแนนในทุกหมวดหมู่');
+      return;
+    }
+
+    if (!selectedDorm || !selectedDorm.id) {
+      alert('ไม่พบข้อมูลหอพัก');
+      return;
+    }
+
     try {
+      console.log('🚀 Sending review request to:', `http://localhost:3001/dorms/${selectedDorm.id}/reviews`);
+      
+      const requestBody = {
+        rating: reviewForm.rating,
+        comment: reviewForm.comment.trim(),
+        cleanliness_rating: reviewForm.cleanliness_rating,
+        location_rating: reviewForm.location_rating,
+        value_rating: reviewForm.value_rating,
+        service_rating: reviewForm.service_rating
+      };
+      
+      console.log('📤 Request body:', requestBody);
+      
       const response = await fetch(`http://localhost:3001/dorms/${selectedDorm.id}/reviews`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(reviewForm)
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response ok:', response.ok);
+
       const result = await response.json();
+      console.log('📥 Response data:', result);
       
       if (response.ok) {
-        alert('เขียนรีวิวสำเร็จแล้ว');
+        alert('เขียนรีวิวสำเร็จแล้ว! รีวิวของคุณจะแสดงในหน้าจัดการรีวิวของเจ้าของหอพัก');
         setShowReviewForm(false);
         setReviewForm({
           rating: 5,
@@ -607,12 +644,15 @@ function CustomerHomePage() {
         });
         // ดึงรีวิวใหม่
         fetchReviews(selectedDorm.id);
+        // อัปเดตสถิติรีวิวของหอพักนี้
+        fetchDormReviewStats(selectedDorm.id);
       } else {
+        console.error('❌ Server error:', result);
         alert(result.error || 'เกิดข้อผิดพลาดในการส่งรีวิว');
       }
     } catch (error) {
-      console.error('Error submitting review:', error);
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      console.error('❌ Network error:', error);
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: ' + error.message);
     }
   };
 
@@ -905,11 +945,11 @@ function CustomerHomePage() {
             {(searchResult !== null ? searchResult : filteredDorms).map((dorm, index) => (
               <div 
                 key={dorm.id} 
-                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200 group cursor-pointer transform hover:-translate-y-1"
+                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200 group cursor-pointer transform hover:-translate-y-1 flex flex-col h-full"
                 onClick={() => handleOpenDorm(dorm)}
               >
                 {/* Image Section */}
-                <div className="relative h-52 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="relative h-64 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                   <img
                     src={
                       dorm.images && dorm.images.length > 0 && dorm.images[0]
@@ -956,252 +996,101 @@ function CustomerHomePage() {
                 </div>
 
                 {/* Content Section */}
-                <div className="p-5">
+                <div className="p-5 flex flex-col flex-1">
                   {/* Title */}
-                  <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                  <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
                     {dorm.name}
                   </h3>
                   
                   {/* Location */}
                   {dorm.address_detail && (
-                    <div className="flex items-start gap-2 mb-3 text-sm text-gray-600">
+                    <div className="flex items-start gap-2 mb-4 text-sm text-gray-600">
                       <FaMapMarkerAlt className="text-red-500 mt-0.5 flex-shrink-0" />
                       <span className="line-clamp-2">{dorm.address_detail}</span>
                     </div>
                   )}
 
-                  {/* Facilities */}
-                  {dorm.facilities && (
-                    <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-                      <FaWifi className="text-indigo-500 flex-shrink-0" />
-                      <span className="line-clamp-1">{dorm.facilities}</span>
-                    </div>
-                  )}
-
-                  {/* Price Section - Enhanced with Selection Highlight */}
+                  {/* Price Section - Only show prices > 0 */}
                   <div className="space-y-2 mb-4">
                     {(() => {
                       const prices = [
                         {
-                          type: 'รายเดือน',
-                          value: dorm.price_monthly,
-                          unit: '/เดือน',
-                          searchType: 'รายเดือน',
-                          color: 'blue',
-                          bgColor: 'bg-blue-50',
-                          borderColor: 'border-blue-300'
-                        },
-                        {
                           type: 'รายวัน',
                           value: dorm.price_daily,
                           unit: '/วัน',
-                          searchType: 'รายวัน',
-                          color: 'green',
-                          bgColor: 'bg-green-50',
-                          borderColor: 'border-green-300'
+                          color: 'green'
+                        },
+                        {
+                          type: 'รายเดือน',
+                          value: dorm.price_monthly,
+                          unit: '/เดือน',
+                          color: 'blue'
                         },
                         {
                           type: 'รายเทอม',
                           value: dorm.price_term,
                           unit: '/เทอม',
-                          searchType: 'รายเทอม',
-                          color: 'purple',
-                          bgColor: 'bg-purple-50',
-                          borderColor: 'border-purple-300'
+                          color: 'purple'
                         }
                       ];
 
-                      // Sort prices: selected type first, then others
-                      const sortedPrices = prices
-                        .filter(price => price.value && Number(price.value) > 0)
-                        .sort((a, b) => {
-                          if (searchPriceType === 'ทุกประเภท') return 0;
-                          if (a.searchType === searchPriceType) return -1;
-                          if (b.searchType === searchPriceType) return 1;
-                          return 0;
-                        });
+                      // Filter prices > 0
+                      const validPrices = prices.filter(price => price.value && Number(price.value) > 0);
 
-                      return sortedPrices.map((price) => {
-                        const isSelected = searchPriceType === price.searchType;
-                        const isHighlighted = searchPriceType !== 'ทุกประเภท' && isSelected;
-                        
-                        return (
-                          <div 
-                            key={price.type}
-                            className={`flex items-center justify-between rounded-lg p-2 transition-all duration-200 ${
-                              isHighlighted 
-                                ? `${price.bgColor} border-2 ${price.borderColor} shadow-sm` 
-                                : 'hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className={`text-sm font-medium ${
-                                isHighlighted ? `text-${price.color}-700` : 'text-gray-600'
-                              }`}>
-                                {price.type}
-                              </span>
-                              {isHighlighted && (
-                                <span className={`text-xs px-2 py-1 rounded-full bg-${price.color}-100 text-${price.color}-700 font-medium`}>
-                                  ที่เลือก
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <span className={`font-semibold ${
-                                isHighlighted 
-                                  ? `text-xl text-${price.color}-700` 
-                                  : `text-lg text-${price.color}-600`
-                              }`}>
-                                ฿{Number(price.value).toLocaleString()}
-                              </span>
-                              <span className={`text-sm ml-1 ${
-                                isHighlighted ? `text-${price.color}-600` : 'text-gray-500'
-                              }`}>
-                                {price.unit}
-                              </span>
-                            </div>
+                      return validPrices.map((price) => (
+                        <div 
+                          key={price.type}
+                          className="flex items-center justify-between rounded-lg p-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                          <span className="text-sm font-medium text-gray-700">
+                            {price.type}
+                          </span>
+                          <div className="text-right">
+                            <span className={`font-bold text-lg text-${price.color}-600`}>
+                              ฿{Number(price.value).toLocaleString()}
+                            </span>
+                            <span className="text-sm ml-1 text-gray-500">
+                              {price.unit}
+                            </span>
                           </div>
-                        );
-                      });
+                        </div>
+                      ));
                     })()}
                   </div>
 
-                  {/* Rating & Reviews (Real Data per Dorm) */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-1">
-                      <div className="flex text-yellow-400">
+                  {/* Rating & Reviews */}
+                  <div className="flex items-center justify-between py-2 border-t border-gray-100 mb-6">
+                    <div className="flex items-center gap-2">
+                      <div className="flex text-yellow-400 text-lg">
                         {[...Array(5)].map((_, i) => (
                           <span key={i}>
                             {i < Math.round(Number(dormReviewStats[dorm.id]?.average_rating) || 5) ? '★' : '☆'}
                           </span>
                         ))}
                       </div>
-                      <span className="text-sm text-gray-600 ml-1">
+                      <span className="text-sm font-semibold text-gray-800">
                         {dormReviewStats[dorm.id]?.average_rating ? Number(dormReviewStats[dorm.id].average_rating).toFixed(1) : '5.0'}
                       </span>
                     </div>
-                    <span className="text-xs text-gray-500">
-                      รีวิว {dormReviewStats[dorm.id]?.total_reviews || 0} คน
+                    <span className="text-sm text-gray-600">
+                      ({dormReviewStats[dorm.id]?.total_reviews || 0} รีวิว)
                     </span>
                   </div>
 
-                  {/* Additional Info */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {dorm.water_cost && Number(dorm.water_cost) > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-50 text-cyan-700 text-xs rounded-full">
-                        <FaTint className="w-3 h-3" />
-                        น้ำ ฿{Number(dorm.water_cost)}
-                      </span>
-                    )}
-                    {dorm.electricity_cost && Number(dorm.electricity_cost) > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-700 text-xs rounded-full">
-                        <FaBolt className="w-3 h-3" />
-                        ไฟ ฿{Number(dorm.electricity_cost)}
-                      </span>
-                    )}
-                    {dorm.deposit && Number(dorm.deposit) > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-xs rounded-full">
-                        <FaMoneyBillWave className="w-3 h-3" />
-                        มัดจำ ฿{Number(dorm.deposit).toLocaleString()}
-                      </span>
-                    )}
-                    {dorm.contact_phone && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
-                        <FaPhoneAlt className="w-3 h-3" />
-                        มีเบอร์ติดต่อ
-                      </span>
-                    )}
-                  </div>
+                  {/* Spacer to push button to bottom */}
+                  <div className="flex-1"></div>
 
-                  {/* Nearby Places with Distance (from coordinates) */}
-                  {dorm.coordinates && dorm.coordinates.length > 1 && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                        <FaMapMarkerAlt className="w-3 h-3 text-red-500" />
-                        สถานที่ใกล้เคียง
-                      </h4>
-                      <div className="flex flex-wrap gap-1">
-                        {dorm.coordinates.slice(1, 4).map((coord, index) => {
-                          // ใช้ AI calculation ถ้ามี หรือ fallback ไปใช้การคำนวณธรรมดา
-                          const aiKey = `${dorm.id}-${index + 1}`;
-                          const aiResult = aiDistances[aiKey];
-                          
-                          let calculatedDistance = null;
-                          if (dorm.coordinates[0] && dorm.coordinates[0].latitude && dorm.coordinates[0].longitude &&
-                              coord.latitude && coord.longitude) {
-                            calculatedDistance = calculateDistance(
-                              parseFloat(dorm.coordinates[0].latitude),
-                              parseFloat(dorm.coordinates[0].longitude),
-                              parseFloat(coord.latitude),
-                              parseFloat(coord.longitude)
-                            );
-                          }
-                          
-                          const displayDistance = aiResult ? aiResult.distance : calculatedDistance;
-                          const distanceColor = aiResult && aiResult.isWalkable ? 'text-green-600' : 'text-blue-600';
-                          
-                          return (
-                            <span 
-                              key={index}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full"
-                            >
-                              <FaMapMarkerAlt className="w-2 h-2" />
-                              {coord.location_name}
-                              {displayDistance !== null && displayDistance > 0 && (
-                                <span className={`font-medium ${distanceColor}`}>
-                                  {displayDistance} กม.
-                                  {aiResult && aiResult.isWalkable && ' 🚶‍♂️'}
-                                </span>
-                              )}
-                            </span>
-                          );
-                        })}
-                        {dorm.coordinates.length > 4 && (
-                          <span className="inline-flex items-center px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full">
-                            +{dorm.coordinates.length - 4} สถานที่
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Nearby Places (from text field) */}
-                  {dorm.near_places && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                        <FaMapMarkerAlt className="w-3 h-3 text-red-500" />
-                        สถานที่ใกล้เคียงอื่นๆ
-                      </h4>
-                      <div className="flex flex-wrap gap-1">
-                        {dorm.near_places.split(',').slice(0, 3).map((place, index) => (
-                          <span 
-                            key={index}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full"
-                          >
-                            <FaMapMarkerAlt className="w-2 h-2" />
-                            {place.trim()}
-                          </span>
-                        ))}
-                        {dorm.near_places.split(',').length > 3 && (
-                          <span className="inline-flex items-center px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full">
-                            +{dorm.near_places.split(',').length - 3} สถานที่
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* View Details Button */}
+                  {/* View Details Button - Always at bottom */}
                   <button 
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-xl font-semibold transition-all duration-200 text-sm shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 rounded-lg font-semibold transition-all duration-200 text-sm shadow-lg hover:shadow-xl flex items-center justify-center gap-2 min-h-[50px] mt-auto"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleOpenDorm(dorm);
                     }}
                   >
-                    <FaSearch className="w-4 h-4" />
-                    ดูรายละเอียด
-                  </button>
+                      <FaEye className="w-4 h-4" />
+                      ดูรายละเอียด
+                    </button>
                 </div>
               </div>
             ))}
@@ -1551,6 +1440,101 @@ function CustomerHomePage() {
                               </div>
                             </div>
 
+                            {/* Detailed Ratings */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* ความสะอาด */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-blue-500">🧼</span>
+                                    ความสะอาด
+                                  </span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      onClick={() => setReviewForm({...reviewForm, cleanliness_rating: star})}
+                                      className={`text-lg ${star <= reviewForm.cleanliness_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400 transition-colors`}
+                                    >
+                                      ★
+                                    </button>
+                                  ))}
+                                  <span className="ml-2 text-xs text-gray-600">({reviewForm.cleanliness_rating}/5)</span>
+                                </div>
+                              </div>
+
+                              {/* ทำเลที่ตั้ง */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-red-500">📍</span>
+                                    ทำเลที่ตั้ง
+                                  </span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      onClick={() => setReviewForm({...reviewForm, location_rating: star})}
+                                      className={`text-lg ${star <= reviewForm.location_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400 transition-colors`}
+                                    >
+                                      ★
+                                    </button>
+                                  ))}
+                                  <span className="ml-2 text-xs text-gray-600">({reviewForm.location_rating}/5)</span>
+                                </div>
+                              </div>
+
+                              {/* คุณค่าต่อราคา */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-green-500">💰</span>
+                                    คุณค่าต่อราคา
+                                  </span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      onClick={() => setReviewForm({...reviewForm, value_rating: star})}
+                                      className={`text-lg ${star <= reviewForm.value_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400 transition-colors`}
+                                    >
+                                      ★
+                                    </button>
+                                  ))}
+                                  <span className="ml-2 text-xs text-gray-600">({reviewForm.value_rating}/5)</span>
+                                </div>
+                              </div>
+
+                              {/* การบริการ */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-purple-500">🤝</span>
+                                    การบริการ
+                                  </span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      onClick={() => setReviewForm({...reviewForm, service_rating: star})}
+                                      className={`text-lg ${star <= reviewForm.service_rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400 transition-colors`}
+                                    >
+                                      ★
+                                    </button>
+                                  ))}
+                                  <span className="ml-2 text-xs text-gray-600">({reviewForm.service_rating}/5)</span>
+                                </div>
+                              </div>
+                            </div>
+
                             {/* Comment */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1618,6 +1602,57 @@ function CustomerHomePage() {
                                   </div>
                                 </div>
                               </div>
+
+                              {/* Detailed ratings */}
+                              {(review.cleanliness_rating || review.location_rating || review.value_rating || review.service_rating) && (
+                                <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                                  {review.cleanliness_rating && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-blue-500">🧼</span>
+                                      <span className="text-gray-600">ความสะอาด:</span>
+                                      <div className="flex text-yellow-400">
+                                        {[...Array(5)].map((_, i) => (
+                                          <span key={i} className={i < review.cleanliness_rating ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {review.location_rating && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-red-500">📍</span>
+                                      <span className="text-gray-600">ทำเล:</span>
+                                      <div className="flex text-yellow-400">
+                                        {[...Array(5)].map((_, i) => (
+                                          <span key={i} className={i < review.location_rating ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {review.value_rating && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-green-500">💰</span>
+                                      <span className="text-gray-600">คุณค่า:</span>
+                                      <div className="flex text-yellow-400">
+                                        {[...Array(5)].map((_, i) => (
+                                          <span key={i} className={i < review.value_rating ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {review.service_rating && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-purple-500">🤝</span>
+                                      <span className="text-gray-600">บริการ:</span>
+                                      <div className="flex text-yellow-400">
+                                        {[...Array(5)].map((_, i) => (
+                                          <span key={i} className={i < review.service_rating ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                               <p className="text-gray-700 text-sm leading-relaxed">{review.comment}</p>
                             </div>
                           ))

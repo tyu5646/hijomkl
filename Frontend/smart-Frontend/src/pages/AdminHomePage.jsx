@@ -5,7 +5,6 @@ import {
   FaUniversity, 
   FaUsers, 
   FaChartLine, 
-  FaBell, 
   FaCog, 
   FaSearch, 
   FaCalendarAlt, 
@@ -114,8 +113,7 @@ function AdminHomePage() {
 
   const quickActions = [
     { title: 'อนุมัติหอพัก', desc: 'ตรวจสอบและอนุมัติหอพักใหม่', icon: <FaUniversity className="text-2xl" />, route: '/admin/dorms', color: 'text-orange-600', bg: 'bg-orange-100 hover:bg-orange-200', badge: stats.pendingDorms },
-    { title: 'จัดการผู้ใช้', desc: 'เพิ่ม แก้ไข ลบข้อมูลผู้ใช้', icon: <FaUsers className="text-2xl" />, route: '/admin/users', color: 'text-blue-600', bg: 'bg-blue-100 hover:bg-blue-200', badge: stats.totalUsers },
-    { title: 'รายงานและสถิติ', desc: 'ดูข้อมูลรายงานและสถิติ', icon: <FaChartLine className="text-2xl" />, route: '/admin/statistics', color: 'text-green-600', bg: 'bg-green-100 hover:bg-green-200' }
+    { title: 'จัดการผู้ใช้', desc: 'เพิ่ม แก้ไข ลบข้อมูลผู้ใช้', icon: <FaUsers className="text-2xl" />, route: '/admin/users', color: 'text-blue-600', bg: 'bg-blue-100 hover:bg-blue-200', badge: stats.totalUsers }
   ];
 
   const recentActivities = [
@@ -145,10 +143,6 @@ function AdminHomePage() {
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64"
                 />
               </div>
-              <button className="relative p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-                <FaBell className="text-gray-600" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
-              </button>
             </div>
           </div>
           
