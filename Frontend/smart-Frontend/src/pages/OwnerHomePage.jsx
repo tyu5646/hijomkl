@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import OwnerSidebar from '../components/OwnerSidebar';
-import { FaBed, FaMoneyBillWave, FaMapMarkerAlt, FaCouch, FaLandmark, FaChevronLeft, FaChevronRight, FaTint, FaBolt, FaPhoneAlt, FaWifi, FaStar, FaSearch, FaArrowUp, FaHome, FaImages, FaPlusCircle, FaTimesCircle } from "react-icons/fa";
+import { FaBed, FaMoneyBillWave, FaMapMarkerAlt, FaCouch, FaLandmark, FaChevronLeft, FaChevronRight, FaTint, FaBolt, FaPhoneAlt, FaWifi, FaStar, FaSearch, FaArrowUp, FaHome, FaImages, FaPlusCircle, FaTimesCircle, FaEye } from "react-icons/fa";
 import { useNavigate } from 'react-router-dom';
 
 // Map Component แบบ Interactive
@@ -586,16 +586,16 @@ function OwnerHomePage() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {dorms.map((dorm, index) => (
                     <div
                       key={dorm.id}
-                      className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200 group cursor-pointer transform hover:-translate-y-1"
+                      className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200 group cursor-pointer transform hover:-translate-y-1 flex flex-col h-full"
                       style={{ animationDelay: `${index * 100}ms` }}
                       onClick={() => handleOpenDorm(dorm)}
                     >
                       {/* Image Section */}
-                      <div className="relative h-52 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 image-container">
+                      <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                         <img
                           src={
                             dorm.images && dorm.images.length > 0 && dorm.images[0]
@@ -605,20 +605,7 @@ function OwnerHomePage() {
                               : '/no-image.png'
                           }
                           alt={dorm.name}
-                          className="w-full h-full object-cover transition-all duration-300 image-enhance image-loading"
-                          style={{
-                            imageRendering: 'auto',
-                            transform: 'translateZ(0)',
-                            backfaceVisibility: 'hidden',
-                            WebkitBackfaceVisibility: 'hidden',
-                            imageOrientation: 'from-image',
-                            objectFit: 'cover',
-                            objectPosition: 'center',
-                            width: '100%',
-                            height: '100%',
-                            display: 'block',
-                            WebkitFontSmoothing: 'antialiased'
-                          }}
+                          className="w-full h-full object-cover transition-all duration-300"
                           loading="lazy"
                           onLoad={handleImageLoad}
                           onError={handleImageError}
@@ -645,7 +632,7 @@ function OwnerHomePage() {
                             if (priceInfo) {
                               return (
                                 <div className={`${priceInfo.color} text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg`}>
-                                  ฿{priceInfo.price}{priceInfo.label}
+                                  ฿{priceInfo.price.toLocaleString()}{priceInfo.label}
                                 </div>
                               );
                             }
@@ -655,196 +642,99 @@ function OwnerHomePage() {
                       </div>
 
                       {/* Content Section */}
-                      <div className="p-5">
+                      <div className="p-3 flex flex-col flex-1">
                         {/* Title */}
-                        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                        <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
                           {dorm.name}
                         </h3>
                         
                         {/* Location */}
                         {(dorm.address_detail || dorm.location) && (
-                          <div className="flex items-start gap-2 mb-3 text-sm text-gray-600">
+                          <div className="flex items-start gap-2 mb-3 text-xs text-gray-600">
                             <FaMapMarkerAlt className="text-red-500 mt-0.5 flex-shrink-0" />
                             <span className="line-clamp-2">{dorm.address_detail || dorm.location}</span>
                           </div>
                         )}
 
-                        {/* Facilities */}
-                        {dorm.facilities && (
-                          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-                            <FaWifi className="text-indigo-500 flex-shrink-0" />
-                            <span className="line-clamp-1">{dorm.facilities}</span>
-                          </div>
-                        )}
-
-                        {/* Price Section - Enhanced with Selection Highlight */}
-                        <div className="space-y-2 mb-4">
+                        {/* Price Section - Only show prices > 0 */}
+                        <div className="space-y-1 mb-3">
                           {(() => {
                             const prices = [
-                              {
-                                type: 'รายเดือน',
-                                value: dorm.price_monthly,
-                                unit: '/เดือน',
-                                searchType: 'รายเดือน',
-                                color: 'blue',
-                                bgColor: 'bg-blue-50',
-                                borderColor: 'border-blue-300'
-                              },
                               {
                                 type: 'รายวัน',
                                 value: dorm.price_daily,
                                 unit: '/วัน',
-                                searchType: 'รายวัน',
-                                color: 'green',
-                                bgColor: 'bg-green-50',
-                                borderColor: 'border-green-300'
+                                color: 'green'
+                              },
+                              {
+                                type: 'รายเดือน',
+                                value: dorm.price_monthly,
+                                unit: '/เดือน',
+                                color: 'blue'
                               },
                               {
                                 type: 'รายเทอม',
                                 value: dorm.price_term,
                                 unit: '/เทอม',
-                                searchType: 'รายเทอม',
-                                color: 'purple',
-                                bgColor: 'bg-purple-50',
-                                borderColor: 'border-purple-300'
+                                color: 'purple'
                               }
                             ];
 
-                            // Sort prices: monthly first, then others
-                            const sortedPrices = prices
-                              .filter(price => price.value && Number(price.value) > 0)
-                              .sort((a, b) => {
-                                if (a.searchType === 'รายเดือน') return -1;
-                                if (b.searchType === 'รายเดือน') return 1;
-                                return 0;
-                              });
+                            // Filter prices > 0
+                            const validPrices = prices.filter(price => price.value && Number(price.value) > 0);
 
-                            return sortedPrices.map((price) => {
-                              const isHighlighted = price.searchType === 'รายเดือน';
-                              
-                              return (
-                                <div 
-                                  key={price.type}
-                                  className={`flex items-center justify-between rounded-lg p-2 transition-all duration-200 ${
-                                    isHighlighted 
-                                      ? `${price.bgColor} border-2 ${price.borderColor} shadow-sm` 
-                                      : 'hover:bg-gray-50'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className={`text-sm font-medium ${
-                                      isHighlighted ? `text-${price.color}-700` : 'text-gray-600'
-                                    }`}>
-                                      {price.type}
-                                    </span>
-                                    {isHighlighted && (
-                                      <span className={`text-xs px-2 py-1 rounded-full bg-${price.color}-100 text-${price.color}-700 font-medium`}>
-                                        แนะนำ
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-right">
-                                    <span className={`font-semibold ${
-                                      isHighlighted 
-                                        ? `text-xl text-${price.color}-700` 
-                                        : `text-lg text-${price.color}-600`
-                                    }`}>
-                                      ฿{Number(price.value).toLocaleString()}
-                                    </span>
-                                    <span className={`text-sm ml-1 ${
-                                      isHighlighted ? `text-${price.color}-600` : 'text-gray-500'
-                                    }`}>
-                                      {price.unit}
-                                    </span>
-                                  </div>
+                            return validPrices.map((price) => (
+                              <div 
+                                key={price.type}
+                                className="flex items-center justify-between rounded-lg p-1.5 bg-gray-50 hover:bg-gray-100 transition-colors"
+                              >
+                                <span className="text-xs font-medium text-gray-700">
+                                  {price.type}
+                                </span>
+                                <div className="text-right">
+                                  <span className={`font-bold text-sm text-${price.color}-600`}>
+                                    ฿{Number(price.value).toLocaleString()}
+                                  </span>
+                                  <span className="text-xs ml-1 text-gray-500">
+                                    {price.unit}
+                                  </span>
                                 </div>
-                              );
-                            });
+                              </div>
+                            ));
                           })()}
                         </div>
 
-                        {/* Rating & Reviews (Real Data per Dorm) */}
-                        <div className="flex items-center justify-between mb-4">
+                        {/* Rating & Reviews */}
+                        <div className="flex items-center justify-between py-1 border-t border-gray-100 mb-3">
                           <div className="flex items-center gap-1">
-                            <div className="flex text-yellow-400">
+                            <div className="flex text-yellow-400 text-sm">
                               {[...Array(5)].map((_, i) => (
                                 <span key={i}>
                                   {i < Math.round(5) ? '★' : '☆'}
                                 </span>
                               ))}
                             </div>
-                            <span className="text-sm text-gray-600 ml-1">
+                            <span className="text-xs font-semibold text-gray-800">
                               5.0
                             </span>
                           </div>
-                          <span className="text-xs text-gray-500">
-                            รีวิว 0 คน
+                          <span className="text-xs text-gray-600">
+                            (0 รีวิว)
                           </span>
                         </div>
 
-                        {/* Additional Info */}
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {dorm.water_cost && Number(dorm.water_cost) > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-50 text-cyan-700 text-xs rounded-full">
-                              <FaTint className="w-3 h-3" />
-                              น้ำ ฿{Number(dorm.water_cost)}
-                            </span>
-                          )}
-                          {dorm.electricity_cost && Number(dorm.electricity_cost) > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-700 text-xs rounded-full">
-                              <FaBolt className="w-3 h-3" />
-                              ไฟ ฿{Number(dorm.electricity_cost)}
-                            </span>
-                          )}
-                          {dorm.deposit && Number(dorm.deposit) > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-xs rounded-full">
-                              <FaMoneyBillWave className="w-3 h-3" />
-                              มัดจำ ฿{Number(dorm.deposit).toLocaleString()}
-                            </span>
-                          )}
-                          {dorm.contact_phone && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
-                              <FaPhoneAlt className="w-3 h-3" />
-                              มีเบอร์ติดต่อ
-                            </span>
-                          )}
-                        </div>
+                        {/* Spacer to push button to bottom */}
+                        <div className="flex-1"></div>
 
-                        {/* Nearby Places with Distance */}
-                        {dorm.near_places && (
-                          <div className="mb-4">
-                            <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                              <FaMapMarkerAlt className="w-3 h-3 text-red-500" />
-                              สถานที่ใกล้เคียง
-                            </h4>
-                            <div className="flex flex-wrap gap-1">
-                              {dorm.near_places.split(',').slice(0, 3).map((place, index) => (
-                                <span 
-                                  key={index}
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full"
-                                >
-                                  <FaMapMarkerAlt className="w-2 h-2" />
-                                  {place.trim()}
-                                </span>
-                              ))}
-                              {dorm.near_places.split(',').length > 3 && (
-                                <span className="inline-flex items-center px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full">
-                                  +{dorm.near_places.split(',').length - 3} สถานที่
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* View Details Button */}
+                        {/* View Details Button - Always at bottom */}
                         <button 
-                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-xl font-semibold transition-all duration-200 text-sm shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
+                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2 rounded-lg font-semibold transition-all duration-200 text-xs shadow-lg hover:shadow-xl flex items-center justify-center gap-1 min-h-[36px] mt-auto"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpenDorm(dorm);
                           }}
                         >
-                          <FaSearch className="w-4 h-4" />
+                          <FaEye className="w-3 h-3" />
                           ดูรายละเอียด
                         </button>
                       </div>

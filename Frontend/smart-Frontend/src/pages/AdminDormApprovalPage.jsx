@@ -20,12 +20,17 @@ import {
 
 function AdminDormApprovalPage() {
   const [pendingDorms, setPendingDorms] = useState([]);
+  const [allDorms, setAllDorms] = useState([]); // เพิ่ม state สำหรับข้อมูลทั้งหมด
   const [loading, setLoading] = useState(true);
   const [selectedDorm, setSelectedDorm] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('pending');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [imageModal, setImageModal] = useState({ show: false, images: [], currentIndex: 0, zoom: 1 });
   const [currentImageIndex, setCurrentImageIndex] = useState(0); // เพิ่ม state สำหรับ carousel
+  
+  // เพิ่ม state สำหรับ pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4;
 
   const fetchPendingDorms = useCallback(() => {
     setLoading(true);
@@ -44,39 +49,77 @@ function AdminDormApprovalPage() {
       sessionStorage.setItem('token', 'dummy-admin-token');
     }
     
-    fetch(`http://localhost:3001/admin/dorms?status=${filterStatus}`, {
+    // ดึงข้อมูลตาม filter
+    const filteredPromise = fetch(`http://localhost:3001/admin/dorms?status=${filterStatus}`, {
       headers: {
         'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
         'Content-Type': 'application/json'
       }
-    })
-      .then(res => {
-        console.log('📡 Response status:', res.status);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
+    });
+
+    // ดึงข้อมูลทั้งหมดสำหรับสถิติ
+    const allDataPromise = fetch(`http://localhost:3001/admin/dorms?status=all`, {
+      headers: {
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    Promise.all([filteredPromise, allDataPromise])
+      .then(async ([filteredRes, allRes]) => {
+        console.log('📡 Response status - Filtered:', filteredRes.status, 'All:', allRes.status);
+        
+        if (!filteredRes.ok || !allRes.ok) {
+          throw new Error(`HTTP error! Filtered status: ${filteredRes.status}, All status: ${allRes.status}`);
         }
-        return res.json();
-      })
-      .then(data => {
-        console.log('📥 Received data:', data);
-        if (Array.isArray(data)) {
-          // เพิ่มการ debug ข้อมูลรูปภาพ
-          data.forEach((dorm, index) => {
+        
+        const [filteredData, allData] = await Promise.all([
+          filteredRes.json(),
+          allRes.json()
+        ]);
+        
+        console.log('📥 Received filtered data:', filteredData);
+        console.log('� Received all data for stats:', allData);
+        
+        // ตั้งค่าข้อมูลที่กรองแล้ว
+        if (Array.isArray(filteredData)) {
+          // เพิ่มการ debug ข้อมูลรูปภาพและชื่อผู้ใช้
+          filteredData.forEach((dorm, index) => {
             console.log(`🏠 Dorm ${index + 1} (${dorm.name}):`, {
               id: dorm.id,
               status: dorm.status,
               images: dorm.images,
               imagesType: typeof dorm.images,
               imagesLength: Array.isArray(dorm.images) ? dorm.images.length : (dorm.images ? dorm.images.split(',').length : 0),
-              owner: dorm.owner_name || dorm.ownerName
+              userNameFields: {
+                owner_name: dorm.owner_name,
+                ownerName: dorm.ownerName,
+                user_name: dorm.user_name,
+                userName: dorm.userName,
+                firstName: dorm.firstName,
+                first_name: dorm.first_name,
+                firstname: dorm.firstname,
+                created_by_name: dorm.created_by_name,
+                submitter_name: dorm.submitter_name
+              }
             });
           });
-          setPendingDorms(data);
-          console.log('✅ Dorms data set successfully');
+          setPendingDorms(filteredData);
+          console.log('✅ Filtered dorms data set successfully');
         } else {
-          console.error('❌ Data is not an array:', data);
+          console.error('❌ Filtered data is not an array:', filteredData);
           setPendingDorms([]);
         }
+
+        // ตั้งค่าข้อมูลทั้งหมดสำหรับสถิติ
+        if (Array.isArray(allData)) {
+          setAllDorms(allData);
+          console.log('✅ All dorms data set successfully for stats');
+        } else {
+          console.error('❌ All data is not an array:', allData);
+          setAllDorms([]);
+        }
+        
         setLoading(false);
       })
       .catch(err => {
@@ -101,6 +144,7 @@ function AdminDormApprovalPage() {
 
   useEffect(() => {
     fetchPendingDorms();
+    setCurrentPage(1); // รีเซ็ตไปหน้า 1 เมื่อเปลี่ยนฟิลเตอร์
   }, [filterStatus, fetchPendingDorms]);
 
   // Keyboard event handler for image modal
@@ -206,23 +250,6 @@ function AdminDormApprovalPage() {
   };
 
   const handleViewDetails = (dorm) => {
-    console.log('📋 Selected dorm details:', dorm);
-    console.log('📸 Images data:', dorm.images);
-    console.log('📸 Images type:', typeof dorm.images);
-    
-    // เพิ่มการ debug ฟิลด์รูปภาพอื่นๆ
-    console.log('🔍 All image-related fields:');
-    console.log('  - images:', dorm.images);
-    console.log('  - image:', dorm.image);
-    console.log('  - photo:', dorm.photo);
-    console.log('  - picture:', dorm.picture);
-    console.log('  - thumbnail:', dorm.thumbnail);
-    console.log('  - cover_image:', dorm.cover_image);
-    console.log('  - main_image:', dorm.main_image);
-    
-    // แสดงฟิลด์ทั้งหมดของ dorm object
-    console.log('📄 All dorm fields:', Object.keys(dorm));
-    
     setSelectedDorm(dorm);
     setCurrentImageIndex(0); // รีเซ็ตให้กลับไปรูปแรก
     setShowDetailModal(true);
@@ -292,29 +319,26 @@ function AdminDormApprovalPage() {
     }
   };
 
-  const formatPrice = (price) => {
-    if (!price || price === '0' || price === '') return '-';
-    
-    // ถ้าเป็นช่วงราคา (เช่น 4000-4500)
-    if (typeof price === 'string' && price.includes('-')) {
-      const parts = price.split('-');
-      if (parts.length === 2) {
-        const min = parts[0].trim();
-        const max = parts[1].trim();
-        const minFormatted = new Intl.NumberFormat('th-TH').format(parseInt(min));
-        const maxFormatted = new Intl.NumberFormat('th-TH').format(parseInt(max));
-        return `${minFormatted}-${maxFormatted} บาท`;
-      }
+  // ฟังก์ชันสำหรับ pagination
+  const totalPages = Math.ceil(pendingDorms.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentDorms = pendingDorms.slice(startIndex, endIndex);
+
+  const goToPage = (page) => {
+    setCurrentPage(page);
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
     }
-    
-    // ถ้าเป็นตัวเลข
-    const numPrice = parseInt(price);
-    if (!isNaN(numPrice) && numPrice > 0) {
-      return new Intl.NumberFormat('th-TH').format(numPrice) + ' บาท';
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
     }
-    
-    // ถ้าเป็น string อื่นๆ
-    return price + ' บาท';
   };
 
   return (
@@ -348,7 +372,7 @@ function AdminDormApprovalPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-500 text-sm font-medium">รออนุมัติ</p>
-                  <p className="text-3xl font-bold text-orange-600">{pendingDorms.filter(d => d.status === 'pending').length}</p>
+                  <p className="text-3xl font-bold text-orange-600">{allDorms.filter(d => d.status === 'pending').length}</p>
                 </div>
                 <div className="bg-orange-100 p-3 rounded-xl">
                   <FaUniversity className="text-2xl text-orange-600" />
@@ -360,7 +384,7 @@ function AdminDormApprovalPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-500 text-sm font-medium">อนุมัติแล้ว</p>
-                  <p className="text-3xl font-bold text-green-600">{pendingDorms.filter(d => d.status === 'approved').length}</p>
+                  <p className="text-3xl font-bold text-green-600">{allDorms.filter(d => d.status === 'approved').length}</p>
                 </div>
                 <div className="bg-green-100 p-3 rounded-xl">
                   <FaCheckCircle className="text-2xl text-green-600" />
@@ -372,7 +396,7 @@ function AdminDormApprovalPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-500 text-sm font-medium">ไม่อนุมัติ</p>
-                  <p className="text-3xl font-bold text-red-600">{pendingDorms.filter(d => d.status === 'rejected').length}</p>
+                  <p className="text-3xl font-bold text-red-600">{allDorms.filter(d => d.status === 'rejected').length}</p>
                 </div>
                 <div className="bg-red-100 p-3 rounded-xl">
                   <FaTimesCircle className="text-2xl text-red-600" />
@@ -384,7 +408,7 @@ function AdminDormApprovalPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-500 text-sm font-medium">หอพักทั้งหมด</p>
-                  <p className="text-3xl font-bold text-blue-600">{pendingDorms.length}</p>
+                  <p className="text-3xl font-bold text-blue-600">{allDorms.length}</p>
                 </div>
                 <div className="bg-blue-100 p-3 rounded-xl">
                   <FaUniversity className="text-2xl text-blue-600" />
@@ -413,41 +437,31 @@ function AdminDormApprovalPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="w-full min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">หอพัก</th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เจ้าของ</th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ราคา/วัน</th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
-                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
+                    <th className="px-2 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '35%', minWidth: '220px'}}>หอพัก</th>
+                    <th className="px-2 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '30%', minWidth: '180px'}}>ผู้เพิ่มหอพัก</th>
+                    <th className="px-2 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '15%', minWidth: '90px'}}>สถานะ</th>
+                    <th className="px-2 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '20%', minWidth: '110px'}}>จัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {pendingDorms.map((dorm, idx) => (
+                  {currentDorms.map((dorm, idx) => (
                     <tr key={idx} className="hover:bg-gray-50 transition-colors duration-200">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-2 py-3" style={{width: '35%', minWidth: '220px'}}>
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-16 w-16 relative">
+                          <div className="flex-shrink-0 h-12 w-12 relative">
                             {(() => {
-                              // Debug การแสดงรูปในตาราง
-                              console.log(`🔍 Table image debug for "${dorm.name}":`, {
-                                images: dorm.images,
-                                image: dorm.image,
-                                hasImages: dorm.images && dorm.images.length > 0,
-                                imageType: typeof dorm.images
-                              });
-                              
                               // ฟังก์ชันตรวจสอบรูปภาพ
                               const findFirstImage = (dormData) => {
                                 // ตรวจสอบทุกฟิลด์ในระบบเพื่อหารูปภาพ
-                                for (const [key, value] of Object.entries(dormData)) {
+                                for (const [, value] of Object.entries(dormData)) {
                                   if (value && typeof value === 'string' && value.trim() !== '' && value !== 'null') {
                                     // ตรวจสอบว่าเป็น URL หรือ path ของรูปภาพหรือไม่
                                     if (value.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) || 
                                         value.includes('/uploads/') || 
                                         (value.startsWith('http') && (value.includes('image') || value.includes('photo')))) {
-                                      console.log(`✅ Found image in table for "${dormData.name}" in field ${key}:`, value);
                                       return value;
                                     }
                                   }
@@ -506,15 +520,10 @@ function AdminDormApprovalPage() {
                               
                               const firstImageUrl = findFirstImage(dorm);
                               
-                              console.log(`🖼️ Result for "${dorm.name}":`, {
-                                hasImage: !!firstImageUrl,
-                                firstImageUrl
-                              });
-                              
                               return firstImageUrl ? (
                                 <>
                                   <img 
-                                    className="h-16 w-16 rounded-xl object-cover border border-gray-200 shadow-sm block" 
+                                    className="h-12 w-12 rounded-lg object-cover border border-gray-200 shadow-sm block" 
                                     src={(() => {
                                       // สร้าง URL ที่ถูกต้อง
                                       if (firstImageUrl.startsWith('/uploads/')) {
@@ -532,16 +541,16 @@ function AdminDormApprovalPage() {
                                       e.target.nextSibling.style.display = 'flex';
                                     }}
                                     onLoad={() => {
-                                      console.log('✅ Table image loaded successfully:', dorm.name);
+                                      // Image loaded successfully
                                     }}
                                   />
-                                  <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 items-center justify-center" style={{ display: 'none' }}>
-                                    <FaUniversity className="text-white text-xl" />
+                                  <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 items-center justify-center" style={{ display: 'none' }}>
+                                    <FaUniversity className="text-white text-sm" />
                                   </div>
                                 </>
                               ) : (
-                                <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                                  <FaUniversity className="text-white text-xl" />
+                                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                                  <FaUniversity className="text-white text-sm" />
                                 </div>
                               );
                             })()}
@@ -598,76 +607,84 @@ function AdminDormApprovalPage() {
                               }
                               
                               return imageCount > 1 && (
-                                <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                                <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold">
                                   {imageCount}
                                 </div>
                               );
                             })()}
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-semibold text-gray-900">{dorm.name}</div>
-                            <div className="text-sm text-gray-500 flex items-center gap-1">
-                              <FaMapMarkerAlt className="text-xs" />
-                              {dorm.address_detail || dorm.address}
-                            </div>
-                            <div className="text-xs text-blue-600 mt-1">
-                              {dorm.rooms ? `${dorm.rooms} ห้อง` : 'ไม่ระบุจำนวนห้อง'}
-                            </div>
-                            {/* เพิ่มข้อมูล debug สำหรับรูปภาพ */}
-                            <div className="text-xs text-red-500 mt-1 bg-red-50 px-2 py-1 rounded">
-                              🐛 Images: {JSON.stringify(dorm.images)} | Type: {typeof dorm.images}
+                          <div className="ml-3 min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-gray-900 truncate" title={dorm.name}>{dorm.name}</div>
+                            <div className="text-xs text-gray-500 flex items-center gap-1">
+                              <FaMapMarkerAlt className="text-xs flex-shrink-0" />
+                              <span className="truncate" title={dorm.address_detail || dorm.address}>{dorm.address_detail || dorm.address}</span>
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 font-medium">
-                          {dorm.owner_name || dorm.ownerName || dorm.owner?.name || 'ไม่ระบุ'}
+                      <td className="px-2 py-3" style={{width: '30%', minWidth: '180px'}}>
+                        <div className="text-sm text-gray-900 font-medium truncate" title={dorm.owner_firstName && dorm.owner_lastName ? 
+                            `${dorm.owner_firstName} ${dorm.owner_lastName}` :
+                           dorm.owner_firstName || dorm.ownerFirstName || 
+                           dorm.owner_name || dorm.ownerName || dorm.owner?.name || 
+                           dorm.user_name || dorm.userName || dorm.user?.name ||
+                           dorm.created_by_name || dorm.createdByName || dorm.created_by?.name ||
+                           dorm.submitter_name || dorm.submitterName || dorm.submitter?.name ||
+                           dorm.added_by_name || dorm.addedByName || dorm.added_by?.name ||
+                           dorm.creator_name || dorm.creatorName || dorm.creator?.name ||
+                           dorm.firstName || dorm.first_name || dorm.firstname || 'ไม่พบชื่อผู้เพิ่มหอพัก'}>
+                          {dorm.owner_firstName && dorm.owner_lastName ? 
+                            `${dorm.owner_firstName} ${dorm.owner_lastName}` :
+                           dorm.owner_firstName || dorm.ownerFirstName || 
+                           dorm.owner_name || dorm.ownerName || dorm.owner?.name || 
+                           dorm.user_name || dorm.userName || dorm.user?.name ||
+                           dorm.created_by_name || dorm.createdByName || dorm.created_by?.name ||
+                           dorm.submitter_name || dorm.submitterName || dorm.submitter?.name ||
+                           dorm.added_by_name || dorm.addedByName || dorm.added_by?.name ||
+                           dorm.creator_name || dorm.creatorName || dorm.creator?.name ||
+                           dorm.firstName || dorm.first_name || dorm.firstname || 'ไม่พบชื่อผู้เพิ่มหอพัก'}
                         </div>
-                        <div className="text-sm text-gray-500 flex items-center gap-1">
-                          <FaPhoneAlt className="text-xs" />
-                          {dorm.contact_phone || dorm.owner_phone || dorm.ownerPhone || dorm.owner?.phone || 'ไม่ระบุ'}
+                        <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                          <FaPhoneAlt className="text-xs flex-shrink-0" />
+                          <span className="truncate" title={dorm.owner_phone || dorm.contact_phone || dorm.ownerPhone || dorm.owner?.phone || dorm.phone || 
+                           dorm.user_phone || dorm.userPhone || dorm.user?.phone ||
+                           dorm.created_by_phone || dorm.createdByPhone || dorm.created_by?.phone ||
+                           dorm.submitter_phone || dorm.submitterPhone || dorm.submitter?.phone || 'ไม่ระบุ'}>{dorm.owner_phone || dorm.contact_phone || dorm.ownerPhone || dorm.owner?.phone || dorm.phone || 
+                           dorm.user_phone || dorm.userPhone || dorm.user?.phone ||
+                           dorm.created_by_phone || dorm.createdByPhone || dorm.created_by?.phone ||
+                           dorm.submitter_phone || dorm.submitterPhone || dorm.submitter?.phone || 'ไม่ระบุ'}</span>
                         </div>
-                        {(dorm.owner_email || dorm.ownerEmail || dorm.owner?.email) && (
-                          <div className="text-xs text-gray-400 flex items-center gap-1 mt-1">
-                            <FaEnvelope className="text-xs" />
-                            {dorm.owner_email || dorm.ownerEmail || dorm.owner?.email}
-                          </div>
-                        )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-gray-900 flex items-center gap-1">
-                          <FaMoneyBillWave className="text-green-500" />
-                          {formatPrice(dorm.price)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-2 py-3" style={{width: '15%', minWidth: '90px'}}>
                         {getStatusBadge(dorm.status)}
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex justify-center space-x-2">
+                      <td className="px-2 py-3 text-center" style={{width: '20%', minWidth: '110px'}}>
+                        <div className="flex flex-col space-y-1">
                           <button
                             onClick={() => handleViewDetails(dorm)}
-                            className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                            className="inline-flex items-center justify-center px-1 py-1 text-xs font-medium rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors w-full"
                           >
                             <FaEye className="mr-1" />
-                            ดูรายละเอียด
+                            <span className="hidden sm:inline">ดูรายละเอียด</span>
+                            <span className="sm:hidden">ดู</span>
                           </button>
                           {dorm.status === 'pending' && (
                             <>
                               <button
                                 onClick={() => handleApprove(dorm.id)}
-                                className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-green-600 bg-green-50 hover:bg-green-100 transition-colors"
+                                className="inline-flex items-center justify-center px-1 py-1 text-xs font-medium rounded-lg text-green-600 bg-green-50 hover:bg-green-100 transition-colors w-full"
                               >
                                 <FaCheckCircle className="mr-1" />
-                                อนุมัติ
+                                <span className="hidden sm:inline">อนุมัติ</span>
+                                <span className="sm:hidden">✓</span>
                               </button>
                               <button
                                 onClick={() => handleReject(dorm.id)}
-                                className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                                className="inline-flex items-center justify-center px-1 py-1 text-xs font-medium rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors w-full"
                               >
                                 <FaTimesCircle className="mr-1" />
-                                ปฏิเสธ
+                                <span className="hidden sm:inline">ปฏิเสธ</span>
+                                <span className="sm:hidden">✗</span>
                               </button>
                             </>
                           )}
@@ -680,6 +697,98 @@ function AdminDormApprovalPage() {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {!loading && pendingDorms.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mt-6 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <span>แสดง {startIndex + 1}-{Math.min(endIndex, pendingDorms.length)} จาก {pendingDorms.length} รายการ</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {/* ปุ่มหน้าก่อนหน้า */}
+                <button
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    currentPage === 1
+                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  ← ก่อนหน้า
+                </button>
+
+                {/* หมายเลขหน้า */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    // แสดงหน้าทั้งหมดถ้าไม่เกิน 7 หน้า
+                    if (totalPages <= 7) {
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => goToPage(page)}
+                          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            currentPage === page
+                              ? 'bg-blue-500 text-white'
+                              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    }
+
+                    // แสดงแบบมี ... ถ้าเกิน 7 หน้า
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    ) {
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => goToPage(page)}
+                          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            currentPage === page
+                              ? 'bg-blue-500 text-white'
+                              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    }
+
+                    if (page === currentPage - 2 || page === currentPage + 2) {
+                      return (
+                        <span key={page} className="px-2 py-2 text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+
+                    return null;
+                  })}
+                </div>
+
+                {/* ปุ่มหน้าถัดไป */}
+                <button
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    currentPage === totalPages
+                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  ถัดไป →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Detail Modal */}
         {showDetailModal && selectedDorm && (
@@ -763,17 +872,6 @@ function AdminDormApprovalPage() {
                   </h4>
                   {(() => {
                     // ตรวจสอบรูปภาพอย่างละเอียด
-                    console.log('🔍 Raw images data:', selectedDorm.images);
-                    console.log('🔍 Images type:', typeof selectedDorm.images);
-                    console.log('🔍 All dorm object keys:', Object.keys(selectedDorm));
-                    
-                    // Debug ข้อมูลรูปภาพทุกฟิลด์ที่เป็นไปได้
-                    const imageFields = ['images', 'image', 'photo', 'picture', 'thumbnail', 'cover_image', 'main_image', 'gallery', 'photos', 'image_url', 'image_urls'];
-                    imageFields.forEach(field => {
-                      if (selectedDorm[field] !== undefined) {
-                        console.log(`🖼️ Field "${field}":`, selectedDorm[field], typeof selectedDorm[field]);
-                      }
-                    });
                     
                     // รวบรวมรูปภาพจากทุกแหล่งที่เป็นไปได้
                     let imageArray = [];
@@ -803,7 +901,6 @@ function AdminDormApprovalPage() {
                     
                     // ตรวจสอบทุกฟิลด์ในทั้ง object เพื่อหาข้อมูลรูปภาพ
                     const allFields = Object.keys(selectedDorm);
-                    console.log('🔍 Checking all fields for image data...');
                     
                     // เพิ่มฟิลด์ที่มีคำว่า image, photo, picture, gallery เข้าไปด้วย
                     allFields.forEach(key => {
@@ -825,7 +922,6 @@ function AdminDormApprovalPage() {
                           const validImages = field.filter(img => img && img.trim() !== '' && img !== 'null' && img !== 'undefined');
                           if (validImages.length > 0) {
                             imageArray = validImages;
-                            console.log('✅ Found images in array field:', validImages);
                             break;
                           }
                         } else if (typeof field === 'string') {
@@ -836,12 +932,10 @@ function AdminDormApprovalPage() {
                               const validImages = parsed.filter(img => img && img.trim() !== '' && img !== 'null' && img !== 'undefined');
                               if (validImages.length > 0) {
                                 imageArray = validImages;
-                                console.log('✅ Found images in JSON field:', validImages);
                                 break;
                               }
                             } else if (parsed && parsed.trim() !== '' && parsed !== 'null') {
                               imageArray = [parsed];
-                              console.log('✅ Found single image in JSON field:', parsed);
                               break;
                             }
                           } catch {
@@ -850,7 +944,6 @@ function AdminDormApprovalPage() {
                               const validImages = field.split(',').filter(img => img && img.trim() !== '' && img !== 'null' && img !== 'undefined');
                               if (validImages.length > 0) {
                                 imageArray = validImages;
-                                console.log('✅ Found images in comma-separated field:', validImages);
                                 break;
                               }
                             } else if (field.trim() !== '' && field !== 'null') {
@@ -880,9 +973,6 @@ function AdminDormApprovalPage() {
                         }
                       }
                     }
-                    
-                    console.log('🖼️ Final image array:', imageArray);
-                    console.log('🖼️ Array length:', imageArray.length);
                     
                     return imageArray.length > 0 ? (
                       <div className="relative">
@@ -1089,16 +1179,6 @@ function AdminDormApprovalPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="border-b border-gray-100 pb-2">
-                        <label className="block text-sm font-medium text-gray-600">จำนวนชั้น</label>
-                        <p className="text-gray-900">{selectedDorm.floor_count || 'ไม่ระบุ'} ชั้น</p>
-                      </div>
-                      <div className="border-b border-gray-100 pb-2">
-                        <label className="block text-sm font-medium text-gray-600">จำนวนห้อง</label>
-                        <p className="text-gray-900">{selectedDorm.room_count || selectedDorm.rooms || 'ไม่ระบุ'} ห้อง</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="border-b border-gray-100 pb-2">
                         <label className="block text-sm font-medium text-gray-600">วันที่ส่งคำขอ</label>
                         <p className="text-gray-900">
                           {selectedDorm.created_at ? 
@@ -1122,75 +1202,6 @@ function AdminDormApprovalPage() {
                 </div>
               </div>
 
-              {/* Pricing Information */}
-              <div className="bg-blue-50 rounded-lg p-6 mb-6">
-                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <FaMoneyBillWave className="text-green-500" />
-                  ข้อมูลราคา
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">ราคาต่อวัน</label>
-                    <p className="text-xl font-bold text-blue-600">{formatPrice(selectedDorm.price_daily || selectedDorm.price)}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">ราคาต่อเดือน</label>
-                    <p className="text-xl font-bold text-green-600">{formatPrice(selectedDorm.price_monthly)}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">ราคาต่อเทอม</label>
-                    <p className="text-xl font-bold text-purple-600">{formatPrice(selectedDorm.price_term)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Costs */}
-              <div className="bg-orange-50 rounded-lg p-6 mb-6">
-                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <FaClipboardCheck className="text-orange-500" />
-                  ค่าใช้จ่ายเพิ่มเติม
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white rounded-lg p-4 border border-orange-200">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">เงินมัดจำ</label>
-                    <p className="text-lg font-semibold text-purple-600">{formatPrice(selectedDorm.deposit)}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 border border-orange-200">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">ค่าน้ำต่อหน่วย</label>
-                    <p className="text-lg font-semibold text-blue-600">
-                      {selectedDorm.water_rate || selectedDorm.water_cost ? 
-                        `฿${selectedDorm.water_rate || selectedDorm.water_cost}` : 'ไม่ระบุ'}
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 border border-orange-200">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">ค่าไฟต่อหน่วย</label>
-                    <p className="text-lg font-semibold text-yellow-600">
-                      {selectedDorm.electricity_rate || selectedDorm.electricity_cost ? 
-                        `฿${selectedDorm.electricity_rate || selectedDorm.electricity_cost}` : 'ไม่ระบุ'}
-                    </p>
-                  </div>
-                </div>
-                
-                {/* เพิ่มข้อมูลการติดต่อและข้อมูลเพิ่มเติม */}
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedDorm.contact_phone && (
-                    <div className="bg-white rounded-lg p-4 border border-orange-200">
-                      <label className="block text-sm font-medium text-gray-600 mb-1">เบอร์ติดต่อหอพัก</label>
-                      <p className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                        <FaPhoneAlt className="text-orange-500" />
-                        {selectedDorm.contact_phone}
-                      </p>
-                    </div>
-                  )}
-                  {selectedDorm.room_types && (
-                    <div className="bg-white rounded-lg p-4 border border-orange-200">
-                      <label className="block text-sm font-medium text-gray-600 mb-1">ประเภทห้อง</label>
-                      <p className="text-lg font-semibold text-gray-800">{selectedDorm.room_types}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Owner Information */}
               <div className="bg-green-50 rounded-lg p-6 mb-6">
                 <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -1201,29 +1212,41 @@ function AdminDormApprovalPage() {
                   <div className="bg-white rounded-lg p-4 border border-green-200">
                     <label className="block text-sm font-medium text-gray-600 mb-1">ชื่อเจ้าของ</label>
                     <p className="text-lg font-semibold text-gray-800">
-                      {selectedDorm.owner_name || selectedDorm.ownerName || selectedDorm.owner?.name || 'ไม่ระบุ'}
+                      {selectedDorm.owner_firstName && selectedDorm.owner_lastName ? 
+                        `${selectedDorm.owner_firstName} ${selectedDorm.owner_lastName}` :
+                       selectedDorm.owner_firstName || selectedDorm.ownerFirstName || 
+                       selectedDorm.owner_name || selectedDorm.ownerName || selectedDorm.owner?.name || 
+                       selectedDorm.user_name || selectedDorm.userName || selectedDorm.user?.name ||
+                       selectedDorm.created_by_name || selectedDorm.createdByName || selectedDorm.created_by?.name ||
+                       selectedDorm.submitter_name || selectedDorm.submitterName || selectedDorm.submitter?.name ||
+                       selectedDorm.added_by_name || selectedDorm.addedByName || selectedDorm.added_by?.name ||
+                       selectedDorm.creator_name || selectedDorm.creatorName || selectedDorm.creator?.name ||
+                       selectedDorm.firstName || selectedDorm.first_name || selectedDorm.firstname || 'ไม่พบชื่อผู้เพิ่มหอพัก'}
                     </p>
                   </div>
                   <div className="bg-white rounded-lg p-4 border border-green-200">
                     <label className="block text-sm font-medium text-gray-600 mb-1">เบอร์โทรติดต่อ</label>
                     <p className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                       <FaPhoneAlt className="text-green-500" />
-                      {selectedDorm.contact_phone || selectedDorm.owner_phone || selectedDorm.ownerPhone || selectedDorm.owner?.phone || 'ไม่ระบุ'}
+                      {selectedDorm.owner_phone || selectedDorm.contact_phone || selectedDorm.ownerPhone || selectedDorm.owner?.phone || 
+                       selectedDorm.user_phone || selectedDorm.userPhone || selectedDorm.user?.phone ||
+                       selectedDorm.created_by_phone || selectedDorm.createdByPhone || selectedDorm.created_by?.phone ||
+                       selectedDorm.submitter_phone || selectedDorm.submitterPhone || selectedDorm.submitter?.phone || 'ไม่ระบุ'}
                     </p>
                   </div>
-                  {(selectedDorm.owner_email || selectedDorm.ownerEmail || selectedDorm.owner?.email) && (
+                  {(selectedDorm.owner_email || selectedDorm.ownerEmail || selectedDorm.owner?.email ||
+                    selectedDorm.user_email || selectedDorm.userEmail || selectedDorm.user?.email ||
+                    selectedDorm.created_by_email || selectedDorm.createdByEmail || selectedDorm.created_by?.email ||
+                    selectedDorm.submitter_email || selectedDorm.submitterEmail || selectedDorm.submitter?.email) && (
                     <div className="bg-white rounded-lg p-4 border border-green-200">
                       <label className="block text-sm font-medium text-gray-600 mb-1">อีเมล</label>
                       <p className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                         <FaEnvelope className="text-green-500" />
-                        {selectedDorm.owner_email || selectedDorm.ownerEmail || selectedDorm.owner?.email}
+                        {selectedDorm.owner_email || selectedDorm.ownerEmail || selectedDorm.owner?.email ||
+                         selectedDorm.user_email || selectedDorm.userEmail || selectedDorm.user?.email ||
+                         selectedDorm.created_by_email || selectedDorm.createdByEmail || selectedDorm.created_by?.email ||
+                         selectedDorm.submitter_email || selectedDorm.submitterEmail || selectedDorm.submitter?.email}
                       </p>
-                    </div>
-                  )}
-                  {selectedDorm.owner_id && (
-                    <div className="bg-white rounded-lg p-4 border border-green-200">
-                      <label className="block text-sm font-medium text-gray-600 mb-1">รหัสเจ้าของ</label>
-                      <p className="text-sm font-mono text-gray-600">#{selectedDorm.owner_id}</p>
                     </div>
                   )}
                 </div>
@@ -1258,153 +1281,6 @@ function AdminDormApprovalPage() {
                   </div>
                 </div>
               )}
-
-              {/* Facilities */}
-              {selectedDorm.facilities && (
-                <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <FaShieldAlt className="text-gray-600" />
-                    สิ่งอำนวยความสะดวก
-                  </h4>
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="flex flex-wrap gap-2">
-                      {(Array.isArray(selectedDorm.facilities) 
-                        ? selectedDorm.facilities 
-                        : selectedDorm.facilities.split(',')
-                      ).map((facility, idx) => (
-                        <span key={idx} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                          {facility.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Near Places */}
-              {selectedDorm.near_places && (
-                <div className="bg-yellow-50 rounded-lg p-6 mb-6">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <FaMapMarkerAlt className="text-yellow-600" />
-                    สถานที่ใกล้เคียง
-                  </h4>
-                  <div className="bg-white rounded-lg p-4 border border-yellow-200">
-                    <div className="flex flex-wrap gap-2">
-                      {(Array.isArray(selectedDorm.near_places) 
-                        ? selectedDorm.near_places 
-                        : selectedDorm.near_places.split(',')
-                      ).map((place, idx) => (
-                        <span key={idx} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
-                          {place.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Description */}
-              <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                <h4 className="text-lg font-semibold text-gray-800 mb-4">คำอธิบายเพิ่มเติม</h4>
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                  <p className="text-gray-700 leading-relaxed">
-                    {selectedDorm.description || 'ไม่มีคำอธิบายเพิ่มเติม'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Additional Statistics */}
-              <div className="bg-indigo-50 rounded-lg p-6 mb-6">
-                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <FaStar className="text-indigo-500" />
-                  ข้อมูลสถิติและสถานะ
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white rounded-lg p-4 border border-indigo-200">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">ID หอพัก</label>
-                    <p className="text-lg font-mono text-indigo-600">#{selectedDorm.id}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 border border-indigo-200">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">สถานะปัจจุบัน</label>
-                    <div className="mt-1">
-                      {getStatusBadge(selectedDorm.status)}
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 border border-indigo-200">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">วันที่อัพเดตล่าสุด</label>
-                    <p className="text-sm text-gray-800">
-                      {selectedDorm.updated_at ? 
-                        new Date(selectedDorm.updated_at).toLocaleDateString('th-TH', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : 'ไม่มีข้อมูล'}
-                    </p>
-                  </div>
-                </div>
-                
-                {selectedDorm.rejection_reason && (
-                  <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-red-600 mb-1">เหตุผลการปฏิเสธ</label>
-                    <p className="text-red-800">{selectedDorm.rejection_reason}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* System Information */}
-              <div className="bg-gray-100 rounded-lg p-4 mb-6">
-                <h5 className="text-sm font-medium text-gray-600 mb-2">ข้อมูลระบบ</h5>
-                <div className="grid grid-cols-2 gap-4 text-xs text-gray-500">
-                  <div>
-                    <span className="font-medium">Database ID:</span> {selectedDorm.id}
-                  </div>
-                  <div>
-                    <span className="font-medium">Owner ID:</span> {selectedDorm.owner_id || 'N/A'}
-                  </div>
-                  {selectedDorm.created_at && (
-                    <div>
-                      <span className="font-medium">Created:</span> {new Date(selectedDorm.created_at).toISOString()}
-                    </div>
-                  )}
-                  {selectedDorm.updated_at && (
-                    <div>
-                      <span className="font-medium">Updated:</span> {new Date(selectedDorm.updated_at).toISOString()}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Debug ข้อมูลรูปภาพ */}
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h6 className="text-xs font-semibold text-yellow-800 mb-2">🐛 Debug: ข้อมูลรูปภาพ</h6>
-                  <div className="text-xs text-yellow-700 space-y-1 max-h-40 overflow-y-auto">
-                    <div><span className="font-medium">images:</span> {JSON.stringify(selectedDorm.images)}</div>
-                    <div><span className="font-medium">image:</span> {JSON.stringify(selectedDorm.image)}</div>
-                    <div><span className="font-medium">photo:</span> {JSON.stringify(selectedDorm.photo)}</div>
-                    <div><span className="font-medium">picture:</span> {JSON.stringify(selectedDorm.picture)}</div>
-                    <div><span className="font-medium">thumbnail:</span> {JSON.stringify(selectedDorm.thumbnail)}</div>
-                    <div><span className="font-medium">cover_image:</span> {JSON.stringify(selectedDorm.cover_image)}</div>
-                    <div><span className="font-medium">main_image:</span> {JSON.stringify(selectedDorm.main_image)}</div>
-                    <div><span className="font-medium">gallery:</span> {JSON.stringify(selectedDorm.gallery)}</div>
-                    <div><span className="font-medium">photos:</span> {JSON.stringify(selectedDorm.photos)}</div>
-                    <div><span className="font-medium">image_url:</span> {JSON.stringify(selectedDorm.image_url)}</div>
-                    <div><span className="font-medium">image_urls:</span> {JSON.stringify(selectedDorm.image_urls)}</div>
-                    <hr className="my-2 border-yellow-300"/>
-                    <div><span className="font-medium">All fields:</span></div>
-                    <div className="bg-yellow-100 p-2 rounded text-xs font-mono max-h-20 overflow-y-auto">
-                      {Object.keys(selectedDorm).filter(key => 
-                        key.toLowerCase().includes('image') || 
-                        key.toLowerCase().includes('photo') || 
-                        key.toLowerCase().includes('picture') ||
-                        key.toLowerCase().includes('gallery')
-                      ).map(key => 
-                        `${key}: ${JSON.stringify(selectedDorm[key])}`
-                      ).join('\n')}
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               {/* Action Buttons */}
               {selectedDorm.status === 'pending' && (

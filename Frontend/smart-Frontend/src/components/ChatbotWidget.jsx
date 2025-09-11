@@ -296,24 +296,6 @@ function ChatbotWidget({ onClose }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Suggestions - Compact */}
-      <div className="chatbot-suggestions">
-        <div className="suggestions-grid">
-          {SUGGESTIONS.map((suggestion, index) => (
-            <button
-              key={index}
-              className={`chatbot-suggestion ${suggestion.color}`}
-              onClick={() => sendMessage(suggestion.text)}
-              disabled={loading}
-              title={suggestion.text}
-            >
-              <span className="suggestion-icon">{suggestion.icon}</span>
-              <span className="suggestion-text">{suggestion.text}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Input */}
       <div className="chatbot-input-container">
         <div className="chatbot-input-wrapper">

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   FaTachometerAlt, 
@@ -9,12 +9,24 @@ import {
   FaUserShield
 } from 'react-icons/fa';
 import logo from '../assets/logo-H.jpg'; // Import รูปโลโก้
+import LogoutConfirmModal from './LogoutConfirmModal';
 
 function AdminSidebar() {
-  const handleLogout = () => {
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
+    sessionStorage.clear();
     window.location.href = '/login';
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
   };
 
   return (
@@ -126,13 +138,20 @@ function AdminSidebar() {
       {/* Logout Button */}
       <div className="p-4 border-t border-gray-100 bg-white">
         <button
-          onClick={handleLogout}
+          onClick={handleLogoutClick}
           className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-3 rounded-xl font-semibold shadow-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center gap-2"
         >
           <FaSignOutAlt />
           ออกจากระบบ
         </button>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        onConfirm={handleLogoutConfirm}
+        onCancel={handleLogoutCancel}
+      />
     </aside>
   );
 }

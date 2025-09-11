@@ -575,11 +575,11 @@ function OwnerDormManagePage({ roomManageMode = false }) {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {dorms.map((dorm, index) => (
                 <div
                   key={dorm.id}
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-orange-200 transform hover:-translate-y-1"
+                  className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-orange-200 transform hover:-translate-y-1"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   {/* Image Section */}
@@ -594,7 +594,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                       }
                       alt={dorm.name}
                       onError={e => { e.target.onerror = null; e.target.src = '/no-image.png'; }}
-                      className="w-full h-48 object-cover"
+                      className="w-full h-32 object-cover"
                     />
                     
                     {/* Image overlay */}
@@ -651,22 +651,22 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                   </div>
 
                   {/* Content Section */}
-                  <div className="p-6">
+                  <div className="p-3">
                     {/* Header - ชื่อหอพักและที่อยู่ */}
-                    <div className="mb-4">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
+                    <div className="mb-3">
+                      <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-2">
                         {dorm.name}
                       </h3>
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <FaMapMarkerAlt className="w-4 h-4 text-orange-500" />
-                        <span className="text-sm line-clamp-1">{dorm.address_detail || 'ไม่ระบุตำแหน่ง'}</span>
+                      <div className="flex items-center gap-1 text-gray-600">
+                        <FaMapMarkerAlt className="w-3 h-3 text-orange-500" />
+                        <span className="text-xs line-clamp-1">{dorm.address_detail || 'ไม่ระบุตำแหน่ง'}</span>
                       </div>
                       {/* แสดงพิกัด GPS */}
                       {(dorm.latitude && dorm.longitude) && (
-                        <div className="flex items-center gap-2 text-gray-500 mt-1">
-                          <FaMapMarkerAlt className="w-3 h-3 text-blue-500" />
+                        <div className="flex items-center gap-1 text-gray-500 mt-1">
+                          <FaMapMarkerAlt className="w-2 h-2 text-blue-500" />
                           <span className="text-xs">
-                            GPS: {parseFloat(dorm.latitude).toFixed(6)}, {parseFloat(dorm.longitude).toFixed(6)}
+                            GPS: {parseFloat(dorm.latitude).toFixed(4)}, {parseFloat(dorm.longitude).toFixed(4)}
                           </span>
                           <a
                             href={`https://www.google.com/maps?q=${dorm.latitude},${dorm.longitude}`}
@@ -674,55 +674,40 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 underline text-xs"
                           >
-                            เปิดแผนที่
+                            แผนที่
                           </a>
                         </div>
                       )}
                     </div>
 
-                    {/* ข้อมูลพื้นฐาน */}
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <div className="grid grid-cols-1 gap-4">
-                        {dorm.contact_phone && (
-                          <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">เบอร์ติดต่อ</label>
-                            <div className="flex items-center gap-2">
-                              <FaPhoneAlt className="w-4 h-4 text-green-600" />
-                              <span className="text-sm font-semibold text-gray-800">{dorm.contact_phone}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
                     {/* ราคาห้องพัก */}
-                    <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4 mb-4">
-                      <label className="block text-xs font-medium text-gray-500 mb-3">ราคาห้องพัก</label>
-                      <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-2 mb-3">
+                      <label className="block text-xs font-medium text-gray-500 mb-2">ราคาห้องพัก</label>
+                      <div className="grid grid-cols-3 gap-2">
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 mb-1">
-                            <FaMoneyBillWave className="w-3 h-3 text-green-500" />
+                            <FaMoneyBillWave className="w-2 h-2 text-green-500" />
                             <span className="text-xs text-gray-600">รายวัน</span>
                           </div>
-                          <div className="font-bold text-green-600 text-sm">
+                          <div className="font-bold text-green-600 text-xs">
                             {dorm.price_daily ? `฿${dorm.price_daily}` : '-'}
                           </div>
                         </div>
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 mb-1">
-                            <FaMoneyBillWave className="w-3 h-3 text-blue-500" />
+                            <FaMoneyBillWave className="w-2 h-2 text-blue-500" />
                             <span className="text-xs text-gray-600">รายเดือน</span>
                           </div>
-                          <div className="font-bold text-blue-600 text-sm">
+                          <div className="font-bold text-blue-600 text-xs">
                             {dorm.price_monthly ? `฿${dorm.price_monthly}` : '-'}
                           </div>
                         </div>
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 mb-1">
-                            <FaMoneyBillWave className="w-3 h-3 text-purple-500" />
+                            <FaMoneyBillWave className="w-2 h-2 text-purple-500" />
                             <span className="text-xs text-gray-600">รายเทอม</span>
                           </div>
-                          <div className="font-bold text-purple-600 text-sm">
+                          <div className="font-bold text-purple-600 text-xs">
                             {dorm.price_term ? `฿${dorm.price_term}` : '-'}
                           </div>
                         </div>
@@ -731,38 +716,38 @@ function OwnerDormManagePage({ roomManageMode = false }) {
 
                     {/* ค่าใช้จ่ายเพิ่มเติม */}
                     {(dorm.water_cost || dorm.electricity_cost || dorm.deposit) && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                        <label className="block text-xs font-medium text-gray-500 mb-3">ค่าใช้จ่ายเพิ่มเติม</label>
-                        <div className="space-y-3">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mb-3">
+                        <label className="block text-xs font-medium text-gray-500 mb-2">ค่าใช้จ่ายเพิ่มเติม</label>
+                        <div className="space-y-2">
                           {dorm.water_cost && Number(dorm.water_cost) > 0 && (
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <FaTint className="w-4 h-4 text-cyan-500" />
-                                <span className="text-sm text-gray-700">ค่าน้ำ</span>
+                              <div className="flex items-center gap-1">
+                                <FaTint className="w-3 h-3 text-cyan-500" />
+                                <span className="text-xs text-gray-700">ค่าน้ำ</span>
                               </div>
-                              <span className="text-sm font-semibold text-cyan-600">
+                              <span className="text-xs font-semibold text-cyan-600">
                                 ฿{parseInt(dorm.water_cost).toLocaleString()}/หน่วย
                               </span>
                             </div>
                           )}
                           {dorm.electricity_cost && Number(dorm.electricity_cost) > 0 && (
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <FaBolt className="w-4 h-4 text-yellow-500" />
-                                <span className="text-sm text-gray-700">ค่าไฟ</span>
+                              <div className="flex items-center gap-1">
+                                <FaBolt className="w-3 h-3 text-yellow-500" />
+                                <span className="text-xs text-gray-700">ค่าไฟ</span>
                               </div>
-                              <span className="text-sm font-semibold text-yellow-600">
+                              <span className="text-xs font-semibold text-yellow-600">
                                 ฿{parseInt(dorm.electricity_cost).toLocaleString()}/หน่วย
                               </span>
                             </div>
                           )}
                           {dorm.deposit && Number(dorm.deposit) > 0 && (
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <FaMoneyBillWave className="w-4 h-4 text-purple-500" />
-                                <span className="text-sm text-gray-700">เงินมัดจำ</span>
+                              <div className="flex items-center gap-1">
+                                <FaMoneyBillWave className="w-3 h-3 text-purple-500" />
+                                <span className="text-xs text-gray-700">เงินมัดจำ</span>
                               </div>
-                              <span className="text-sm font-semibold text-purple-600">
+                              <span className="text-xs font-semibold text-purple-600">
                                 ฿{parseInt(dorm.deposit).toLocaleString()}
                               </span>
                             </div>
@@ -771,33 +756,18 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                       </div>
                     )}
 
-                    {/* สิ่งอำนวยความสะดวก */}
-                    {dorm.facilities && (
-                      <div className="mb-4">
-                        <label className="block text-xs font-medium text-gray-500 mb-2">สิ่งอำนวยความสะดวก</label>
-                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                          <div className="flex items-start gap-2">
-                            <FaWifi className="w-4 h-4 text-purple-500 mt-0.5" />
-                            <span className="text-sm text-gray-700 line-clamp-2 leading-relaxed">
-                              {dorm.facilities}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
                     {/* Action Buttons (Mobile) */}
-                    <div className="flex gap-2 pt-4 border-t border-gray-100">
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
                       <button
-                        className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-2 px-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 text-sm"
+                        className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-1.5 px-2 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-1 text-xs"
                         onClick={() => navigate(`/owner/dorms/${dorm.id}/rooms`)}
                       >
-                        <FaDoorOpen className="w-4 h-4" />
+                        <FaDoorOpen className="w-3 h-3" />
                         {roomManageMode ? 'เลือกหอพักนี้' : 'จัดการห้องพัก'}
                       </button>
                       {roomManageMode && (
                         <button
-                          className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2 px-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 text-sm"
+                          className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-1.5 px-2 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-1 text-xs"
                           onClick={() => navigate(`/owner/dorms/${dorm.id}/rooms?addRoom=true`)}
                         >
                           <FaPlusCircle className="w-4 h-4" />

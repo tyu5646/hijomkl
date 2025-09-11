@@ -1,15 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { FaTachometerAlt, FaBuilding, FaUserCircle, FaSignOutAlt, FaStar, FaBed } from 'react-icons/fa';
 import logo from '../assets/logo-H.jpg';
+import LogoutConfirmModal from './LogoutConfirmModal';
 
 function OwnerSidebar() {
-  const handleLogout = () => {
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('role');
+    sessionStorage.clear();
     window.location.href = '/login';
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
   };
 
   const menuItems = [
@@ -152,7 +162,7 @@ function OwnerSidebar() {
         </div>
 
         <button
-          onClick={handleLogout}
+          onClick={handleLogoutClick}
           className="w-full group bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-3 transform hover:scale-105"
         >
           <div className="p-1 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors duration-300">
@@ -166,6 +176,13 @@ function OwnerSidebar() {
           </div>
         </button>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        onConfirm={handleLogoutConfirm}
+        onCancel={handleLogoutCancel}
+      />
     </aside>
   );
 }

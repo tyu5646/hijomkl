@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
 import LogoH from '../assets/logo-H.jpg';
+import LogoutConfirmModal from './LogoutConfirmModal';
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = () => {
     localStorage.removeItem('token');
-    sessionStorage.removeItem('token');
     localStorage.removeItem('role');
-    sessionStorage.removeItem('role');
+    sessionStorage.clear();
     window.location.href = '/login';
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
   };
   
   return (
@@ -57,7 +66,7 @@ function Header() {
             </a>
 
             <button
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               className="group px-4 py-2 rounded-xl text-gray-700 font-medium hover:text-red-600 hover:bg-red-50 transition-all duration-200 relative overflow-hidden ml-2"
             >
               <span className="relative z-10">ออกจากระบบ</span>
@@ -103,7 +112,7 @@ function Header() {
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
-                  handleLogout();
+                  handleLogoutClick();
                 }}
                 className="block w-full text-left px-3 py-2 rounded-lg text-gray-700 font-medium hover:text-red-600 hover:bg-red-50 transition-colors duration-200"
               >
@@ -113,6 +122,13 @@ function Header() {
           </div>
         )}
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        onConfirm={handleLogoutConfirm}
+        onCancel={handleLogoutCancel}
+      />
     </header>
   );
 }

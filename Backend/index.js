@@ -1345,13 +1345,18 @@ app.get('/admin/users', verifyAdminToken, (req, res) => {
 app.get('/admin/dorms', verifyAdminToken, (req, res) => {
   const status = req.query.status;
   
-  // ปรับ query ให้รวมรูปภาพจากตาราง dorm_images
+  // ปรับ query ให้รวมรูปภาพจากตาราง dorm_images และข้อมูลเจ้าของจากตาราง owners
   let sql = `
     SELECT 
       dorms.*,
+      owners.firstName as owner_firstName,
+      owners.lastName as owner_lastName,
+      owners.phone as owner_phone,
+      owners.email as owner_email,
       GROUP_CONCAT(dorm_images.image_path) AS images
     FROM dorms 
     LEFT JOIN dorm_images ON dorms.id = dorm_images.dorm_id
+    LEFT JOIN owners ON dorms.owner_id = owners.id
   `;
   
   let params = [];

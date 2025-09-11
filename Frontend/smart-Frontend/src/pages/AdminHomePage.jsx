@@ -4,17 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FaUniversity, 
   FaUsers, 
-  FaChartLine, 
-  FaCog, 
-  FaSearch, 
   FaCalendarAlt, 
-  FaCheckCircle, 
-  FaTimesCircle,
-  FaHome,
-  FaShieldAlt,
-  FaClipboardList,
-  FaUsersCog,
-  FaEye
+  FaCheckCircle,
 } from 'react-icons/fa';
 
 function AdminHomePage() {
@@ -116,12 +107,6 @@ function AdminHomePage() {
     { title: 'จัดการผู้ใช้', desc: 'เพิ่ม แก้ไข ลบข้อมูลผู้ใช้', icon: <FaUsers className="text-2xl" />, route: '/admin/users', color: 'text-blue-600', bg: 'bg-blue-100 hover:bg-blue-200', badge: stats.totalUsers }
   ];
 
-  const recentActivities = [
-    { title: `หอพัก ${stats.pendingDorms} แห่งรอการอนุมัติ`, time: 'อัปเดตแล้ว', type: 'warning' },
-    { title: `ผู้ใช้ทั้งหมด ${stats.totalUsers} คน`, time: 'ข้อมูลล่าสุด', type: 'info' },
-    { title: `หอพัก ${stats.approvedDorms} แห่งได้รับการอนุมัติแล้ว`, time: 'สถานะปัจจุบัน', type: 'success' }
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex">
       <AdminSidebar />
@@ -133,16 +118,6 @@ function AdminHomePage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-800">ยินดีต้อนรับ, ผู้ดูแลระบบ</h1>
               <p className="text-gray-600 mt-1">จัดการระบบหอพักของคุณได้อย่างมีประสิทธิภาพ</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="ค้นหา..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64"
-                />
-              </div>
             </div>
           </div>
           
@@ -219,64 +194,33 @@ function AdminHomePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Quick Actions */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <span className="w-2 h-6 bg-blue-500 rounded mr-3"></span>
-                การดำเนินการด่วน
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {quickActions.map((action, index) => (
-                  <div
-                    key={index}
-                    onClick={() => navigate(action.route)}
-                    className={`p-6 rounded-xl ${action.bg} cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-md border border-transparent hover:border-gray-200 relative`}
-                  >
-                    {action.badge && action.badge > 0 && (
-                      <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold">
-                        {action.badge}
-                      </div>
-                    )}
-                    <div className={`${action.color} mb-3`}>
-                      {action.icon}
-                    </div>
-                    <h3 className="font-semibold text-gray-800 mb-2">{action.title}</h3>
-                    <p className="text-gray-600 text-sm">{action.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activities */}
           <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
             <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-              <span className="w-2 h-6 bg-green-500 rounded mr-3"></span>
-              สถิติระบบ
+              <span className="w-2 h-6 bg-blue-500 rounded mr-3"></span>
+              การดำเนินการด่วน
             </h2>
-            <div className="space-y-4">
-              {recentActivities.map((activity, index) => (
-                <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className={`w-3 h-3 rounded-full mt-2 flex-shrink-0 ${
-                    activity.type === 'success' ? 'bg-green-400' :
-                    activity.type === 'warning' ? 'bg-yellow-400' :
-                    'bg-blue-400'
-                  }`}></div>
-                  <div className="flex-1">
-                    <p className="text-gray-800 text-sm font-medium">{activity.title}</p>
-                    <p className="text-gray-500 text-xs">{activity.time}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {quickActions.map((action, index) => (
+                <div
+                  key={index}
+                  onClick={() => navigate(action.route)}
+                  className={`p-6 rounded-xl ${action.bg} cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-md border border-transparent hover:border-gray-200 relative`}
+                >
+                  {action.badge && action.badge > 0 && (
+                    <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold">
+                      {action.badge}
+                    </div>
+                  )}
+                  <div className={`${action.color} mb-3`}>
+                    {action.icon}
                   </div>
+                  <h3 className="font-semibold text-gray-800 mb-2">{action.title}</h3>
+                  <p className="text-gray-600 text-sm">{action.desc}</p>
                 </div>
               ))}
             </div>
-            <button 
-              onClick={() => navigate('/admin/statistics')}
-              className="w-full mt-4 text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              ดูรายงานทั้งหมด →
-            </button>
           </div>
         </div>
 
