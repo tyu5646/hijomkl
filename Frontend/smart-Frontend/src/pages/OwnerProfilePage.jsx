@@ -687,7 +687,7 @@ function OwnerProfilePage() {
                 <form onSubmit={handleSave}>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {Object.entries(profile)
-                      .filter(([key]) => !['id', 'password', 'role_id', 'province', 'district', 'subdistrict', 'zip_code'].includes(key))
+                      .filter(([key]) => !['id', 'password', 'role_id', 'province', 'district', 'subdistrict', 'zip_code', 'profile_image'].includes(key))
                       .map(([key, value]) => (
                         <div key={key} className="space-y-2">
                           <label className="block text-sm font-medium text-gray-700">

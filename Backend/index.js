@@ -1050,6 +1050,12 @@ app.put('/owner/dorms/:id', authOwner, upload.array('images', 10), (req, res) =>
     facilities, near_places, latitude, longitude, delete_images 
   } = req.body;
 
+  console.log('🔧 Debug - Update dorm request:', {
+    dormId,
+    delete_images,
+    has_new_images: req.files?.length || 0
+  });
+
   // ตรวจสอบว่าเป็นเจ้าของหอพักหรือไม่
   pool.query('SELECT * FROM dorms WHERE id = ? AND owner_id = ?', [dormId, owner_id], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -1140,9 +1146,11 @@ app.put('/owner/dorms/:id', authOwner, upload.array('images', 10), (req, res) =>
 
       // ลบรูปภาพที่เลือกลบ
       if (delete_images && delete_images.length > 0) {
-        const deleteImageSql = 'DELETE FROM dorm_images WHERE id IN (?) AND dorm_id = ?';
-        pool.query(deleteImageSql, [delete_images, dormId], (delErr) => {
+        const imagesToDelete = JSON.parse(delete_images);
+        const deleteImageSql = 'DELETE FROM dorm_images WHERE image_path IN (?) AND dorm_id = ?';
+        pool.query(deleteImageSql, [imagesToDelete, dormId], (delErr) => {
           if (delErr) console.error('Error deleting images:', delErr);
+          else console.log('✅ Deleted images:', imagesToDelete);
         });
       }
 
@@ -1350,6 +1358,203 @@ app.get('/admin/users', verifyAdminToken, (req, res) => {
   });
 });
 
+/**
+ * Add new user (Admin only)
+ * @route POST /admin/users
+ */
+app.post('/admin/users', verifyAdminToken, async (req, res) => {
+  const { role, firstName, lastName, email, password, phone, age, dob, 
+          houseNo, moo, soi, road, subdistrict, district, province, dormName } = req.body;
+
+  try {
+    // ตรวจสอบว่า email ซ้ำไหม
+    const emailCheckPromises = [
+      new Promise((resolve, reject) => {
+        pool.query('SELECT id FROM customers WHERE email = ?', [email], (err, results) => {
+          if (err) reject(err);
+          else resolve(results.length > 0);
+        });
+      }),
+      new Promise((resolve, reject) => {
+        pool.query('SELECT id FROM owners WHERE email = ?', [email], (err, results) => {
+          if (err) reject(err);
+          else resolve(results.length > 0);
+        });
+      }),
+      new Promise((resolve, reject) => {
+        pool.query('SELECT id FROM admins WHERE email = ?', [email], (err, results) => {
+          if (err) reject(err);
+          else resolve(results.length > 0);
+        });
+      })
+    ];
+
+    const emailExists = await Promise.all(emailCheckPromises);
+    if (emailExists.some(exists => exists)) {
+      return res.status(400).json({ error: 'อีเมลนี้ถูกใช้งานแล้ว' });
+    }
+
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // เลือกตารางตาม role
+    let tableName, insertData;
+    if (role === 'customer') {
+      tableName = 'customers';
+      insertData = { firstName, lastName, email, password: hashedPassword, phone, age, dob, 
+                    houseNo, moo, soi, road, subdistrict, district, province };
+    } else if (role === 'owner') {
+      tableName = 'owners';
+      insertData = { firstName, lastName, email, password: hashedPassword, phone, age, dob, 
+                    houseNo, moo, soi, road, subdistrict, district, province, dormName };
+    } else if (role === 'admin') {
+      tableName = 'admins';
+      insertData = { firstName, lastName, email, password: hashedPassword, phone };
+    } else {
+      return res.status(400).json({ error: 'ประเภทผู้ใช้ไม่ถูกต้อง' });
+    }
+
+    // Insert ข้อมูล
+    const columns = Object.keys(insertData).join(', ');
+    const values = Object.values(insertData);
+    const placeholders = values.map(() => '?').join(', ');
+
+    pool.query(`INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`, values, (err, result) => {
+      if (err) {
+        console.error(`Error inserting ${role}:`, err);
+        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเพิ่มผู้ใช้' });
+      }
+
+      res.status(201).json({ 
+        success: true, 
+        message: 'เพิ่มผู้ใช้สำเร็จ',
+        userId: result.insertId 
+      });
+    });
+
+  } catch (error) {
+    console.error('Error adding user:', error);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเพิ่มผู้ใช้' });
+  }
+});
+
+/**
+ * Update user (Admin only)
+ * @route PUT /admin/users/:id
+ */
+app.put('/admin/users/:id', verifyAdminToken, async (req, res) => {
+  const userId = req.params.id;
+  const userRole = req.query.role;
+  const { role, firstName, lastName, email, password, phone, age, dob, 
+          houseNo, moo, soi, road, subdistrict, district, province, dormName } = req.body;
+
+  try {
+    // ตรวจสอบว่า email ซ้ำไหม (ยกเว้นผู้ใช้ปัจจุบัน)
+    const currentTableName = userRole === 'customer' ? 'customers' : 
+                            userRole === 'owner' ? 'owners' : 'admins';
+    
+    const emailCheckPromises = [
+      new Promise((resolve, reject) => {
+        pool.query('SELECT id FROM customers WHERE email = ? AND id != ?', [email, userRole === 'customer' ? userId : 0], (err, results) => {
+          if (err) reject(err);
+          else resolve(results.length > 0);
+        });
+      }),
+      new Promise((resolve, reject) => {
+        pool.query('SELECT id FROM owners WHERE email = ? AND id != ?', [email, userRole === 'owner' ? userId : 0], (err, results) => {
+          if (err) reject(err);
+          else resolve(results.length > 0);
+        });
+      }),
+      new Promise((resolve, reject) => {
+        pool.query('SELECT id FROM admins WHERE email = ? AND id != ?', [email, userRole === 'admin' ? userId : 0], (err, results) => {
+          if (err) reject(err);
+          else resolve(results.length > 0);
+        });
+      })
+    ];
+
+    const emailExists = await Promise.all(emailCheckPromises);
+    if (emailExists.some(exists => exists)) {
+      return res.status(400).json({ error: 'อีเมลนี้ถูกใช้งานแล้ว' });
+    }
+
+    // เตรียมข้อมูลสำหรับอัปเดต
+    let updateData;
+    if (role === 'customer') {
+      updateData = { firstName, lastName, email, phone, age, dob, 
+                    houseNo, moo, soi, road, subdistrict, district, province };
+    } else if (role === 'owner') {
+      updateData = { firstName, lastName, email, phone, age, dob, 
+                    houseNo, moo, soi, road, subdistrict, district, province, dormName };
+    } else if (role === 'admin') {
+      updateData = { firstName, lastName, email, phone };
+    } else {
+      return res.status(400).json({ error: 'ประเภทผู้ใช้ไม่ถูกต้อง' });
+    }
+
+    // เพิ่ม password ถ้ามีการส่งมา
+    if (password && password.trim()) {
+      const saltRounds = 10;
+      updateData.password = await bcrypt.hash(password, saltRounds);
+    }
+
+    const tableName = role === 'customer' ? 'customers' : 
+                     role === 'owner' ? 'owners' : 'admins';
+
+    // ถ้า role เปลี่ยน ต้องย้ายข้อมูล
+    if (userRole !== role) {
+      // ลบจากตารางเดิม
+      pool.query(`DELETE FROM ${currentTableName} WHERE id = ?`, [userId], (deleteErr) => {
+        if (deleteErr) {
+          console.error('Error deleting from old table:', deleteErr);
+          return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการย้ายข้อมูล' });
+        }
+
+        // เพิ่มในตารางใหม่
+        const columns = Object.keys(updateData).join(', ');
+        const values = Object.values(updateData);
+        const placeholders = values.map(() => '?').join(', ');
+
+        pool.query(`INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`, values, (insertErr, result) => {
+          if (insertErr) {
+            console.error('Error inserting into new table:', insertErr);
+            return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการย้ายข้อมูล' });
+          }
+
+          res.json({ 
+            success: true, 
+            message: 'แก้ไขข้อมูลผู้ใช้สำเร็จ',
+            newUserId: result.insertId 
+          });
+        });
+      });
+    } else {
+      // อัปเดตในตารางเดิม
+      const setClause = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+      const values = [...Object.values(updateData), userId];
+
+      pool.query(`UPDATE ${tableName} SET ${setClause} WHERE id = ?`, values, (err, result) => {
+        if (err) {
+          console.error(`Error updating ${role}:`, err);
+          return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการแก้ไขข้อมูล' });
+        }
+
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ error: 'ไม่พบผู้ใช้ที่ต้องการแก้ไข' });
+        }
+
+        res.json({ success: true, message: 'แก้ไขข้อมูลผู้ใช้สำเร็จ' });
+      });
+    }
+
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการแก้ไขข้อมูล' });
+  }
+});
+
 // ดึงข้อมูลหอพักทั้งหมดสำหรับ Admin - แบบง่าย
 app.get('/admin/dorms', verifyAdminToken, (req, res) => {
   const status = req.query.status;
@@ -1464,21 +1669,27 @@ app.delete('/admin/dorms/:id', verifyAdminToken, (req, res) => {
 });
 
 // ลบผู้ใช้ (Admin)
-app.delete('/admin/users/:type/:id', verifyAdminToken, (req, res) => {
-  const { type, id } = req.params;
+/**
+ * Delete user (Admin only)
+ * @route DELETE /admin/users/:id?role=userRole
+ */
+app.delete('/admin/users/:id', verifyAdminToken, (req, res) => {
+  const userId = req.params.id;
+  const userRole = req.query.role;
   
   // ตรวจสอบประเภทผู้ใช้
-  const allowedTypes = ['customer', 'owner'];
-  if (!allowedTypes.includes(type)) {
+  const allowedTypes = ['customer', 'owner', 'admin'];
+  if (!allowedTypes.includes(userRole)) {
     return res.status(400).json({ error: 'ประเภทผู้ใช้ไม่ถูกต้อง' });
   }
   
-  const tableName = type === 'customer' ? 'customers' : 'owners';
+  const tableName = userRole === 'customer' ? 'customers' : 
+                   userRole === 'owner' ? 'owners' : 'admins';
   const sql = `DELETE FROM ${tableName} WHERE id = ?`;
   
-  pool.query(sql, [id], (err, result) => {
+  pool.query(sql, [userId], (err, result) => {
     if (err) {
-      console.error(`Error deleting ${type}:`, err);
+      console.error(`Error deleting ${userRole}:`, err);
       return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการลบผู้ใช้' });
     }
     

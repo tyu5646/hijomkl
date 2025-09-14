@@ -51,6 +51,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
   });
   const [editId, setEditId] = useState(null);
   const [editImages, setEditImages] = useState([]); // สำหรับ preview รูปเดิม (url)
+  const [originalImages, setOriginalImages] = useState([]); // เก็บรายการรูปเดิม (เพื่อเทียบว่าอันไหนถูกลบ)
   const [originalDormData, setOriginalDormData] = useState(null); // เก็บข้อมูลเดิมของหอพัก
   const fileInputRef = useRef();
   const editFileInputRef = useRef();
@@ -379,6 +380,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     });
     
     setEditImages(dorm.images ? [...dorm.images] : []);
+    setOriginalImages(dorm.images ? [...dorm.images] : []); // เก็บรายการรูปเดิม
     setShowEditModal(true);
     if (editFileInputRef.current) editFileInputRef.current.value = '';
   };
@@ -446,8 +448,23 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     for (const file of form.images) {
       formData.append('images', file);
     }
-    // ส่งรายชื่อรูปเดิมที่เหลือ (หลังลบ) เพื่อ backend จะเก็บไว้
-    formData.append('existingImages', JSON.stringify(editImages));
+    
+    // หาว่ารูปไหนถูกลบออกจากรายการเดิม
+    const deletedImages = originalImages.filter(originalImg => 
+      !editImages.some(currentImg => currentImg === originalImg)
+    );
+    
+    console.log('🖼️ Debug - การจัดการรูปภาพ:', {
+      originalImages: originalImages,
+      currentEditImages: editImages,
+      deletedImages: deletedImages,
+      newImages: form.images
+    });
+    
+    // ส่งรายการรูปที่ต้องลบไปให้ backend
+    if (deletedImages.length > 0) {
+      formData.append('delete_images', JSON.stringify(deletedImages));
+    }
     try {
       const res = await fetch(`http://localhost:3001/owner/dorms/${editId}`, {
         method: 'PUT',
