@@ -1330,13 +1330,22 @@ app.get('/admin/users', verifyAdminToken, (req, res) => {
         return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลเจ้าของ', details: err2.message });
       }
 
-      // รวมข้อมูลทั้งหมด
-      const allUsers = [
-        ...customers.map(user => ({ ...user, type: 'customer' })),
-        ...owners.map(user => ({ ...user, type: 'owner' }))
-      ];
+      // ดึงข้อมูล admins
+      pool.query('SELECT id, firstName, lastName, email, phone FROM admins', (err3, admins) => {
+        if (err3) {
+          console.error('Error fetching admins:', err3);
+          return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลแอดมิน', details: err3.message });
+        }
 
-      res.json(allUsers);
+        // รวมข้อมูลทั้งหมด
+        const allUsers = [
+          ...customers.map(user => ({ ...user, role: 'customer' })),
+          ...owners.map(user => ({ ...user, role: 'owner' })),
+          ...admins.map(user => ({ ...user, role: 'admin' }))
+        ];
+
+        res.json(allUsers);
+      });
     });
   });
 });

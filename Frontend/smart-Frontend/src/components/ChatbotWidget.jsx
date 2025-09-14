@@ -62,6 +62,7 @@ function ChatbotWidget({ onClose }) {
   const [loading, setLoading] = useState(false);
   const [chatContext, setChatContext] = useState({});
   const [connectionStatus, setConnectionStatus] = useState('checking');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Check server connection status
@@ -193,17 +194,20 @@ function ChatbotWidget({ onClose }) {
   };
 
   const clearChatHistory = () => {
-    if (window.confirm('คุณต้องการล้างประวัติการสนทนาทั้งหมดหรือไม่?')) {
-      const welcomeMessage = [
-        { 
-          sender: 'bot', 
-          text: 'สวัสดีค่ะ! ฉันคือ AI ผู้ช่วยของ Smart Dormitory 🏠\n\nฉันพร้อมช่วยคุณค้นหาหอพักที่เหมาะสม แนะนำสิ่งอำนวยความสะดวก และตอบคำถามต่างๆ ค่ะ 😊\n\nพิเศษ! ตอนนี้ฉันสามารถเปรียบเทียบระยะทางระหว่างหอพักกับสถานที่ต่างๆ ได้แล้วค่ะ\n\nมีอะไรให้ช่วยไหมคะ?',
-          timestamp: new Date()
-        }
-      ];
-      setMessages(welcomeMessage);
-      localStorage.removeItem('chatbot_history');
-    }
+    setShowClearConfirm(true);
+  };
+
+  const confirmClearHistory = () => {
+    const welcomeMessage = [
+      { 
+        sender: 'bot', 
+        text: 'สวัสดีค่ะ! ฉันคือ AI ผู้ช่วยของ Smart Dormitory 🏠\n\nฉันพร้อมช่วยคุณค้นหาหอพักที่เหมาะสม แนะนำสิ่งอำนวยความสะดวก และตอบคำถามต่างๆ ค่ะ 😊\n\nพิเศษ! ตอนนี้ฉันสามารถเปรียบเทียบระยะทางระหว่างหอพักกับสถานที่ต่างๆ ได้แล้วค่ะ\n\nมีอะไรให้ช่วยไหมคะ?',
+        timestamp: new Date()
+      }
+    ];
+    setMessages(welcomeMessage);
+    localStorage.removeItem('chatbot_history');
+    setShowClearConfirm(false);
   };
 
   const formatTime = (timestamp) => {
@@ -320,6 +324,40 @@ function ChatbotWidget({ onClose }) {
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="chatbot-modal-overlay">
+          <div className="chatbot-modal">
+            <div className="chatbot-modal-header">
+              <div className="chatbot-modal-icon">
+                <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+                  <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/>
+                </svg>
+              </div>
+              <h3>ยืนยันการลบประวัติสนทนา</h3>
+            </div>
+            <div className="chatbot-modal-content">
+              <p>คุณแน่ใจหรือไม่ที่จะลบประวัติการสนทนาทั้งหมด?</p>
+              <p className="chatbot-modal-warning">การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
+            </div>
+            <div className="chatbot-modal-actions">
+              <button 
+                className="chatbot-modal-btn cancel"
+                onClick={() => setShowClearConfirm(false)}
+              >
+                ยกเลิก
+              </button>
+              <button 
+                className="chatbot-modal-btn confirm"
+                onClick={confirmClearHistory}
+              >
+                ลบประวัติ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

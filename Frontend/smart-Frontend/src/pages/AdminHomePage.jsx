@@ -224,10 +224,6 @@ function AdminHomePage() {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-gray-500 text-sm">
-          <p>© {new Date().getFullYear()} Smart Dormitory Management System | Inspired by Agoda Design</p>
-        </div>
       </main>
     </div>
   );

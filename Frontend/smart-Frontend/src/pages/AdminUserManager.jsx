@@ -240,11 +240,15 @@ const AdminUserManager = () => {
       case 'admin':
         return <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-medium">ผู้ดูแลระบบ</span>;
       case 'owner':
-        return <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-medium">เจ้าของหอพัก</span>;
+        return <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-medium">ผู้ประกอบการ</span>;
       case 'customer':
         return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">ลูกค้า</span>;
-      default:
-        return <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-medium">ไม่ระบุ</span>;
+      default: {
+        // แสดงบทบาทจริงของผู้ใช้ แทนที่จะเป็น "ไม่ระบุ"
+        return <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium">
+          {role || 'ไม่ระบุบทบาท'}
+        </span>;
+      }
     }
   };
 
@@ -288,7 +292,7 @@ const AdminUserManager = () => {
               >
                 <option value="all">ทุกสถานะ</option>
                 <option value="admin">ผู้ดูแลระบบ</option>
-                <option value="owner">เจ้าของหอพัก</option>
+                <option value="owner">ผู้ประกอบการ</option>
                 <option value="customer">ลูกค้า</option>
               </select>
             </div>
@@ -342,7 +346,6 @@ const AdminUserManager = () => {
                           <FaPhone className="text-gray-400" />
                           {user.phone || '-'}
                         </div>
-                        <div className="text-sm text-gray-500">อายุ {user.age || '-'} ปี</div>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center space-x-3">

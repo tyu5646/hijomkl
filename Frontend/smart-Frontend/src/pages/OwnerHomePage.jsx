@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import OwnerSidebar from '../components/OwnerSidebar';
-import { FaBed, FaMoneyBillWave, FaMapMarkerAlt, FaCouch, FaLandmark, FaChevronLeft, FaChevronRight, FaTint, FaBolt, FaPhoneAlt, FaWifi, FaStar, FaSearch, FaArrowUp, FaHome, FaImages, FaPlusCircle, FaTimesCircle, FaEye } from "react-icons/fa";
+import { FaBed, FaMoneyBillWave, FaMapMarkerAlt, FaCouch, FaLandmark, FaChevronLeft, FaChevronRight, FaTint, FaBolt, FaPhoneAlt, FaWifi, FaStar, FaSearch, FaArrowUp, FaHome, FaImages, FaPlusCircle, FaTimesCircle, FaEye, FaCheckCircle, FaCar, FaShieldAlt, FaTshirt, FaBath, FaCube, FaStore, FaTv, FaDumbbell, FaSwimmer, FaUniversity, FaHospital, FaUtensils, FaGasPump, FaMailBulk, FaTree, FaPlane, FaBus, FaTrain, FaLeaf } from "react-icons/fa";
 import { useNavigate } from 'react-router-dom';
 
 // Map Component แบบ Interactive
@@ -1025,7 +1025,84 @@ function OwnerHomePage() {
                           สิ่งอำนวยความสะดวก
                         </h3>
                         <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                          <p className="text-gray-700 leading-relaxed">{selectedDorm.facilities}</p>
+                          {(() => {
+                            // แปลงข้อความเป็นรายการที่มีไอคอน
+                            const facilitiesText = selectedDorm.facilities;
+                            const facilityItems = facilitiesText
+                              .split(/[,\n•-]/)
+                              .map(item => item.trim())
+                              .filter(item => item.length > 0);
+
+                            const getFacilityIcon = (facility) => {
+                              const text = facility.toLowerCase();
+                              if (text.includes('wifi') || text.includes('อินเทอร์เน็ต') || text.includes('internet')) return { icon: 'FaWifi', color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200' };
+                              if (text.includes('แอร์') || text.includes('เครื่องปรับอากาศ') || text.includes('air')) return { icon: 'FaSnowflake', color: 'text-cyan-500', bg: 'bg-cyan-50', border: 'border-cyan-200' };
+                              if (text.includes('ตู้เย็น') || text.includes('refrigerator')) return { icon: 'FaCube', color: 'text-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-200' };
+                              if (text.includes('ห้องน้ำ') || text.includes('bathroom') || text.includes('ส้วม')) return { icon: 'FaBath', color: 'text-blue-400', bg: 'bg-blue-50', border: 'border-blue-200' };
+                              if (text.includes('ที่จอดรถ') || text.includes('parking') || text.includes('จอด')) return { icon: 'FaCar', color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' };
+                              if (text.includes('ซักผ้า') || text.includes('laundry') || text.includes('washing')) return { icon: 'FaTshirt', color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-200' };
+                              if (text.includes('ลิฟต์') || text.includes('elevator')) return { icon: 'FaArrowUp', color: 'text-green-500', bg: 'bg-green-50', border: 'border-green-200' };
+                              if (text.includes('ยาม') || text.includes('รปภ') || text.includes('security') || text.includes('guards')) return { icon: 'FaShieldAlt', color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200' };
+                              if (text.includes('cctv') || text.includes('กล้อง')) return { icon: 'FaEye', color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-200' };
+                              if (text.includes('ฟิตเนส') || text.includes('fitness') || text.includes('gym')) return { icon: 'FaDumbbell', color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200' };
+                              if (text.includes('สระ') || text.includes('pool') || text.includes('swimming')) return { icon: 'FaSwimmer', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
+                              if (text.includes('ร้าน') || text.includes('shop') || text.includes('7-11') || text.includes('เซเว่น')) return { icon: 'FaStore', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' };
+                              if (text.includes('โต๊ะ') || text.includes('เก้าอี้') || text.includes('furniture') || text.includes('เฟอร์นิเจอร์')) return { icon: 'FaCouch', color: 'text-brown-500', bg: 'bg-yellow-50', border: 'border-yellow-200' };
+                              if (text.includes('เตียง') || text.includes('bed')) return { icon: 'FaBed', color: 'text-purple-400', bg: 'bg-purple-50', border: 'border-purple-200' };
+                              if (text.includes('ทีวี') || text.includes('tv') || text.includes('television')) return { icon: 'FaTv', color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' };
+                              return { icon: 'FaCheckCircle', color: 'text-green-500', bg: 'bg-green-50', border: 'border-green-200' };
+                            };
+
+                            const renderIcon = (iconName, colorClass) => {
+                              const iconProps = { className: `w-4 h-4 ${colorClass}` };
+                              switch(iconName) {
+                                case 'FaWifi': return <FaWifi {...iconProps} />;
+                                case 'FaSnowflake': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M10 2l1.5 2.6L15 3.2l-1.5 2.6L17 8.2l-3.5 1.4L15 12.2l-3.5-1.4L10 13.4l-1.5-2.6L5 12.2l1.5-2.6L3 8.2l3.5-1.4L5 3.2l3.5 1.4L10 2z"/></svg>;
+                                case 'FaCube': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M10 2L3 7v6l7 5 7-5V7l-7-5zM10 4.5L15 8v4l-5 3.5L5 12V8l5-3.5z"/></svg>;
+                                case 'FaBath': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M2 10h16v6a2 2 0 01-2 2H4a2 2 0 01-2-2v-6zm2-2V6a4 4 0 118 0v2H4z"/></svg>;
+                                case 'FaCar': return <FaCar {...iconProps} />;
+                                case 'FaTshirt': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M6 2a2 2 0 012-2h4a2 2 0 012 2v2h2l2 4v10a2 2 0 01-2 2H4a2 2 0 01-2-2V8l2-4h2V2z"/></svg>;
+                                case 'FaArrowUp': return <FaArrowUp {...iconProps} />;
+                                case 'FaShieldAlt': return <FaShieldAlt {...iconProps} />;
+                                case 'FaEye': return <FaEye {...iconProps} />;
+                                case 'FaDumbbell': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M4 7a1 1 0 000 2v4a1 1 0 002 0V9h8v4a1 1 0 002 0V9a1 1 0 000-2V5a1 1 0 00-2 0v2H6V5a1 1 0 00-2 0v2z"/></svg>;
+                                case 'FaSwimmer': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M2 14c1.5 0 2.5-1 4-1s2.5 1 4 1 2.5-1 4-1 2.5 1 4 1v2c-1.5 0-2.5-1-4-1s-2.5 1-4 1-2.5-1-4-1-2.5 1-4 1v-2zm6-8a2 2 0 100-4 2 2 0 000 4zm2 2l-2 2-2-2 1-3h2l1 3z"/></svg>;
+                                case 'FaStore': return <FaStore {...iconProps} />;
+                                case 'FaCouch': return <FaCouch {...iconProps} />;
+                                case 'FaBed': return <FaBed {...iconProps} />;
+                                case 'FaTv': return <FaTv {...iconProps} />;
+                                default: return <FaCheckCircle {...iconProps} />;
+                              }
+                            };
+
+                            if (facilityItems.length <= 1) {
+                              return <p className="text-gray-700 leading-relaxed">{facilitiesText}</p>;
+                            }
+
+                            return (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {facilityItems.slice(0, 8).map((facility, index) => {
+                                  const iconData = getFacilityIcon(facility);
+                                  return (
+                                    <div key={index} className={`flex items-center gap-3 p-3 rounded-lg border ${iconData.bg} ${iconData.border} hover:shadow-md transition-all duration-200 hover:scale-105`}>
+                                      <div className={`w-8 h-8 rounded-full ${iconData.bg} border ${iconData.border} flex items-center justify-center flex-shrink-0`}>
+                                        {renderIcon(iconData.icon, iconData.color)}
+                                      </div>
+                                      <span className="text-gray-800 font-medium text-sm flex-1 leading-tight">{facility}</span>
+                                    </div>
+                                  );
+                                })}
+                                {facilityItems.length > 8 && (
+                                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-gray-50 border-gray-200">
+                                    <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 font-bold text-xs">
+                                      +{facilityItems.length - 8}
+                                    </div>
+                                    <span className="text-gray-600 text-sm">สิ่งอำนวยความสะดวกอื่นๆ</span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
@@ -1038,7 +1115,88 @@ function OwnerHomePage() {
                           สถานที่ใกล้เคียง
                         </h3>
                         <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                          <p className="text-gray-700 leading-relaxed">{selectedDorm.near_places}</p>
+                          {(() => {
+                            // แปลงข้อความเป็นรายการที่มีไอคอน
+                            const nearPlacesText = selectedDorm.near_places;
+                            const placeItems = nearPlacesText
+                              .split(/[,\n•-]/)
+                              .map(item => item.trim())
+                              .filter(item => item.length > 0);
+
+                            const getPlaceIcon = (place) => {
+                              const text = place.toLowerCase();
+                              if (text.includes('มหาวิทยาลัย') || text.includes('university') || text.includes('college') || text.includes('วิทยาลัย')) return { icon: 'FaUniversity', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', distance: 'ใกล้' };
+                              if (text.includes('โรงเรียน') || text.includes('school')) return { icon: 'FaSchool', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', distance: 'ใกล้' };
+                              if (text.includes('โรงพยาบาล') || text.includes('hospital') || text.includes('คลินิก') || text.includes('clinic')) return { icon: 'FaHospital', color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200', distance: 'ใกล้' };
+                              if (text.includes('ห้าง') || text.includes('mall') || text.includes('shopping') || text.includes('เซ็นทรัล') || text.includes('central')) return { icon: 'FaShoppingBag', color: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', distance: 'ใกล้' };
+                              if (text.includes('7-11') || text.includes('เซเว่น') || text.includes('ร้านสะดวกซื้อ') || text.includes('convenience')) return { icon: 'FaStore', color: 'text-green-500', bg: 'bg-green-50', border: 'border-green-200', distance: 'ใกล้' };
+                              if (text.includes('ตลาด') || text.includes('market') || text.includes('fresh market')) return { icon: 'FaLeaf', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', distance: 'ใกล้' };
+                              if (text.includes('ธนาคาร') || text.includes('bank') || text.includes('atm')) return { icon: 'FaUniversity', color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', distance: 'ใกล้' };
+                              if (text.includes('ป้ายรถ') || text.includes('bus') || text.includes('รถเมล์') || text.includes('ขนส่ง')) return { icon: 'FaBus', color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200', distance: 'ใกล้' };
+                              if (text.includes('bts') || text.includes('mrt') || text.includes('รถไฟฟ้า') || text.includes('สถานี')) return { icon: 'FaTrain', color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-200', distance: 'ใกล้' };
+                              if (text.includes('ร้านอาหาร') || text.includes('restaurant') || text.includes('food') || text.includes('อาหาร')) return { icon: 'FaUtensils', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', distance: 'ใกล้' };
+                              if (text.includes('ปั๊ม') || text.includes('gas') || text.includes('น้ำมัน') || text.includes('petrol')) return { icon: 'FaGasPump', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', distance: 'ใกล้' };
+                              if (text.includes('ไปรษณีย์') || text.includes('post') || text.includes('office')) return { icon: 'FaMailBulk', color: 'text-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-200', distance: 'ใกล้' };
+                              if (text.includes('สวน') || text.includes('park') || text.includes('garden')) return { icon: 'FaTree', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200', distance: 'ใกล้' };
+                              if (text.includes('ฟิตเนส') || text.includes('fitness') || text.includes('gym')) return { icon: 'FaDumbbell', color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200', distance: 'ใกล้' };
+                              if (text.includes('สนามบิน') || text.includes('airport')) return { icon: 'FaPlane', color: 'text-blue-400', bg: 'bg-blue-50', border: 'border-blue-200', distance: 'ปานกลาง' };
+                              return { icon: 'FaMapMarkerAlt', color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-200', distance: 'ใกล้' };
+                            };
+
+                            const renderPlaceIcon = (iconName, colorClass) => {
+                              const iconProps = { className: `w-4 h-4 ${colorClass}` };
+                              switch(iconName) {
+                                case 'FaUniversity': return <FaUniversity {...iconProps} />;
+                                case 'FaSchool': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M10 2L3 6v8a2 2 0 002 2h10a2 2 0 002-2V6l-7-4zM8 14V9h4v5H8z"/></svg>;
+                                case 'FaHospital': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm6 2v2H7v2h2v2h2v-2h2V8h-2V6H9z"/></svg>;
+                                case 'FaShoppingBag': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm3-1V2a2 2 0 114 0v1h-4z"/></svg>;
+                                case 'FaStore': return <FaStore {...iconProps} />;
+                                case 'FaLeaf': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a7 7 0 00-7 7c0 2.8 1.6 5.2 4 6.3V19a1 1 0 002 0v-2.7c2.4-1.1 4-3.5 4-6.3a7 7 0 00-7-7z"/></svg>;
+                                case 'FaBus': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 100 2 1 1 0 000-2zm8 0a1 1 0 100 2 1 1 0 000-2z"/></svg>;
+                                case 'FaTrain': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 100 2 1 1 0 000-2zm8 0a1 1 0 100 2 1 1 0 000-2zM6 14h8v2H6v-2z"/></svg>;
+                                case 'FaUtensils': return <FaUtensils {...iconProps} />;
+                                case 'FaGasPump': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M3 2a1 1 0 011-1h6a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V2zm11 0h2a1 1 0 011 1v8a1 1 0 01-1 1h-2V2z"/></svg>;
+                                case 'FaMailBulk': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm9 4L7 6 5 8v6h10V8l-3-2z"/></svg>;
+                                case 'FaTree': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a6 6 0 00-6 6 5.5 5.5 0 004 5.3V16a1 1 0 002 0v-2.7A5.5 5.5 0 0014 8a6 6 0 00-4-6z"/></svg>;
+                                case 'FaDumbbell': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M4 7a1 1 0 000 2v4a1 1 0 002 0V9h8v4a1 1 0 002 0V9a1 1 0 000-2V5a1 1 0 00-2 0v2H6V5a1 1 0 00-2 0v2z"/></svg>;
+                                case 'FaPlane': return <svg {...iconProps} fill="currentColor" viewBox="0 0 20 20"><path d="M10 2L3 8h4v6h6V8h4l-7-6z"/></svg>;
+                                default: return <FaMapMarkerAlt {...iconProps} />;
+                              }
+                            };
+
+                            if (placeItems.length <= 1) {
+                              return <p className="text-gray-700 leading-relaxed">{nearPlacesText}</p>;
+                            }
+
+                            return (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {placeItems.slice(0, 8).map((place, index) => {
+                                  const placeData = getPlaceIcon(place);
+                                  return (
+                                    <div key={index} className={`flex items-center gap-3 p-3 rounded-lg border ${placeData.bg} ${placeData.border} hover:shadow-md transition-all duration-200 hover:scale-105`}>
+                                      <div className={`w-8 h-8 rounded-full ${placeData.bg} border ${placeData.border} flex items-center justify-center flex-shrink-0`}>
+                                        {renderPlaceIcon(placeData.icon, placeData.color)}
+                                      </div>
+                                      <div className="flex-1">
+                                        <span className="text-gray-800 font-medium text-sm block leading-tight">{place}</span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full inline-block mt-1 ${placeData.distance === 'ใกล้' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                          📍 {placeData.distance}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {placeItems.length > 8 && (
+                                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-gray-50 border-gray-200">
+                                    <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 font-bold text-xs">
+                                      +{placeItems.length - 8}
+                                    </div>
+                                    <span className="text-gray-600 text-sm">สถานที่อื่นๆ ใกล้เคียง</span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}

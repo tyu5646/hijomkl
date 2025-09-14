@@ -51,6 +51,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
   });
   const [editId, setEditId] = useState(null);
   const [editImages, setEditImages] = useState([]); // สำหรับ preview รูปเดิม (url)
+  const [originalDormData, setOriginalDormData] = useState(null); // เก็บข้อมูลเดิมของหอพัก
   const fileInputRef = useRef();
   const editFileInputRef = useRef();
 
@@ -317,24 +318,38 @@ function OwnerDormManagePage({ roomManageMode = false }) {
   // เตรียมข้อมูลสำหรับแก้ไข
   const handleEditClick = (dorm) => {
     console.log('🔧 Debug - ข้อมูลหอพักที่จะแก้ไข:', dorm);
-    console.log('📍 Debug - พิกัดหอพัก:', {
+    console.log('� Debug - ค่าน้ำค่าไฟ:', {
+      water_rate: dorm.water_rate,
+      electricity_rate: dorm.electricity_rate,
+      water_cost: dorm.water_cost,
+      electricity_cost: dorm.electricity_cost
+    });
+    console.log('�📍 Debug - พิกัดหอพัก:', {
       latitude: dorm.latitude,
       longitude: dorm.longitude,
       coordinates: dorm.coordinates
     });
     
     // หาพิกัดหอพักจาก coordinates array ถ้าไม่มีใน dorm.latitude/longitude
-    let dormLat = dorm.latitude || '';
-    let dormLng = dorm.longitude || '';
+    let dormLat = dorm.latitude ? String(dorm.latitude) : '';
+    let dormLng = dorm.longitude ? String(dorm.longitude) : '';
     
     if ((!dormLat || !dormLng) && dorm.coordinates && Array.isArray(dorm.coordinates)) {
       const dormLocation = dorm.coordinates.find(coord => coord.location_type === 'dorm_location');
       if (dormLocation) {
-        dormLat = dormLocation.latitude || '';
-        dormLng = dormLocation.longitude || '';
+        dormLat = dormLocation.latitude ? String(dormLocation.latitude) : '';
+        dormLng = dormLocation.longitude ? String(dormLocation.longitude) : '';
         console.log('🎯 พบพิกัดใน coordinates array:', { dormLat, dormLng });
       }
     }
+    
+    // เก็บข้อมูลเดิมของหอพัก
+    setOriginalDormData({
+      water_cost: dorm.water_cost || '',
+      electricity_cost: dorm.electricity_cost || '',
+      latitude: dormLat,
+      longitude: dormLng
+    });
     
     setEditId(dorm.id);
     setForm({
@@ -343,8 +358,8 @@ function OwnerDormManagePage({ roomManageMode = false }) {
       price_monthly: dorm.price_monthly || '',
       price_term: dorm.price_term || '',
       address_detail: dorm.address_detail || '', // เปลี่ยนจาก location
-      water_rate: dorm.water_rate || '', // อัตราค่าน้ำ
-      electricity_rate: dorm.electricity_rate || '', // อัตราค่าไฟ
+      water_rate: dorm.water_cost || '', // ใช้ water_cost จาก database
+      electricity_rate: dorm.electricity_cost || '', // ใช้ electricity_cost จาก database
       deposit: dorm.deposit || '',
       contact_phone: dorm.contact_phone || '',
       facilities: dorm.facilities || '',
@@ -356,7 +371,11 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     
     console.log('📝 Debug - Form ที่ set:', {
       latitude: dormLat,
-      longitude: dormLng
+      longitude: dormLng,
+      latitudeType: typeof dormLat,
+      longitudeType: typeof dormLng,
+      water_rate: dorm.water_cost || '',
+      electricity_rate: dorm.electricity_cost || ''
     });
     
     setEditImages(dorm.images ? [...dorm.images] : []);
@@ -392,7 +411,13 @@ function OwnerDormManagePage({ roomManageMode = false }) {
       latitude: form.latitude,
       longitude: form.longitude,
       name: form.name,
-      near_places: form.near_places
+      near_places: form.near_places,
+      water_rate: form.water_rate,
+      electricity_rate: form.electricity_rate,
+      original_water_cost: originalDormData?.water_cost,
+      original_electricity_cost: originalDormData?.electricity_cost,
+      original_latitude: originalDormData?.latitude,
+      original_longitude: originalDormData?.longitude
     });
     
     const formData = new FormData();
@@ -401,14 +426,22 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     formData.append('price_monthly', form.price_monthly);
     formData.append('price_term', form.price_term);
     formData.append('address_detail', form.address_detail); // เปลี่ยนจาก location
-    formData.append('water_cost', form.water_rate); // แก้ไขจาก water_rate เป็น water_cost
-    formData.append('electricity_cost', form.electricity_rate); // แก้ไขจาก electricity_rate เป็น electricity_cost
+    
+    // ใช้ค่าเดิมถ้าไม่ได้เปลี่ยนแปลง หรือถ้าเป็นค่าว่าง
+    const waterRate = form.water_rate.trim() === '' ? originalDormData?.water_cost || '' : form.water_rate;
+    const electricityRate = form.electricity_rate.trim() === '' ? originalDormData?.electricity_cost || '' : form.electricity_rate;
+    const latitude = form.latitude.trim() === '' ? originalDormData?.latitude || '' : form.latitude;
+    const longitude = form.longitude.trim() === '' ? originalDormData?.longitude || '' : form.longitude;
+    
+    formData.append('water_cost', waterRate); // แก้ไขจาก water_rate เป็น water_cost
+    formData.append('electricity_cost', electricityRate); // แก้ไขจาก electricity_rate เป็น electricity_cost
+    
     formData.append('deposit', form.deposit);
     formData.append('contact_phone', form.contact_phone);
     formData.append('facilities', form.facilities);
     formData.append('near_places', form.near_places);
-    formData.append('latitude', form.latitude); // เพิ่มละติจูด
-    formData.append('longitude', form.longitude); // เพิ่มลองติจูด
+    formData.append('latitude', latitude); // เพิ่มละติจูด
+    formData.append('longitude', longitude); // เพิ่มลองติจูด
     // ส่งเฉพาะไฟล์ใหม่
     for (const file of form.images) {
       formData.append('images', file);
@@ -430,12 +463,15 @@ function OwnerDormManagePage({ roomManageMode = false }) {
       }
       setShowEditModal(false);
       setEditId(null);
+      setOriginalDormData(null); // Clear ข้อมูลเดิม
       setForm({ 
         name: '', 
         price_daily: '', 
         price_monthly: '', 
         price_term: '', 
         address_detail: '', 
+        water_rate: '', // เพิ่ม water_rate และ electricity_rate
+        electricity_rate: '',
         deposit: '', 
         contact_phone: '', 
         facilities: '', 
@@ -1240,6 +1276,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                     onClick={() => {
                       setShowEditModal(false);
                       setEditId(null);
+                      setOriginalDormData(null); // Clear ข้อมูลเดิม
                       setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', address_detail: '', water_rate: '', electricity_rate: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
                       setEditImages([]);
                     }}
@@ -1436,30 +1473,44 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block mb-2 text-sm text-gray-600">
                         อัตราค่าน้ำ (บาท/หน่วย)
                       </label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         type="number"
                         step="0.01"
-                        placeholder="เช่น 18.00"
+                        placeholder={originalDormData?.water_rate ? `ค่าเดิม: ${originalDormData.water_rate} บาท/หน่วย` : "เช่น 18.00"}
                         value={form.water_rate}
                         onChange={e => setForm({ ...form, water_rate: e.target.value })}
                       />
+                      {originalDormData?.water_rate ? (
+                        <div className="text-xs text-gray-500 mt-1">
+                          ค่าเดิม: {originalDormData.water_rate} บาท/หน่วย (เว้นว่างเพื่อใช้ค่าเดิม)
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500 mt-1">ระบุอัตราค่าน้ำต่อหน่วย</div>
+                      )}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block mb-2 text-sm text-gray-600">
                         อัตราค่าไฟ (บาท/หน่วย)
                       </label>
                       <input
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         type="number"
                         step="0.01"
-                        placeholder="เช่น 7.50"
+                        placeholder={originalDormData?.electricity_rate ? `ค่าเดิม: ${originalDormData.electricity_rate} บาท/หน่วย` : "เช่น 7.50"}
                         value={form.electricity_rate}
                         onChange={e => setForm({ ...form, electricity_rate: e.target.value })}
                       />
+                      {originalDormData?.electricity_rate ? (
+                        <div className="text-xs text-gray-500 mt-1">
+                          ค่าเดิม: {originalDormData.electricity_rate} บาท/หน่วย (เว้นว่างเพื่อใช้ค่าเดิม)
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500 mt-1">ระบุอัตราค่าไฟต่อหน่วย</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1653,6 +1704,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                     onClick={() => {
                       setShowEditModal(false);
                       setEditId(null);
+                      setOriginalDormData(null); // Clear ข้อมูลเดิม
                       setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', address_detail: '', water_rate: '', electricity_rate: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
                       setEditImages([]);
                     }}
