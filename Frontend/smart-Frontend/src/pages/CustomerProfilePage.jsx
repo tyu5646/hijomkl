@@ -36,19 +36,24 @@ function CustomerProfilePage() {
   const [allAmphures, setAllAmphures] = useState([]);
   const [allTambons, setAllTambons] = useState([]);
   // States สำหรับการอัปโหลดรูปโปรไฟล์
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
     // ดึงข้อมูลจังหวัด, อำเภอ, ตำบลทั้งหมดมาเก็บไว้
     const fetchThaiData = async () => {
       try {
+        console.log('Starting to fetch Thai location data...');
+        
         const [provincesRes, amphuresRes, tambonsRes] = await Promise.all([
           fetch(TH_API.provinces),
           fetch(TH_API.amphures),
           fetch(TH_API.tambons)
         ]);
+        
+        if (!provincesRes.ok || !amphuresRes.ok || !tambonsRes.ok) {
+          throw new Error('Failed to fetch Thai data');
+        }
         
         const provincesData = await provincesRes.json();
         const amphuresData = await amphuresRes.json();
@@ -58,11 +63,23 @@ function CustomerProfilePage() {
         console.log('Amphures loaded:', amphuresData.length); 
         console.log('Tambons loaded:', tambonsData.length);
         
+        if (provincesData.length === 0 || amphuresData.length === 0 || tambonsData.length === 0) {
+          throw new Error('Empty data received');
+        }
+        
         setProvinces(provincesData);
         setAllAmphures(amphuresData);
         setAllTambons(tambonsData);
       } catch (error) {
         console.error('Error loading Thai data:', error);
+        showNotification('ไม่สามารถโหลดข้อมูลจังหวัด-อำเภอ-ตำบล ได้', 'error');
+        
+        // Fallback: กำหนดข้อมูลจังหวัดที่เป็นพื้นฐาน
+        setProvinces([
+          { id: 1, name_th: 'กรุงเทพมหานคร' },
+          { id: 10, name_th: 'กระบี่' },
+          { id: 11, name_th: 'กาญจนบุรี' }
+        ]);
       }
     };
     
@@ -128,12 +145,8 @@ function CustomerProfilePage() {
       } else {
         setAmphures([]);
       }
-      
-      // Reset district และ subdistrict เมื่อเปลี่ยนจังหวัด
-      if (form.district) {
-        setForm(f => ({ ...f, district: '', subdistrict: '', zip_code: '' }));
-      }
-    } else {
+    } else if (!form.province) {
+      // ถ้าไม่มีการเลือกจังหวัด ให้ reset ทุกอย่าง
       setAmphures([]);
       setTambons([]);
     }
@@ -152,24 +165,12 @@ function CustomerProfilePage() {
         const filtered = allTambons.filter(t => t.amphure_id === selectedAmphure.id);
         console.log('Filtered tambons:', filtered.length, filtered);
         setTambons(filtered);
-        
-        // ถ้าพบตำบลเดียวและไม่มีรหัสไปรษณีย์ ให้หาจากตำบล
-        if (filtered.length > 0 && !form.zip_code) {
-          const firstTambon = filtered[0];
-          if (firstTambon.zip_code) {
-            setForm(f => ({ ...f, zip_code: firstTambon.zip_code }));
-          }
-        }
       } else {
         console.log('Amphure not found');
         setTambons([]);
       }
-      
-      // Reset subdistrict เมื่อเปลี่ยนอำเภอ
-      if (form.subdistrict) {
-        setForm(f => ({ ...f, subdistrict: '', zip_code: '' }));
-      }
-    } else {
+    } else if (!form.district) {
+      // ถ้าไม่มีการเลือกอำเภอ ให้ reset ตำบล
       setTambons([]);
     }
   }, [form.district, allTambons, amphures]);
@@ -179,25 +180,29 @@ function CustomerProfilePage() {
   const handleChange = e => {
     const { name, value } = e.target;
     console.log('Field changed:', name, 'Value:', value);
+    console.log('Current form state:', form);
+    console.log('Available amphures:', amphures.length);
+    console.log('Available tambons:', tambons.length);
     
-    setForm(f => ({ ...f, [name]: value }));
-
     // Reset dependent fields และ auto-fill zip_code
     if (name === "province") {
-      setForm(f => ({ ...f, district: '', subdistrict: '', zip_code: '' }));
+      setForm(f => ({ ...f, [name]: value, district: '', subdistrict: '', zip_code: '' }));
       setAmphures([]);
       setTambons([]);
-    }
-    if (name === "district") {
-      setForm(f => ({ ...f, subdistrict: '', zip_code: '' }));
+    } else if (name === "district") {
+      setForm(f => ({ ...f, [name]: value, subdistrict: '', zip_code: '' }));
       setTambons([]);
-    }
-    if (name === "subdistrict") {
+    } else if (name === "subdistrict") {
+      setForm(f => ({ ...f, [name]: value }));
       // หารหัสไปรษณีย์จากตำบลที่เลือก
-      const selectedTambon = tambons.find(t => t.name_th === value);
-      if (selectedTambon && selectedTambon.zip_code) {
-        setForm(f => ({ ...f, zip_code: selectedTambon.zip_code }));
-      }
+      setTimeout(() => {
+        const selectedTambon = tambons.find(t => t.name_th === value);
+        if (selectedTambon && selectedTambon.zip_code) {
+          setForm(f => ({ ...f, zip_code: selectedTambon.zip_code }));
+        }
+      }, 100);
+    } else {
+      setForm(f => ({ ...f, [name]: value }));
     }
   };
 
@@ -214,48 +219,50 @@ function CustomerProfilePage() {
       if (response.ok) {
         setUser(form);
         setEditMode(false);
-        // แสดงข้อความสำเร็จ (อาจเพิ่ม toast notification ได้)
+        showNotification('อัปเดตข้อมูลสำเร็จ!', 'success');
         console.log('Profile updated successfully');
       } else {
         console.error('Failed to update profile');
+        showNotification('เกิดข้อผิดพลาดในการอัปเดตข้อมูล', 'error');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
+      showNotification('เกิดข้อผิดพลาดในการอัปเดตข้อมูล', 'error');
     }
     setLoading(false);
   };
 
+  // ฟังก์ชันสำหรับแสดง notification
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
   // ฟังก์ชันสำหรับการจัดการการเลือกไฟล์รูปโปรไฟล์
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
       // ตรวจสอบประเภทไฟล์
       if (!file.type.startsWith('image/')) {
-        alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+        showNotification('กรุณาเลือกไฟล์รูปภาพเท่านั้น', 'error');
         return;
       }
       
       // ตรวจสอบขนาดไฟล์ (5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('ขนาดไฟล์ต้องไม่เกิน 5MB');
+        showNotification('ขนาดไฟล์ต้องไม่เกิน 5MB', 'error');
         return;
       }
       
-      setSelectedFile(file);
-      
-      // สร้าง preview URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewUrl(e.target.result);
-      };
-      reader.readAsDataURL(file);
+      // อัปโหลดทันที
+      await handleUploadAvatar(file);
     }
   };
 
   // ฟังก์ชันสำหรับอัปโหลดรูปโปรไฟล์
-  const handleUploadAvatar = async () => {
-    if (!selectedFile) {
-      alert('กรุณาเลือกไฟล์รูปภาพก่อน');
+  const handleUploadAvatar = async (file) => {
+    if (!file) {
+      showNotification('กรุณาเลือกไฟล์รูปภาพก่อน', 'error');
       return;
     }
 
@@ -264,7 +271,7 @@ function CustomerProfilePage() {
     
     try {
       const formData = new FormData();
-      formData.append('avatar', selectedFile);
+      formData.append('avatar', file);
 
       const response = await fetch('http://localhost:3001/customer/upload-avatar', {
         method: 'POST',
@@ -281,32 +288,23 @@ function CustomerProfilePage() {
         setUser(updatedUser);
         setForm(updatedUser);
         
-        // รีเซ็ตการเลือกไฟล์
-        setSelectedFile(null);
-        setPreviewUrl(null);
+        // รีเซ็ต input file
+        const fileInput = document.getElementById('avatar-upload');
+        if (fileInput) {
+          fileInput.value = '';
+        }
         
-        alert('อัปโหลดรูปโปรไฟล์สำเร็จ!');
+        showNotification('อัปโหลดรูปโปรไฟล์สำเร็จ!', 'success');
       } else {
         const error = await response.json();
-        alert(error.error || 'เกิดข้อผิดพลาดในการอัปโหลด');
+        showNotification(error.error || 'เกิดข้อผิดพลาดในการอัปโหลด', 'error');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('เกิดข้อผิดพลาดในการอัปโหลด');
+      showNotification('เกิดข้อผิดพลาดในการอัปโหลด', 'error');
     }
     
     setUploading(false);
-  };
-
-  // ฟังก์ชันสำหรับยกเลิกการเลือกไฟล์
-  const handleCancelFileSelect = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    // รีเซ็ต input file
-    const fileInput = document.getElementById('avatar-upload');
-    if (fileInput) {
-      fileInput.value = '';
-    }
   };
 
   if (loading) return (
@@ -342,6 +340,28 @@ function CustomerProfilePage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-100 to-indigo-100">
       <Header />
       
+      {/* Notification */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-500 text-white' 
+            : 'bg-red-500 text-white'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {notification.type === 'success' ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            <span>{notification.message}</span>
+          </div>
+        </div>
+      )}
+      
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/90 to-indigo-900/90"></div>
@@ -366,10 +386,10 @@ function CustomerProfilePage() {
           <div className="bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-8 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row items-center justify-between">
               <div className="flex items-center space-x-6">
-                {/* Avatar with Upload Feature */}
+                  {/* Avatar with Upload Feature */}
                 <div className="relative group">
                   <div className="w-24 h-24 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 p-1">
-                    <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
+                    <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden relative">
                       {user.avatar_url ? (
                         <img 
                           src={`http://localhost:3001${user.avatar_url}`} 
@@ -385,19 +405,36 @@ function CustomerProfilePage() {
                           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                         </svg>
                       )}
+                      
+                      {/* Upload overlay */}
+                      {uploading && (
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-full">
+                          <div className="text-white text-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mx-auto mb-1"></div>
+                            <span className="text-xs">กำลังอัปโหลด</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  
-                  {/* Camera Icon for Upload */}
+                  </div>                  {/* Camera Icon for Upload */}
                   <button
                     onClick={() => document.getElementById('avatar-upload').click()}
-                    className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700 transition-colors shadow-lg group-hover:scale-110 transform"
-                    title="เปลี่ยนรูปโปรไฟล์"
+                    disabled={uploading}
+                    className={`absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transform transition-colors ${
+                      uploading 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                    title={uploading ? "กำลังอัปโหลด..." : "เปลี่ยนรูปโปรไฟล์"}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                    {uploading ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    )}
                   </button>
                   
                   {/* Hidden File Input */}
@@ -442,12 +479,26 @@ function CustomerProfilePage() {
                   <div className="flex space-x-3">
                     <button 
                       onClick={handleSave}
-                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors shadow-lg hover:shadow-xl"
+                      disabled={loading}
+                      className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors shadow-lg hover:shadow-xl ${
+                        loading 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-green-600 hover:bg-green-700'
+                      }`}
                     >
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                      บันทึก
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                          กำลังบันทึก...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                          บันทึก
+                        </>
+                      )}
                     </button>
                     <button 
                       onClick={handleCancel}
@@ -480,10 +531,16 @@ function CustomerProfilePage() {
                           name="province"
                           value={form.province || ''}
                           onChange={handleChange}
+                          disabled={provinces.length === 0}
                         >
-                          <option value="">เลือกจังหวัด</option>
+                          <option value="">
+                            {provinces.length === 0 ? 'กำลังโหลดจังหวัด...' : 'เลือกจังหวัด'}
+                          </option>
                           {provinces.map(p => <option key={p.id} value={p.name_th}>{p.name_th}</option>)}
                         </select>
+                        {provinces.length === 0 && (
+                          <p className="text-sm text-orange-500">กำลังโหลดรายการจังหวัด...</p>
+                        )}
                       </div>
                     );
                   }
@@ -496,10 +553,14 @@ function CustomerProfilePage() {
                           name="district"
                           value={form.district || ''}
                           onChange={handleChange}
+                          disabled={!form.province || amphures.length === 0}
                         >
                           <option value="">เลือกอำเภอ</option>
                           {amphures.map(a => <option key={a.id} value={a.name_th}>{a.name_th}</option>)}
                         </select>
+                        {form.province && amphures.length === 0 && (
+                          <p className="text-sm text-gray-500">กรุณาเลือกจังหวัดก่อน</p>
+                        )}
                       </div>
                     );
                   }
@@ -512,10 +573,14 @@ function CustomerProfilePage() {
                           name="subdistrict"
                           value={form.subdistrict || ''}
                           onChange={handleChange}
+                          disabled={!form.district || tambons.length === 0}
                         >
                           <option value="">เลือกตำบล</option>
                           {tambons.map(t => <option key={t.id} value={t.name_th}>{t.name_th}</option>)}
                         </select>
+                        {form.district && tambons.length === 0 && (
+                          <p className="text-sm text-gray-500">กรุณาเลือกอำเภอก่อน</p>
+                        )}
                       </div>
                     );
                   }
@@ -541,64 +606,6 @@ function CustomerProfilePage() {
               </div>
             </div>
           </div>
-
-          {/* Avatar Upload Preview Section */}
-          {(selectedFile || previewUrl) && (
-            <div className="bg-blue-50 border-b border-blue-200 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-300">
-                    <img 
-                      src={previewUrl} 
-                      alt="Preview" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-blue-900">รูปโปรไฟล์ใหม่</h3>
-                    <p className="text-blue-700 text-sm">{selectedFile?.name}</p>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleUploadAvatar}
-                    disabled={uploading}
-                    className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors ${
-                      uploading 
-                        ? 'bg-gray-400 cursor-not-allowed' 
-                        : 'bg-green-600 hover:bg-green-700'
-                    }`}
-                  >
-                    {uploading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        กำลังอัปโหลด...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        อัปโหลด
-                      </>
-                    )}
-                  </button>
-                  
-                  <button
-                    onClick={handleCancelFileSelect}
-                    disabled={uploading}
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    ยกเลิก
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
