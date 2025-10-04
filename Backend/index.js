@@ -530,8 +530,28 @@ function verifyToken(req, res, next) {
     req.user = decoded;
     next();
   } catch (err) {
-    console.error('❌ Token verification error:', err);
-    return res.status(401).json({ error: 'Invalid token' });
+    console.error('❌ Token verification error:', err.message);
+    
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        error: 'Token expired', 
+        code: 'TOKEN_EXPIRED',
+        message: 'Please login again'
+      });
+    }
+    
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        error: 'Invalid token', 
+        code: 'INVALID_TOKEN',
+        message: 'Token is malformed'
+      });
+    }
+    
+    return res.status(401).json({ 
+      error: 'Token verification failed', 
+      code: 'VERIFICATION_FAILED'
+    });
   }
 }
 
@@ -562,8 +582,28 @@ function verifyAdminToken(req, res, next) {
     req.user = decoded;
     next();
   } catch (err) {
-    console.error('❌ Token verification error:', err.message);
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    console.error('❌ Admin token verification error:', err.message);
+    
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        error: 'Admin token expired', 
+        code: 'TOKEN_EXPIRED',
+        message: 'Please login again as admin'
+      });
+    }
+    
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        error: 'Invalid admin token', 
+        code: 'INVALID_TOKEN',
+        message: 'Token is malformed'
+      });
+    }
+    
+    return res.status(401).json({ 
+      error: 'Admin token verification failed', 
+      code: 'VERIFICATION_FAILED'
+    });
   }
 }
 
@@ -944,21 +984,21 @@ app.post('/login', async (req, res) => {
     // Check tables sequentially
     let user = await findUser('customers', 'customer');
     if (user) {
-      const token = jwt.sign({ id: user.id, role: 'customer' }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '1d' });
+      const token = jwt.sign({ id: user.id, role: 'customer' }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '7d' });
       console.log('Customer login successful:', { id: user.id, role: 'customer' });
       return res.json({ token, role: 'customer' });
     }
 
     user = await findUser('owners', 'owner');
     if (user) {
-      const token = jwt.sign({ id: user.id, role: 'owner' }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '1d' });
+      const token = jwt.sign({ id: user.id, role: 'owner' }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '7d' });
       console.log('Owner login successful:', { id: user.id, role: 'owner' });
       return res.json({ token, role: 'owner' });
     }
 
     user = await findUser('admins', 'admin');
     if (user) {
-      const token = jwt.sign({ id: user.id, role: 'admin' }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '1d' });
+      const token = jwt.sign({ id: user.id, role: 'admin' }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '7d' });
       console.log('Admin login successful:', { id: user.id, role: 'admin', email: user.email });
       return res.json({ token, role: 'admin' });
     }
@@ -969,6 +1009,53 @@ app.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json({ error: 'เกิดข้อผิดพลาดในระบบ' });
+  }
+});
+
+/**
+ * Token Refresh Endpoint
+ * ต่ออายุ JWT token เมื่อใกล้หมดอายุ
+ * @route POST /refresh-token
+ */
+app.post('/refresh-token', (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  try {
+    // ตรวจสอบ token แม้จะหมดอายุแล้ว
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key', {
+      ignoreExpiration: true
+    });
+    
+    // ตรวจสอบว่า token หมดอายุหรือไม่
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (decoded.exp && decoded.exp < currentTime) {
+      console.log('🔄 Refreshing expired token for user:', decoded.id, 'role:', decoded.role);
+    }
+    
+    // สร้าง token ใหม่
+    const newToken = jwt.sign(
+      { id: decoded.id, role: decoded.role }, 
+      process.env.JWT_SECRET || 'your_secret_key', 
+      { expiresIn: '7d' }
+    );
+    
+    res.json({ 
+      token: newToken, 
+      role: decoded.role,
+      message: 'Token refreshed successfully' 
+    });
+    
+  } catch (err) {
+    console.error('❌ Token refresh error:', err.message);
+    return res.status(401).json({ 
+      error: 'Cannot refresh token', 
+      code: 'REFRESH_FAILED',
+      message: 'Please login again'
+    });
   }
 });
 
@@ -2363,7 +2450,8 @@ async function callGroqAI(userMessage, dormContext) {
 ${dormContext}
 
 **การตอบคำถาม:**
-- หากถามเรื่องราคา: แสดงราคาทุกประเภทที่มี (รายเดือน รายวัน รายเทอม) พร้อมค่าน้ำ ค่าไฟ
+- หากถามเรื่องราคาทั่วไป: แสดงราคารายเดือนเป็นหลัก และรายเทอม (ไม่ต้องแสดงรายวัน เว้นแต่ถามเฉพาะ) พร้อมค่าน้ำ ค่าไฟ
+- หากถามเรื่องราคารายวันโดยเฉพาะ: แสดงราคารายวันเป็นหลัก และรายเดือน
 - หากถามเรื่องสถานที่/ระยะทาง: วิเคราะห์ near_places และจัดอันดับความใกล้ พร้อมแนะนำ
 - หากถามเรื่องสิ่งอำนวยความสะดวก: อธิบายรายละเอียดจาก facilities
 - หากถามเปรียบเทียบ: แสดงตารางเปรียบเทียบหลายหอพัก

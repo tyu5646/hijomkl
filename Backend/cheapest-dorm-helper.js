@@ -35,15 +35,27 @@ function answerCheapestDormQuery(message, dorms) {
       
       cheapestDorms.forEach((dorm, index) => {
         const prices = [];
-        // แสดงเฉพาะราคาที่มีและมากกว่า 0
-        if (dorm.price_daily && Number(dorm.price_daily) > 0) {
-          prices.push(`รายวัน ฿${Number(dorm.price_daily).toLocaleString()}`);
-        }
-        if (dorm.price_monthly && Number(dorm.price_monthly) > 0) {
-          prices.push(`รายเดือน ฿${Number(dorm.price_monthly).toLocaleString()}`);
-        }
-        if (dorm.price_term && Number(dorm.price_term) > 0) {
-          prices.push(`รายเทอม ฿${Number(dorm.price_term).toLocaleString()}`);
+        
+        // ตรวจสอบว่าผู้ใช้ถามเรื่องราคารายวันโดยเฉพาะหรือไม่
+        const askingDailyRate = /รายวัน|ต่อวัน|วันละ|daily/.test(message.toLowerCase());
+        
+        // แสดงราคาตามการถามของผู้ใช้
+        if (askingDailyRate) {
+          // ถ้าถามเรื่องรายวัน ให้แสดงรายวันเป็นหลัก
+          if (dorm.price_daily && Number(dorm.price_daily) > 0) {
+            prices.push(`รายวัน ฿${Number(dorm.price_daily).toLocaleString()}`);
+          }
+          if (dorm.price_monthly && Number(dorm.price_monthly) > 0) {
+            prices.push(`รายเดือน ฿${Number(dorm.price_monthly).toLocaleString()}`);
+          }
+        } else {
+          // ถ้าถามเรื่องราคาถูกทั่วไป ให้แสดงรายเดือนเป็นหลัก
+          if (dorm.price_monthly && Number(dorm.price_monthly) > 0) {
+            prices.push(`รายเดือน ฿${Number(dorm.price_monthly).toLocaleString()}`);
+          }
+          if (dorm.price_term && Number(dorm.price_term) > 0) {
+            prices.push(`รายเทอม ฿${Number(dorm.price_term).toLocaleString()}`);
+          }
         }
         
         response += `${index + 1}. **${dorm.name}**\n`;
