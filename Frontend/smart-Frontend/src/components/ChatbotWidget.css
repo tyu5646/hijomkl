@@ -832,3 +832,216 @@
   height: 120px;
 }
 
+/* Dorm Cards Styles */
+.chatbot-message-intro {
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.chatbot-dorm-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.chatbot-dorm-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.chatbot-dorm-card:hover {
+  border-color: #667eea;
+  box-shadow: 0 8px 16px -4px rgba(102, 126, 234, 0.2);
+  transform: translateY(-2px);
+}
+
+.chatbot-dorm-card:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 8px -2px rgba(102, 126, 234, 0.15);
+}
+
+.chatbot-dorm-card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.chatbot-dorm-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.chatbot-dorm-name {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  flex: 1;
+}
+
+.chatbot-dorm-view-icon {
+  font-size: 18px;
+  opacity: 0.8;
+  transition: all 0.3s ease;
+}
+
+.chatbot-dorm-card:hover .chatbot-dorm-view-icon {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.chatbot-dorm-card-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chatbot-dorm-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.chatbot-price-label {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.chatbot-price-amount {
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.chatbot-dorm-facilities {
+  margin-top: 4px;
+}
+
+.chatbot-facilities-label {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.chatbot-facilities-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chatbot-facility-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid #fcd34d;
+}
+
+.chatbot-dorm-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #f0fdf4;
+  border-radius: 8px;
+  border: 1px solid #bbf7d0;
+  margin-top: 4px;
+}
+
+.chatbot-location-icon {
+  font-size: 14px;
+}
+
+.chatbot-location-text {
+  font-size: 13px;
+  color: #15803d;
+  font-weight: 500;
+}
+
+.chatbot-dorm-contact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #eff6ff;
+  border-radius: 8px;
+  border: 1px solid #bfdbfe;
+  margin-top: 4px;
+}
+
+.chatbot-contact-icon {
+  font-size: 14px;
+}
+
+.chatbot-contact-text {
+  font-size: 13px;
+  color: #1e40af;
+  font-weight: 500;
+}
+
+.chatbot-dorm-click-hint {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #fcd34d;
+  transition: all 0.3s ease;
+}
+
+.chatbot-dorm-click-hint span {
+  font-size: 12px;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.chatbot-dorm-card:hover .chatbot-dorm-click-hint {
+  background: linear-gradient(135deg, #fde68a 0%, #fbbf24 100%);
+  transform: scale(1.02);
+}
+
+/* Animation for cards */
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chatbot-dorm-card {
+  animation: cardSlideIn 0.4s ease-out;
+}
+
+.chatbot-dorm-card:nth-child(1) { animation-delay: 0.05s; }
+.chatbot-dorm-card:nth-child(2) { animation-delay: 0.1s; }
+.chatbot-dorm-card:nth-child(3) { animation-delay: 0.15s; }
+.chatbot-dorm-card:nth-child(4) { animation-delay: 0.2s; }
+.chatbot-dorm-card:nth-child(5) { animation-delay: 0.25s; }
+
+

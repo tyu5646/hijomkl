@@ -31,10 +31,11 @@ function answerCheapestDormQuery(message, dorms) {
     });
 
     if (cheapestDorms.length > 0) {
-      let response = `🏠 หอพักราคาถูกที่สุด 3 อันดับแรก:\n\n`;
+      let response = `🏠 **หอพักราคาถูกที่สุด 3 อันดับแรก:**\n\n`;
       
       cheapestDorms.forEach((dorm, index) => {
-        const prices = [];
+        // Format เป็นรูปแบบที่ ChatbotWidget สามารถ parse เป็นการ์ดได้
+        response += `${index + 1}. 🏠 **${dorm.name}**\n`;
         
         // ตรวจสอบว่าผู้ใช้ถามเรื่องราคารายวันโดยเฉพาะหรือไม่
         const askingDailyRate = /รายวัน|ต่อวัน|วันละ|daily/.test(message.toLowerCase());
@@ -43,29 +44,41 @@ function answerCheapestDormQuery(message, dorms) {
         if (askingDailyRate) {
           // ถ้าถามเรื่องรายวัน ให้แสดงรายวันเป็นหลัก
           if (dorm.price_daily && Number(dorm.price_daily) > 0) {
-            prices.push(`รายวัน ฿${Number(dorm.price_daily).toLocaleString()}`);
+            response += `   💰 ราคารายวัน: ฿${Number(dorm.price_daily).toLocaleString()} บาท\n`;
           }
           if (dorm.price_monthly && Number(dorm.price_monthly) > 0) {
-            prices.push(`รายเดือน ฿${Number(dorm.price_monthly).toLocaleString()}`);
+            response += `   💰 ราคารายเดือน: ฿${Number(dorm.price_monthly).toLocaleString()} บาท\n`;
           }
         } else {
           // ถ้าถามเรื่องราคาถูกทั่วไป ให้แสดงรายเดือนเป็นหลัก
           if (dorm.price_monthly && Number(dorm.price_monthly) > 0) {
-            prices.push(`รายเดือน ฿${Number(dorm.price_monthly).toLocaleString()}`);
+            response += `   💰 ราคารายเดือน: ฿${Number(dorm.price_monthly).toLocaleString()} บาท\n`;
           }
           if (dorm.price_term && Number(dorm.price_term) > 0) {
-            prices.push(`รายเทอม ฿${Number(dorm.price_term).toLocaleString()}`);
+            response += `   💰 ราคารายเทอม: ฿${Number(dorm.price_term).toLocaleString()} บาท\n`;
           }
         }
         
-        response += `${index + 1}. **${dorm.name}**\n`;
-        response += `   💰 ราคา: ${prices.join(' | ')}\n`;
-        if (dorm.near_places) response += `   📍 ใกล้: ${dorm.near_places}\n`;
-        if (dorm.contact_phone) response += `   📞 ติดต่อ: ${dorm.contact_phone}\n`;
+        // แสดงสิ่งอำนวยความสะดวก
+        if (dorm.facilities) {
+          response += `   🌟 สิ่งอำนวยความสะดวก: ${dorm.facilities}\n`;
+        }
+        
+        // แสดงที่ตั้ง/ใกล้กับ
+        if (dorm.near_places) {
+          response += `   📍 ที่ตั้ง: ใกล้${dorm.near_places}\n`;
+        }
+        
+        // แสดงเบอร์ติดต่อ
+        if (dorm.contact_phone) {
+          response += `   📞 ติดต่อ: ${dorm.contact_phone}\n`;
+        }
+        
         response += `\n`;
       });
       
-      response += `💡 หมายเหตุ: ราคาเรียงจากถูกไปแพงตามราคารายเดือน (หากไม่มีใช้รายวัน×30)`;
+      response += `💡 **หมายเหตุ:** ราคาเรียงจากถูกไปแพงตามราคารายเดือน\n`;
+      response += `✨ คลิกที่การ์ดเพื่อดูรายละเอียดเพิ่มเติม`;
       return response;
     }
   }

@@ -469,7 +469,7 @@ function OwnerProfilePage() {
                                 e.target.nextSibling.style.display = 'flex';
                               }}
                             />
-                            <span className="hidden text-2xl font-bold text-blue-600 w-full h-full flex items-center justify-center">
+                            <span className="text-2xl font-bold text-blue-600 w-full h-full flex items-center justify-center" style={{display: 'none'}}>
                               {profile.firstName?.charAt(0)}{profile.lastName?.charAt(0)}
                             </span>
                           </>
@@ -618,7 +618,7 @@ function OwnerProfilePage() {
                                     e.target.nextSibling.style.display = 'flex';
                                   }}
                                 />
-                                <span className="hidden text-3xl font-bold text-blue-600 w-full h-full flex items-center justify-center">
+                                <span className="text-3xl font-bold text-blue-600 w-full h-full flex items-center justify-center" style={{display: 'none'}}>
                                   {profile.firstName?.charAt(0)}{profile.lastName?.charAt(0)}
                                 </span>
                               </>

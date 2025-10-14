@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { getProvinces, getAmphures, getTambons } from '../services/thailandGeography';
 
 const initialData = {
   firstName: '', lastName: '', age: '', dob: '', houseNo: '', moo: '', soi: '', road: '',
@@ -14,57 +15,80 @@ function RegisterPage() {
   const [provinces, setProvinces] = useState([]);
   const [amphures, setAmphures] = useState([]);
   const [tambons, setTambons] = useState([]);
-  const [allAmphures, setAllAmphures] = useState([]);
-  const [allTambons, setAllTambons] = useState([]);
   const [zipCode, setZipCode] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // โหลดข้อมูลจาก raw.githubusercontent.com
+  // โหลดข้อมูลจังหวัดจาก Thailand Geography API
   useEffect(() => {
-    fetch('https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province.json')
-      .then(res => res.json())
-      .then(data => setProvinces(data));
-    fetch('https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_amphure.json')
-      .then(res => res.json())
-      .then(data => setAllAmphures(data));
-    fetch('https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_tambon.json')
-      .then(res => res.json())
-      .then(data => setAllTambons(data));
+    loadProvinces();
   }, []);
 
-  // เมื่อเลือกจังหวัด ให้ filter อำเภอ
-  useEffect(() => {
-    if (form.province) {
-      const amphures = allAmphures.filter(a => a.province_id === Number(form.province));
-      setAmphures(amphures);
-      setTambons([]);
-      setForm(f => ({ ...f, district: '', subdistrict: '' }));
-    } else {
-      setAmphures([]);
-      setTambons([]);
-      setForm(f => ({ ...f, district: '', subdistrict: '' }));
+  const loadProvinces = async () => {
+    try {
+      setLoading(true);
+      const provincesData = await getProvinces();
+      setProvinces(provincesData);
+      console.log('✅ โหลดจังหวัดสำเร็จ:', provincesData.length, 'จังหวัด');
+    } catch (error) {
+      console.error('❌ Error loading provinces:', error);
+      setError('ไม่สามารถโหลดข้อมูลจังหวัดได้');
+    } finally {
+      setLoading(false);
     }
-  }, [form.province, allAmphures]);
+  };
 
-  // เมื่อเลือกอำเภอ ให้ filter ตำบล
+  // เมื่อเลือกจังหวัด ให้โหลดอำเภอ
   useEffect(() => {
-    if (form.district) {
-      const tambons = allTambons.filter(t => t.amphure_id === Number(form.district));
-      setTambons(tambons);
-      setForm(f => ({ ...f, subdistrict: '' }));
-    } else {
+    const loadAmphures = async () => {
+      if (form.province) {
+        try {
+          const amphuresData = await getAmphures(parseInt(form.province));
+          setAmphures(amphuresData);
+          console.log('✅ โหลดอำเภอสำเร็จ:', amphuresData.length, 'อำเภอ');
+        } catch (error) {
+          console.error('❌ Error loading amphures:', error);
+        }
+      } else {
+        setAmphures([]);
+      }
       setTambons([]);
-      setForm(f => ({ ...f, subdistrict: '' }));
-    }
-  }, [form.district, allTambons]);
+      setForm(f => ({ ...f, district: '', subdistrict: '', zip_code: '' }));
+      setZipCode('');
+    };
+    
+    loadAmphures();
+  }, [form.province]);
+
+  // เมื่อเลือกอำเภอ ให้โหลดตำบล
+  useEffect(() => {
+    const loadTambons = async () => {
+      if (form.district) {
+        try {
+          const tambonsData = await getTambons(parseInt(form.district));
+          setTambons(tambonsData);
+          console.log('✅ โหลดตำบลสำเร็จ:', tambonsData.length, 'ตำบล');
+        } catch (error) {
+          console.error('❌ Error loading tambons:', error);
+        }
+      } else {
+        setTambons([]);
+      }
+      setForm(f => ({ ...f, subdistrict: '', zip_code: '' }));
+      setZipCode('');
+    };
+    
+    loadTambons();
+  }, [form.district]);
 
   // เมื่อเลือกตำบล ให้ set zip_code
   useEffect(() => {
     if (form.subdistrict) {
-      const tambon = tambons.find(t => t.id === Number(form.subdistrict));
-      if (tambon) {
-        setZipCode(tambon.zip_code);
-        setForm(f => ({ ...f, zip_code: tambon.zip_code }));
+      const selectedTambon = tambons.find(t => t.id === parseInt(form.subdistrict));
+      if (selectedTambon && selectedTambon.zip_code) {
+        setZipCode(selectedTambon.zip_code);
+        setForm(f => ({ ...f, zip_code: selectedTambon.zip_code }));
+        console.log('✅ รหัสไปรษณีย์:', selectedTambon.zip_code);
       }
     } else {
       setZipCode('');
@@ -142,6 +166,13 @@ function RegisterPage() {
                   </svg>
                 </div>
                 <span className="text-red-700 font-medium">{error}</span>
+              </div>
+            )}
+
+            {loading && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
+                <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                <span className="text-blue-700 font-medium">กำลังโหลดข้อมูล...</span>
               </div>
             )}
 
@@ -372,15 +403,25 @@ function RegisterPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">จังหวัด</label>
+                  <label className="block text-sm font-semibold text-gray-700">
+                    จังหวัด
+                    {provinces.length > 0 && (
+                      <span className="ml-2 text-xs font-normal text-gray-500">
+                        ({provinces.length} จังหวัด)
+                      </span>
+                    )}
+                  </label>
                   <select
                     name="province"
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
                     value={form.province}
                     onChange={handleChange}
                     required
+                    disabled={provinces.length === 0}
                   >
-                    <option value="">เลือกจังหวัด</option>
+                    <option value="">
+                      {provinces.length === 0 ? 'กำลังโหลด...' : 'เลือกจังหวัด'}
+                    </option>
                     {provinces.map((p) => (
                       <option key={p.id} value={p.id}>{p.name_th}</option>
                     ))}
@@ -388,16 +429,25 @@ function RegisterPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">อำเภอ</label>
+                  <label className="block text-sm font-semibold text-gray-700">
+                    อำเภอ
+                    {amphures.length > 0 && (
+                      <span className="ml-2 text-xs font-normal text-gray-500">
+                        ({amphures.length} อำเภอ)
+                      </span>
+                    )}
+                  </label>
                   <select
                     name="district"
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white disabled:bg-gray-100"
                     value={form.district}
                     onChange={handleChange}
                     required
-                    disabled={!form.province}
+                    disabled={!form.province || amphures.length === 0}
                   >
-                    <option value="">เลือกอำเภอ</option>
+                    <option value="">
+                      {!form.province ? 'เลือกจังหวัดก่อน' : amphures.length === 0 ? 'กำลังโหลด...' : 'เลือกอำเภอ'}
+                    </option>
                     {amphures.map((a) => (
                       <option key={a.id} value={a.id}>{a.name_th}</option>
                     ))}
@@ -405,16 +455,25 @@ function RegisterPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">ตำบล</label>
+                  <label className="block text-sm font-semibold text-gray-700">
+                    ตำบล
+                    {tambons.length > 0 && (
+                      <span className="ml-2 text-xs font-normal text-gray-500">
+                        ({tambons.length} ตำบล)
+                      </span>
+                    )}
+                  </label>
                   <select
                     name="subdistrict"
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white disabled:bg-gray-100"
                     value={form.subdistrict}
                     onChange={handleChange}
                     required
-                    disabled={!form.district}
+                    disabled={!form.district || tambons.length === 0}
                   >
-                    <option value="">เลือกตำบล</option>
+                    <option value="">
+                      {!form.district ? 'เลือกอำเภอก่อน' : tambons.length === 0 ? 'กำลังโหลด...' : 'เลือกตำบล'}
+                    </option>
                     {tambons.map((t) => (
                       <option key={t.id} value={t.id}>{t.name_th}</option>
                     ))}

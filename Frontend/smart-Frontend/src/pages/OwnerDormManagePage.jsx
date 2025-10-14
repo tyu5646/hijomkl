@@ -24,7 +24,8 @@ import {
   FaCheckCircle,
   FaExclamationTriangle,
   FaInfoCircle,
-  FaCouch
+  FaCouch,
+  FaBuilding
 } from 'react-icons/fa';
 
 function OwnerDormManagePage({ roomManageMode = false }) {
@@ -38,6 +39,8 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     price_daily: '',
     price_monthly: '',
     price_term: '',
+    floor_count: '', // จำนวนชั้น
+    room_count: '', // จำนวนห้อง
     address_detail: '', // เปลี่ยนจาก location เป็น address_detail
     water_rate: '', // อัตราค่าน้ำต่อหน่วย
     electricity_rate: '', // อัตราค่าไฟต่อหน่วย
@@ -262,6 +265,8 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     formData.append('price_daily', form.price_daily);
     formData.append('price_monthly', form.price_monthly);
     formData.append('price_term', form.price_term);
+    formData.append('floor_count', form.floor_count); // จำนวนชั้น
+    formData.append('room_count', form.room_count); // จำนวนห้อง
     formData.append('address_detail', form.address_detail); // เปลี่ยนจาก location
     formData.append('water_cost', form.water_rate); // แก้ไขจาก water_rate เป็น water_cost
     formData.append('electricity_cost', form.electricity_rate); // แก้ไขจาก electricity_rate เป็น electricity_cost
@@ -294,7 +299,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
         console.log('🔧 Debug - Response data:', responseData);
         alert('เพิ่มหอพักเรียบร้อยแล้ว! \nหอพักของคุณอยู่ในสถานะรออนุมัติจากผู้ดูแลระบบ \nจะแสดงในหน้าหลักหลังจากได้รับการอนุมัติ');
         setShowAddModal(false);
-        setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', address_detail: '', water_rate: '', electricity_rate: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
+        setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', floor_count: '', room_count: '', address_detail: '', water_rate: '', electricity_rate: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
         if (fileInputRef.current) fileInputRef.current.value = '';
         fetchDorms(sessionStorage.getItem('token'));
       } else {
@@ -358,6 +363,8 @@ function OwnerDormManagePage({ roomManageMode = false }) {
       price_daily: dorm.price_daily || '',
       price_monthly: dorm.price_monthly || '',
       price_term: dorm.price_term || '',
+      floor_count: dorm.floor_count || '', // จำนวนชั้น
+      room_count: dorm.room_count || '', // จำนวนห้อง
       address_detail: dorm.address_detail || '', // เปลี่ยนจาก location
       water_rate: dorm.water_cost || '', // ใช้ water_cost จาก database
       electricity_rate: dorm.electricity_cost || '', // ใช้ electricity_cost จาก database
@@ -427,6 +434,8 @@ function OwnerDormManagePage({ roomManageMode = false }) {
     formData.append('price_daily', form.price_daily);
     formData.append('price_monthly', form.price_monthly);
     formData.append('price_term', form.price_term);
+    formData.append('floor_count', form.floor_count); // จำนวนชั้น
+    formData.append('room_count', form.room_count); // จำนวนห้อง
     formData.append('address_detail', form.address_detail); // เปลี่ยนจาก location
     
     // ใช้ค่าเดิมถ้าไม่ได้เปลี่ยนแปลง หรือถ้าเป็นค่าว่าง
@@ -944,6 +953,38 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                     />
                   </div>
 
+                  {/* จำนวนชั้นและจำนวนห้อง */}
+                  <div>
+                    <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
+                      <FaBuilding className="text-blue-500" />
+                      จำนวนชั้น
+                    </label>
+                    <input
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="เช่น 4"
+                      type="number"
+                      min="1"
+                      value={form.floor_count}
+                      onChange={e => setForm({ ...form, floor_count: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
+                      <FaDoorOpen className="text-purple-500" />
+                      จำนวนห้องทั้งหมด *
+                    </label>
+                    <input
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                      placeholder="เช่น 50"
+                      type="number"
+                      min="1"
+                      value={form.room_count}
+                      onChange={e => setForm({ ...form, room_count: e.target.value })}
+                      required
+                    />
+                  </div>
+
                   {/* ฟิลด์พิกัด GPS */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -1294,7 +1335,7 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                       setShowEditModal(false);
                       setEditId(null);
                       setOriginalDormData(null); // Clear ข้อมูลเดิม
-                      setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', address_detail: '', water_rate: '', electricity_rate: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
+                      setForm({ name: '', price_daily: '', price_monthly: '', price_term: '', floor_count: '', room_count: '', address_detail: '', water_rate: '', electricity_rate: '', deposit: '', contact_phone: '', facilities: '', near_places: '', latitude: '', longitude: '', images: [] });
                       setEditImages([]);
                     }}
                   >
@@ -1385,6 +1426,38 @@ function OwnerDormManagePage({ roomManageMode = false }) {
                       placeholder="ที่อยู่หรือทำเลที่ตั้ง"
                       value={form.address_detail}
                       onChange={e => setForm({ ...form, address_detail: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  {/* จำนวนชั้นและจำนวนห้อง */}
+                  <div>
+                    <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
+                      <FaBuilding className="text-blue-500" />
+                      จำนวนชั้น
+                    </label>
+                    <input
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="เช่น 4"
+                      type="number"
+                      min="1"
+                      value={form.floor_count}
+                      onChange={e => setForm({ ...form, floor_count: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">
+                      <FaDoorOpen className="text-purple-500" />
+                      จำนวนห้องทั้งหมด *
+                    </label>
+                    <input
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                      placeholder="เช่น 50"
+                      type="number"
+                      min="1"
+                      value={form.room_count}
+                      onChange={e => setForm({ ...form, room_count: e.target.value })}
                       required
                     />
                   </div>
