@@ -913,7 +913,7 @@ function CustomerHomePage() {
           </div>
           <button
             type="submit"
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-purple-600 hover:to-blue-600 text-white px-8 py-2 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all text-lg flex items-center gap-2"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-2 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all text-lg flex items-center gap-2"
           >
             <FaSearch />
             ค้นหา
@@ -1096,7 +1096,7 @@ function CustomerHomePage() {
 
                   {/* View Details Button - Always at bottom */}
                   <button 
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 rounded-lg font-semibold transition-all duration-200 text-sm shadow-lg hover:shadow-xl flex items-center justify-center gap-2 min-h-[50px] mt-auto"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg font-semibold transition-all duration-200 text-sm shadow-lg hover:shadow-xl flex items-center justify-center gap-2 min-h-[50px] mt-auto"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleOpenDorm(dorm);
