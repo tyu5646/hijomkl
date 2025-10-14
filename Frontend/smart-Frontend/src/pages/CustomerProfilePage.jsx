@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
+import { getProvinces, getAmphures, getTambons } from '../services/thailandGeography';
 import '../components/ChatbotWidgetCircle.css';
 
 const LABELS = {
@@ -19,12 +20,6 @@ const LABELS = {
   zip_code: 'รหัสไปรษณีย์',
 };
 
-const TH_API = {
-  provinces: 'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province_with_amphure_tambon.json',
-  amphures: 'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_amphure.json',
-  tambons: 'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_tambon.json',
-};
-
 function CustomerProfilePage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,57 +28,24 @@ function CustomerProfilePage() {
   const [provinces, setProvinces] = useState([]);
   const [amphures, setAmphures] = useState([]);
   const [tambons, setTambons] = useState([]);
-  const [allAmphures, setAllAmphures] = useState([]);
-  const [allTambons, setAllTambons] = useState([]);
   // States สำหรับการอัปโหลดรูปโปรไฟล์
   const [uploading, setUploading] = useState(false);
   const [notification, setNotification] = useState(null);
 
   useEffect(() => {
-    // ดึงข้อมูลจังหวัด, อำเภอ, ตำบลทั้งหมดมาเก็บไว้
-    const fetchThaiData = async () => {
+    // ดึงข้อมูลจังหวัดจาก Thailand Geography API
+    const loadProvinces = async () => {
       try {
-        console.log('Starting to fetch Thai location data...');
-        
-        const [provincesRes, amphuresRes, tambonsRes] = await Promise.all([
-          fetch(TH_API.provinces),
-          fetch(TH_API.amphures),
-          fetch(TH_API.tambons)
-        ]);
-        
-        if (!provincesRes.ok || !amphuresRes.ok || !tambonsRes.ok) {
-          throw new Error('Failed to fetch Thai data');
-        }
-        
-        const provincesData = await provincesRes.json();
-        const amphuresData = await amphuresRes.json();
-        const tambonsData = await tambonsRes.json();
-        
-        console.log('Provinces loaded:', provincesData.length);
-        console.log('Amphures loaded:', amphuresData.length); 
-        console.log('Tambons loaded:', tambonsData.length);
-        
-        if (provincesData.length === 0 || amphuresData.length === 0 || tambonsData.length === 0) {
-          throw new Error('Empty data received');
-        }
-        
+        const provincesData = await getProvinces();
         setProvinces(provincesData);
-        setAllAmphures(amphuresData);
-        setAllTambons(tambonsData);
+        console.log('✅ โหลดจังหวัดสำเร็จ:', provincesData.length, 'จังหวัด');
       } catch (error) {
-        console.error('Error loading Thai data:', error);
-        showNotification('ไม่สามารถโหลดข้อมูลจังหวัด-อำเภอ-ตำบล ได้', 'error');
-        
-        // Fallback: กำหนดข้อมูลจังหวัดที่เป็นพื้นฐาน
-        setProvinces([
-          { id: 1, name_th: 'กรุงเทพมหานคร' },
-          { id: 10, name_th: 'กระบี่' },
-          { id: 11, name_th: 'กาญจนบุรี' }
-        ]);
+        console.error('❌ Error loading provinces:', error);
+        showNotification('ไม่สามารถโหลดข้อมูลจังหวัดได้', 'error');
       }
     };
     
-    fetchThaiData();
+    loadProvinces();
   }, []);
 
   useEffect(() => {
@@ -121,89 +83,68 @@ function CustomerProfilePage() {
         setUser(data);
         setForm(data);
         setLoading(false);
-      })
-      .catch(error => {
-        console.error('Profile fetch error:', error); // Debug
-        setUser(null);
-        setLoading(false);
       });
   }, []);
 
+  // เมื่อเลือกจังหวัด ให้โหลดอำเภอ
   useEffect(() => {
-    // โหลดอำเภอเมื่อเลือกจังหวัด
-    if (form.province && allAmphures.length > 0 && provinces.length > 0) {
-      console.log('Loading amphures for province:', form.province);
-      
-      // หา province_id จากชื่อจังหวัด
-      const selectedProvince = provinces.find(p => p.name_th === form.province);
-      console.log('Selected province:', selectedProvince);
-      
-      if (selectedProvince) {
-        const filtered = allAmphures.filter(a => a.province_id === selectedProvince.id);
-        console.log('Filtered amphures:', filtered.length);
-        setAmphures(filtered);
+    const loadAmphures = async () => {
+      if (form.province) {
+        try {
+          const amphuresData = await getAmphures(parseInt(form.province));
+          setAmphures(amphuresData);
+          console.log('✅ โหลดอำเภอสำเร็จ:', amphuresData.length, 'อำเภอ');
+        } catch (error) {
+          console.error('❌ Error loading amphures:', error);
+        }
       } else {
         setAmphures([]);
       }
-    } else if (!form.province) {
-      // ถ้าไม่มีการเลือกจังหวัด ให้ reset ทุกอย่าง
-      setAmphures([]);
       setTambons([]);
-    }
-  }, [form.province, allAmphures, provinces]);
+      setForm(f => ({ ...f, district: '', subdistrict: '', zip_code: '' }));
+    };
+    
+    loadAmphures();
+  }, [form.province]);
 
+  // เมื่อเลือกอำเภอ ให้โหลดตำบล
   useEffect(() => {
-    // โหลดตำบลเมื่อเลือกอำเภอ
-    if (form.district && allTambons.length > 0 && amphures.length > 0) {
-      console.log('Loading tambons for district:', form.district);
-      
-      // หา amphure_id จากชื่ออำเภอ
-      const selectedAmphure = amphures.find(a => a.name_th === form.district);
-      console.log('Selected amphure:', selectedAmphure);
-      
-      if (selectedAmphure) {
-        const filtered = allTambons.filter(t => t.amphure_id === selectedAmphure.id);
-        console.log('Filtered tambons:', filtered.length, filtered);
-        setTambons(filtered);
+    const loadTambons = async () => {
+      if (form.district) {
+        try {
+          const tambonsData = await getTambons(parseInt(form.district));
+          setTambons(tambonsData);
+          console.log('✅ โหลดตำบลสำเร็จ:', tambonsData.length, 'ตำบล');
+        } catch (error) {
+          console.error('❌ Error loading tambons:', error);
+        }
       } else {
-        console.log('Amphure not found');
         setTambons([]);
       }
-    } else if (!form.district) {
-      // ถ้าไม่มีการเลือกอำเภอ ให้ reset ตำบล
-      setTambons([]);
+      setForm(f => ({ ...f, subdistrict: '', zip_code: '' }));
+    };
+    
+    loadTambons();
+  }, [form.district]);
+
+  // เมื่อเลือกตำบล ให้ set zip_code
+  useEffect(() => {
+    if (form.subdistrict) {
+      const selectedTambon = tambons.find(t => t.id === parseInt(form.subdistrict));
+      if (selectedTambon && selectedTambon.zip_code) {
+        setForm(f => ({ ...f, zip_code: selectedTambon.zip_code }));
+        console.log('✅ รหัสไปรษณีย์:', selectedTambon.zip_code);
+      }
+    } else {
+      setForm(f => ({ ...f, zip_code: '' }));
     }
-  }, [form.district, allTambons, amphures]);
+  }, [form.subdistrict, tambons]);
 
   const handleEdit = () => setEditMode(true);
   const handleCancel = () => { setEditMode(false); setForm(user); };
   const handleChange = e => {
     const { name, value } = e.target;
-    console.log('Field changed:', name, 'Value:', value);
-    console.log('Current form state:', form);
-    console.log('Available amphures:', amphures.length);
-    console.log('Available tambons:', tambons.length);
-    
-    // Reset dependent fields และ auto-fill zip_code
-    if (name === "province") {
-      setForm(f => ({ ...f, [name]: value, district: '', subdistrict: '', zip_code: '' }));
-      setAmphures([]);
-      setTambons([]);
-    } else if (name === "district") {
-      setForm(f => ({ ...f, [name]: value, subdistrict: '', zip_code: '' }));
-      setTambons([]);
-    } else if (name === "subdistrict") {
-      setForm(f => ({ ...f, [name]: value }));
-      // หารหัสไปรษณีย์จากตำบลที่เลือก
-      setTimeout(() => {
-        const selectedTambon = tambons.find(t => t.name_th === value);
-        if (selectedTambon && selectedTambon.zip_code) {
-          setForm(f => ({ ...f, zip_code: selectedTambon.zip_code }));
-        }
-      }, 100);
-    } else {
-      setForm(f => ({ ...f, [name]: value }));
-    }
+    setForm(f => ({ ...f, [name]: value }));
   };
 
   const handleSave = async () => {
@@ -525,7 +466,14 @@ function CustomerProfilePage() {
                   if (editMode && key === 'province') {
                     return (
                       <div key={key} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">{LABELS[key] || key}</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          {LABELS[key] || key}
+                          {provinces.length > 0 && (
+                            <span className="ml-2 text-xs font-normal text-gray-500">
+                              ({provinces.length} จังหวัด)
+                            </span>
+                          )}
+                        </label>
                         <select
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white text-gray-900"
                           name="province"
@@ -536,18 +484,22 @@ function CustomerProfilePage() {
                           <option value="">
                             {provinces.length === 0 ? 'กำลังโหลดจังหวัด...' : 'เลือกจังหวัด'}
                           </option>
-                          {provinces.map(p => <option key={p.id} value={p.name_th}>{p.name_th}</option>)}
+                          {provinces.map(p => <option key={p.id} value={p.id}>{p.name_th}</option>)}
                         </select>
-                        {provinces.length === 0 && (
-                          <p className="text-sm text-orange-500">กำลังโหลดรายการจังหวัด...</p>
-                        )}
                       </div>
                     );
                   }
                   if (editMode && key === 'district') {
                     return (
                       <div key={key} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">{LABELS[key] || key}</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          {LABELS[key] || key}
+                          {amphures.length > 0 && (
+                            <span className="ml-2 text-xs font-normal text-gray-500">
+                              ({amphures.length} อำเภอ)
+                            </span>
+                          )}
+                        </label>
                         <select
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white text-gray-900"
                           name="district"
@@ -555,19 +507,25 @@ function CustomerProfilePage() {
                           onChange={handleChange}
                           disabled={!form.province || amphures.length === 0}
                         >
-                          <option value="">เลือกอำเภอ</option>
-                          {amphures.map(a => <option key={a.id} value={a.name_th}>{a.name_th}</option>)}
+                          <option value="">
+                            {!form.province ? 'เลือกจังหวัดก่อน' : amphures.length === 0 ? 'กำลังโหลด...' : 'เลือกอำเภอ'}
+                          </option>
+                          {amphures.map(a => <option key={a.id} value={a.id}>{a.name_th}</option>)}
                         </select>
-                        {form.province && amphures.length === 0 && (
-                          <p className="text-sm text-gray-500">กรุณาเลือกจังหวัดก่อน</p>
-                        )}
                       </div>
                     );
                   }
                   if (editMode && key === 'subdistrict') {
                     return (
                       <div key={key} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">{LABELS[key] || key}</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          {LABELS[key] || key}
+                          {tambons.length > 0 && (
+                            <span className="ml-2 text-xs font-normal text-gray-500">
+                              ({tambons.length} ตำบล)
+                            </span>
+                          )}
+                        </label>
                         <select
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white text-gray-900"
                           name="subdistrict"
@@ -575,12 +533,11 @@ function CustomerProfilePage() {
                           onChange={handleChange}
                           disabled={!form.district || tambons.length === 0}
                         >
-                          <option value="">เลือกตำบล</option>
-                          {tambons.map(t => <option key={t.id} value={t.name_th}>{t.name_th}</option>)}
+                          <option value="">
+                            {!form.district ? 'เลือกอำเภอก่อน' : tambons.length === 0 ? 'กำลังโหลด...' : 'เลือกตำบล'}
+                          </option>
+                          {tambons.map(t => <option key={t.id} value={t.id}>{t.name_th}</option>)}
                         </select>
-                        {form.district && tambons.length === 0 && (
-                          <p className="text-sm text-gray-500">กรุณาเลือกอำเภอก่อน</p>
-                        )}
                       </div>
                     );
                   }
